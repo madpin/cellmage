@@ -25,7 +25,7 @@ class Settings:
                 logger.info("python-dotenv not installed, skipping .env file loading")
         
         # Default settings
-        self.default_model = os.environ.get("CELLMAGE_DEFAULT_MODEL")
+        self.default_model = os.environ.get("CELLMAGE_DEFAULT_MODEL", "gpt-4.1-nano")
         self.default_persona = os.environ.get("CELLMAGE_DEFAULT_PERSONA")
         self.auto_display = self._parse_bool(os.environ.get("CELLMAGE_AUTO_DISPLAY", "true"))
         self.auto_save = self._parse_bool(os.environ.get("CELLMAGE_AUTO_SAVE", "false"))

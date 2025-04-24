@@ -1,40 +1,39 @@
-from dataclasses import dataclass, field
+from pydantic import BaseModel, Field
+from typing import Dict, Optional, Any, List
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Union
+import uuid
 
 
-@dataclass
-class Message:
-    """Represents a single message in a conversation."""
-    
-    role: str  # "system", "user", or "assistant"
+class Message(BaseModel):
+    """Message in a conversation."""
+    role: str
     content: str
-    id: str  # Unique message identifier
-    execution_count: Optional[int] = None  # Cell execution count when created
-    cell_id: Optional[str] = None  # Persistent cell identifier
-    is_snippet: bool = False  # Whether this message was loaded from a snippet
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: datetime = Field(default_factory=datetime.now)
+    execution_count: Optional[int] = None # Environment-specific metadata
+    cell_id: Optional[str] = None         # Environment-specific metadata
+    is_snippet: bool = False              # Whether this message was added from a snippet
+    metadata: Dict[str, Any] = Field(default_factory=dict) # Store information like model, tokens, etc.
+
+    def to_llm_format(self) -> Dict[str, str]:
+        """Converts message to the format expected by LLM clients (e.g., OpenAI)."""
+        # Basic format, might need adjustment based on specific LLM client needs
+        return {"role": self.role, "content": self.content}
 
 
-@dataclass
-class PersonaConfig:
-    """Configuration for a persona/personality."""
-    
-    system_message: str  # System message defining the persona
-    config: Dict[str, Any] = field(default_factory=dict)  # Additional config options
-    source_file: Optional[str] = None  # Source file path
-    original_name: Optional[str] = None  # Original name for display
+class PersonaConfig(BaseModel):
+    """Configuration for an LLM persona."""
+    name: str
+    system_message: str
+    config: Dict[str, Any] = Field(default_factory=dict)
+    source_path: Optional[str] = None
 
 
-@dataclass
-class ConversationMetadata:
-    """Metadata about a saved conversation."""
-    
-    saved_at: datetime = field(default_factory=datetime.now)  # When the conversation was saved
-    total_messages: int = 0  # Total number of messages
-    turns: int = 0  # Number of conversation turns
-    default_model_name: Optional[str] = None  # Model used 
-    default_personality_name: Optional[str] = None  # Personality name used
-    personality_config: Optional[Dict[str, Any]] = None  # Personality config if used
-    execution_counts: List[int] = field(default_factory=list)  # List of execution counts
-    cell_ids_present: int = 0  # Number of cell IDs in the conversation
+class ConversationMetadata(BaseModel):
+    """Metadata for a conversation."""
+    session_id: str
+    saved_at: datetime
+    persona_name: Optional[str] = None
+    model_name: Optional[str] = None
+    total_tokens: Optional[int] = None
 

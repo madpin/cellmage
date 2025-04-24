@@ -26,6 +26,7 @@ dependencies = [
     "requests",
     "yaml",
     "PyYAML",
+    "python-dotenv",
 ]
 license = {file = "LICENSE"}
 
@@ -36,9 +37,6 @@ Changelog = "https://github.com/madpin/cellmage/blob/main/CHANGELOG.md"
 # Documentation = "https://cellmage.readthedocs.io/"
 
 [project.optional-dependencies]
-litellm = [
-    "litellm>=1.30.0"
-]
 langchain = [
     "langchain-core>=0.1.0",
     "langchain-community>=0.1.0"
