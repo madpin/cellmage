@@ -1,85 +1,251 @@
-from typing import Protocol, List, Dict, Any, Optional, Tuple, AsyncGenerator, runtime_checkable
+from abc import ABC, abstractmethod
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
 from .models import Message, PersonaConfig, ConversationMetadata
 
-# Use runtime_checkable for isinstance checks if needed, otherwise optional
-# @runtime_checkable
-class LLMClientInterface(Protocol):
-    """Interface for interacting with an LLM backend."""
-    async def chat_completion(
+# Type definition for a stream callback function
+StreamCallbackHandler = Callable[[str], None]
+
+class LLMClientInterface(ABC):
+    """Interface for LLM client adapters that handle communication with language models."""
+    
+    @abstractmethod
+    def chat(
         self,
-        messages: List[Dict[str, str]], # List of {'role': ..., 'content': ...}
-        model: str,
+        messages: List[Message],
+        model: Optional[str] = None,
         stream: bool = False,
-        api_key: Optional[str] = None, # Allow overriding config
-        api_base: Optional[str] = None, # Allow overriding config
-        **kwargs: Any # Passthrough for temperature, max_tokens, etc.
-    ) -> Any: # Returns response object or async generator for streaming
-        """Sends messages to the LLM and returns the response."""
-        ...
+        stream_callback: Optional[StreamCallbackHandler] = None,
+        **kwargs
+    ) -> Union[str, None]:
+        """
+        Send messages to the LLM and get a response.
+        
+        Args:
+            messages: List of Message objects to send
+            model: Override model to use for this request
+            stream: Whether to stream the response
+            stream_callback: Callback to handle streaming responses
+            **kwargs: Additional parameters for the LLM
+            
+        Returns:
+            The model's response as a string
+        """
+        pass
+    
+    @abstractmethod
+    def set_override(self, key: str, value: Any) -> None:
+        """
+        Set an instance-level override for LLM parameters.
+        
+        Args:
+            key: The parameter name
+            value: The parameter value
+        """
+        pass
+    
+    @abstractmethod
+    def remove_override(self, key: str) -> None:
+        """
+        Remove an instance-level override.
+        
+        Args:
+            key: The parameter name to remove
+        """
+        pass
+    
+    @abstractmethod
+    def clear_overrides(self) -> None:
+        """
+        Remove all instance-level overrides.
+        """
+        pass
+    
+    @abstractmethod
+    def get_overrides(self) -> Dict[str, Any]:
+        """
+        Get the current LLM parameter overrides.
+        
+        Returns:
+            A dictionary of current override parameters
+        """
+        pass
+    
+    @abstractmethod
+    def get_available_models(self) -> List[Dict[str, Any]]:
+        """
+        Fetch available models from the configured endpoint.
+        
+        Returns:
+            List of model dictionaries or empty list if failed
+        """
+        pass
+    
+    @abstractmethod
+    def get_model_info(self, model_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get detailed information about a specific model.
+        
+        Args:
+            model_name: The name of the model to query
+            
+        Returns:
+            Dictionary with model information or None on error
+        """
+        pass
 
-    async def get_available_models(self) -> List[Dict[str, Any]]:
-        """(Optional) Fetches available models from the endpoint."""
-        ...
 
-# @runtime_checkable
-class PersonaLoader(Protocol):
-    """Interface for loading personality configurations."""
-    def load(self, name: str) -> PersonaConfig:
-        """Loads the configuration for the specified persona name."""
-        ...
+class PersonaLoader(ABC):
+    """Interface for loading persona configurations from storage."""
+    
+    @abstractmethod
+    def list_personas(self) -> List[str]:
+        """
+        List available personas.
+        
+        Returns:
+            List of persona names
+        """
+        pass
+    
+    @abstractmethod
+    def get_persona(self, name: str) -> Optional[PersonaConfig]:
+        """
+        Get a persona by name.
+        
+        Args:
+            name: Name of the persona to retrieve
+            
+        Returns:
+            Persona configuration or None if not found
+        """
+        pass
 
-    def list_available(self) -> List[str]:
-        """Lists the names of available personas."""
-        ...
 
-# @runtime_checkable
-class SnippetProvider(Protocol):
-    """Interface for retrieving text snippets."""
-    def get(self, name: str) -> str:
-        """Gets the content of the specified snippet name."""
-        ...
+class SnippetProvider(ABC):
+    """Interface for loading code or content snippets."""
+    
+    @abstractmethod
+    def list_snippets(self) -> List[str]:
+        """
+        List available snippets.
+        
+        Returns:
+            List of snippet names
+        """
+        pass
+    
+    @abstractmethod
+    def get_snippet(self, name: str) -> Optional[str]:
+        """
+        Load a snippet by name.
+        
+        Args:
+            name: Name of the snippet to load
+            
+        Returns:
+            Snippet content or None if not found
+        """
+        pass
 
-    def list_available(self) -> List[str]:
-        """Lists the names of available snippets."""
-        ...
 
-# @runtime_checkable
-class HistoryStore(Protocol):
-    """Interface for saving and loading conversation histories."""
-    def save(self, messages: List[Message], metadata: ConversationMetadata) -> str:
-        """Saves the history and returns an identifier (e.g., file path)."""
-        ...
+class HistoryStore(ABC):
+    """Interface for storing and retrieving conversation history."""
+    
+    @abstractmethod
+    def save_conversation(
+        self,
+        messages: List[Message],
+        metadata: ConversationMetadata,
+        filename: Optional[str] = None
+    ) -> Optional[str]:
+        """
+        Save a conversation to storage.
+        
+        Args:
+            messages: List of messages in the conversation
+            metadata: Metadata about the conversation
+            filename: Optional filename (without extension) to use
+            
+        Returns:
+            Path to the saved file or None on failure
+        """
+        pass
+    
+    @abstractmethod
+    def load_conversation(self, filepath: str) -> Tuple[List[Message], ConversationMetadata]:
+        """
+        Load a conversation from storage.
+        
+        Args:
+            filepath: Path to the conversation file
+            
+        Returns:
+            Tuple of (messages, metadata)
+        """
+        pass
+    
+    @abstractmethod
+    def list_saved_conversations(self) -> List[Dict[str, Any]]:
+        """
+        List available saved conversations.
+        
+        Returns:
+            List of conversation metadata dicts with paths
+        """
+        pass
 
-    def load(self, identifier: str) -> Tuple[List[Message], ConversationMetadata]:
-        """Loads history and metadata using the identifier."""
-        ...
 
-    def list_saved(self) -> List[str]:
-        """Lists identifiers of available saved histories."""
-        ...
-
-# @runtime_checkable
-class ContextProvider(Protocol):
-    """Interface for getting environment-specific context (optional)."""
-    def get_current_context(self) -> Tuple[Optional[int], Optional[str]]:
-        """Returns (execution_count, cell_id) if available, else (None, None)."""
-        ...
-
-# @runtime_checkable
-class StreamCallbackHandler(Protocol):
-    """Interface for handling streaming LLM responses."""
-    def on_stream_start(self) -> None:
-        """Called when the stream begins."""
-        ...
-
-    def on_stream_chunk(self, chunk: str) -> None:
-        """Called for each piece of content received."""
-        ...
-
-    def on_stream_end(self, full_response: str) -> None:
-        """Called when the stream finishes, with the complete response."""
-        ...
-
-    def on_stream_error(self, error: Exception) -> None:
-        """Called if an error occurs during streaming."""
-        ...
+class ContextProvider(ABC):
+    """Interface for providing execution context (cell IDs, etc.)."""
+    
+    @abstractmethod
+    def get_execution_context(self) -> Tuple[Optional[int], Optional[str]]:
+        """
+        Get the current execution context.
+        
+        Returns:
+            Tuple of (execution_count, cell_id)
+        """
+        pass
+    
+    @abstractmethod
+    def display_markdown(self, content: str) -> None:
+        """
+        Display markdown content in the user interface.
+        
+        Args:
+            content: Markdown content to display
+        """
+        pass
+    
+    @abstractmethod
+    def display_response(self, content: str) -> None:
+        """
+        Display an assistant response in the user interface.
+        
+        Args:
+            content: Response content to display
+        """
+        pass
+    
+    @abstractmethod
+    def display_stream_start(self) -> Any:
+        """
+        Set up display for a streaming response.
+        
+        Returns:
+            An object that can be used to update the display
+        """
+        pass
+    
+    @abstractmethod
+    def update_stream(self, display_object: Any, content: str) -> None:
+        """
+        Update a streaming display with new content.
+        
+        Args:
+            display_object: The display object from display_stream_start
+            content: The content to display
+        """
+        pass

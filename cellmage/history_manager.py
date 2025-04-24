@@ -1,138 +1,221 @@
-from typing import List, Optional, Tuple, Dict
-from .models import Message
-from .exceptions import HistoryManagementError
+import uuid
 import logging
+from typing import Dict, List, Optional, Set, Tuple, Any
+from datetime import datetime
 
-logger = logging.getLogger(__name__)
+from .models import Message, ConversationMetadata
+from .interfaces import HistoryStore, ContextProvider
+from .exceptions import HistoryManagementError
 
 class HistoryManager:
-    """Manages the in-memory list of messages for a session, including rollback logic."""
-    _messages: List[Message]
-    _cell_tracking: Dict[str, int] # Maps cell_id -> index of *last* message added by that cell
-
-    def __init__(self, initial_messages: Optional[List[Message]] = None):
-        """Initializes the history manager."""
-        self._messages = initial_messages or []
-        self._cell_tracking = {}
-        self._rebuild_tracking()
-        logger.debug(f"HistoryManager initialized with {len(self._messages)} messages.")
-
-    def add_message(self, message: Message):
-        """Adds a single message and updates cell tracking if applicable."""
-        if not isinstance(message, Message):
-            raise TypeError("Can only add Message objects to history.")
-        self._messages.append(message)
+    """
+    Manages conversation history, including cell ID tracking and rollback for notebook re-execution.
+    
+    Features:
+    - Tracks message history
+    - Associates messages with execution cells
+    - Handles automatic rollback when cells are re-executed
+    - Saves and loads conversations
+    """
+    
+    def __init__(
+        self,
+        history_store: Optional[HistoryStore] = None,
+        context_provider: Optional[ContextProvider] = None
+    ):
+        """
+        Initialize the history manager.
+        
+        Args:
+            history_store: Optional store for saving/loading conversations
+            context_provider: Optional provider for execution context
+        """
+        self.logger = logging.getLogger(__name__)
+        self.history: List[Message] = []
+        self.cell_last_history_index: Dict[str, int] = {}
+        self.history_store = history_store
+        self.context_provider = context_provider
+        self.current_save_path: Optional[str] = None
+        
+    def add_message(self, message: Message) -> None:
+        """
+        Add a message to the history.
+        
+        If a cell ID is provided and it has been seen before, this may trigger
+        a history rollback to handle re-execution of cells in notebooks.
+        
+        Args:
+            message: The message to add
+        """
+        # If message doesn't have execution context, try to get it
+        if (message.execution_count is None or message.cell_id is None) and self.context_provider:
+            exec_count, cell_id = self.context_provider.get_execution_context()
+            if message.execution_count is None:
+                message.execution_count = exec_count
+            if message.cell_id is None:
+                message.cell_id = cell_id
+            
+        # Add the message to history
+        self.history.append(message)
+        
+        # Update cell tracking if we have a cell ID
         if message.cell_id:
-            self._cell_tracking[message.cell_id] = len(self._messages) - 1
-        logger.debug(f"Added message (Role: {message.role}, Cell: {message.cell_id})")
-
-    def add_messages(self, messages: List[Message]):
-        """Adds multiple messages sequentially."""
-        for msg in messages:
-            self.add_message(msg) # Ensures tracking is updated per message
-
-    def get_history(self) -> List[Message]:
-        """Returns a shallow copy of the current message history."""
-        return self._messages[:]
-
-    def set_history(self, messages: List[Message]):
+            current_idx = len(self.history) - 1
+            self.cell_last_history_index[message.cell_id] = current_idx
+            self.logger.debug(f"Updated tracking for cell ID {message.cell_id} to history index {current_idx}")
+            
+        # Clear current save path since history has changed
+        self.current_save_path = None
+        
+    def check_and_rollback(self, cell_id: Optional[str] = None) -> bool:
         """
-        Replaces the entire history and rebuilds tracking.
-        Use with caution, as it bypasses normal addition logic.
-        """
-        if not all(isinstance(m, Message) for m in messages):
-             raise TypeError("Can only set history with a list of Message objects.")
-        self._messages = messages
-        self._rebuild_tracking()
-        logger.info(f"History explicitly set with {len(self._messages)} messages.")
-
-    def clear(self):
-        """Clears all messages and tracking information."""
-        self._messages = []
-        self._cell_tracking = {}
-        logger.info("History cleared.")
-
-    def revert_last_turn(self):
-        """
-        Removes the last user/assistant pair (or single message if history ends unexpectedly).
-        Primarily intended for error recovery during LLM calls.
-        """
-        if not self._messages:
-            logger.debug("Attempted to revert last turn, but history is empty.")
-            return
-
-        # Simple revert strategy: remove last 2 if user/assistant pair, else last 1
-        count_to_remove = 0
-        if len(self._messages) >= 2:
-            if self._messages[-2].role == 'user' and self._messages[-1].role == 'assistant':
-                count_to_remove = 2
-            else:
-                count_to_remove = 1 # Unexpected end, remove just the last one
-        elif len(self._messages) == 1:
-             count_to_remove = 1
-
-        if count_to_remove > 0:
-            self._messages = self._messages[:-count_to_remove]
-            self._rebuild_tracking() # Easiest way to keep tracking consistent
-            logger.info(f"Reverted last {count_to_remove} message(s).")
-        else:
-            logger.debug("Did not revert messages (no clear user/assistant pair at end).")
-
-    def rollback_to_cell(self, cell_id: str) -> bool:
-        """
-        Removes history entries associated with the specified cell_id and any subsequent entries.
-        This handles the case where a cell is re-executed in a notebook.
-
+        Check if a cell is being re-executed and rollback history if needed.
+        
+        Args:
+            cell_id: The cell ID to check, or current cell ID if None
+            
         Returns:
-            bool: True if a rollback occurred (messages were removed), False otherwise.
+            True if history was rolled back, False otherwise
         """
+        if not cell_id and self.context_provider:
+            _, cell_id = self.context_provider.get_execution_context()
+            
         if not cell_id:
-            logger.debug("Rollback requested with no cell_id, ignoring.")
+            self.logger.debug("No cell ID available, skipping rollback check")
             return False
-
-        if cell_id not in self._cell_tracking:
-            logger.debug(f"Rollback requested for cell_id '{cell_id[-8:]}', but not found in tracking.")
-            return False # Cell ID never added messages or was already rolled back
-
-        last_index_for_cell = self._cell_tracking[cell_id]
-        logger.debug(f"Found cell_id '{cell_id[-8:]}' last contributing at index {last_index_for_cell}.")
-
-        # We need to find the index of the *first* message added by this specific cell run.
-        # This is tricky because a cell might add multiple messages (user prompt, snippet, assistant response).
-        # We iterate backwards from the *last* known index for this cell.
-        first_index_for_cell = -1
-        for i in range(last_index_for_cell, -1, -1):
-            if self._messages[i].cell_id == cell_id:
-                first_index_for_cell = i
-            elif self._messages[i].cell_id != cell_id:
-                # We've gone past the messages for this cell run.
-                break
+            
+        # Check if this cell has been executed before
+        if cell_id in self.cell_last_history_index:
+            previous_end_index = self.cell_last_history_index[cell_id]
+            
+            # Only rollback if the previous message is still in history and was from the assistant
+            if 0 <= previous_end_index < len(self.history) and self.history[previous_end_index].role == "assistant":
+                # We need to remove the user message and assistant response for this cell
+                start_index = previous_end_index - 1
+                if start_index >= 0 and self.history[start_index].role == "user":
+                    self.logger.info(f"Cell rerun detected (ID: {cell_id}). Rolling back history from {start_index}.")
+                    
+                    # Remove messages from this cell's previous execution
+                    self.history = self.history[:start_index]
+                    
+                    # Remove cell tracking
+                    del self.cell_last_history_index[cell_id]
+                    
+                    # Clear current save path since history has changed
+                    self.current_save_path = None
+                    
+                    return True
+                    
+        return False
+        
+    def get_history(self) -> List[Message]:
+        """
+        Get a copy of the current history.
+        
+        Returns:
+            A copy of the history list
+        """
+        return self.history.copy()
+        
+    def clear_history(self, keep_system: bool = True) -> None:
+        """
+        Clear the conversation history.
+        
+        Args:
+            keep_system: Whether to keep system messages
+        """
+        if keep_system:
+            # Keep system messages
+            system_messages = [m for m in self.history if m.role == "system"]
+            self.history = system_messages
         else:
-            # If the loop finishes without break, it means all messages from the start
-            # were from this cell (or first_index_for_cell is still -1 if something weird happened).
-            if first_index_for_cell == -1: # Should not happen if cell_id is in tracking
-                 logger.warning(f"Inconsistent state during rollback for cell_id '{cell_id[-8:]}'.")
-                 return False
-
-        rollback_point = first_index_for_cell
-        if rollback_point < len(self._messages):
-            num_removed = len(self._messages) - rollback_point
-            self._messages = self._messages[:rollback_point]
-            self._rebuild_tracking() # Rebuild tracking after modification
-            logger.info(f"Rolled back {num_removed} message(s) due to cell_id '{cell_id[-8:]}'. New history length: {len(self._messages)}.")
+            # Clear all history
+            self.history = []
+            
+        # Clear cell tracking
+        self.cell_last_history_index = {}
+        
+        # Clear current save path since history has changed
+        self.current_save_path = None
+        
+        self.logger.info(f"History cleared. Kept {len(self.history)} system messages." if keep_system else "All history cleared.")
+        
+    def save_conversation(self, filename: Optional[str] = None) -> Optional[str]:
+        """
+        Save the conversation to a file.
+        
+        Args:
+            filename: Optional filename (without extension) to use
+            
+        Returns:
+            Path to the saved file or None on failure
+        """
+        if not self.history_store:
+            self.logger.error("Cannot save: No history store configured")
+            return None
+            
+        if not self.history:
+            self.logger.warning("Cannot save: History is empty")
+            return None
+            
+        # Create metadata
+        execution_counts = sorted(list(set(
+            m.execution_count for m in self.history 
+            if m.execution_count is not None
+        )))
+        cell_ids = [m.cell_id for m in self.history if m.cell_id is not None]
+        
+        metadata = ConversationMetadata(
+            saved_at=datetime.now(),
+            total_messages=len(self.history),
+            turns=len([m for m in self.history if m.role == "user"]),
+            execution_counts=execution_counts,
+            cell_ids_present=len(set(cell_ids))
+        )
+        
+        try:
+            # Save using the history store
+            self.current_save_path = self.history_store.save_conversation(
+                messages=self.history,
+                metadata=metadata,
+                filename=filename
+            )
+            return self.current_save_path
+        except Exception as e:
+            self.logger.error(f"Error saving conversation: {e}")
+            return None
+            
+    def load_conversation(self, filepath: str) -> bool:
+        """
+        Load a conversation from a file.
+        
+        Args:
+            filepath: Path to the conversation file
+            
+        Returns:
+            True if successfully loaded, False otherwise
+        """
+        if not self.history_store:
+            self.logger.error("Cannot load: No history store configured")
+            return False
+            
+        try:
+            # Load using the history store
+            messages, metadata = self.history_store.load_conversation(filepath)
+            
+            # Replace current history with loaded messages
+            self.history = messages
+            
+            # Clear cell tracking since the cell IDs in the loaded conversation
+            # might not be relevant to the current session
+            self.cell_last_history_index = {}
+            
+            # Set current save path
+            self.current_save_path = filepath
+            
+            self.logger.info(f"Loaded conversation from {filepath} with {len(messages)} messages")
             return True
-        else:
-            # This case means the cell was the very last thing, and no messages followed.
-            # Technically no rollback needed, but log for clarity.
-            logger.debug(f"Cell_id '{cell_id[-8:]}' was the last contributor, no subsequent messages to roll back.")
+        except Exception as e:
+            self.logger.error(f"Error loading conversation: {e}")
             return False
-
-    def _rebuild_tracking(self):
-        """Internal helper to rebuild the cell_id -> last_index mapping."""
-        self._cell_tracking = {}
-        for i, msg in enumerate(self._messages):
-            if msg.cell_id:
-                # Store the latest index found for each cell_id
-                self._cell_tracking[msg.cell_id] = i
-        logger.debug(f"Cell tracking rebuilt. Tracking {len(self._cell_tracking)} unique cell IDs.")
 

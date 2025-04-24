@@ -1,157 +1,198 @@
-import yaml
-from pathlib import Path
-from typing import List, Dict, Any, Tuple
+import os
 import logging
-import re
+import yaml
+from typing import Dict, List, Optional, Any
 
-from ..interfaces import PersonaLoader, SnippetProvider
 from ..models import PersonaConfig
-from ..exceptions import ResourceNotFoundError, ConfigurationError
+from ..interfaces import PersonaLoader, SnippetProvider
+from ..exceptions import ResourceNotFoundError
 
-logger = logging.getLogger(__name__)
-
-# Regex to find YAML frontmatter
-YAML_FRONT_MATTER_REGEX = re.compile(r"^\s*---\s*\n(.*?\n?)\s*---\s*\n", re.DOTALL | re.MULTILINE)
-
-def _parse_markdown_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:
-    """Extracts YAML frontmatter and main content from markdown text."""
-    match = YAML_FRONT_MATTER_REGEX.match(content)
-    if match:
-        try:
-            frontmatter = yaml.safe_load(match.group(1))
-            if not isinstance(frontmatter, dict):
-                frontmatter = {} # Ignore if YAML is not a dictionary
-            main_content = content[match.end():].strip()
-            return frontmatter, main_content
-        except yaml.YAMLError as e:
-            logger.warning(f"Failed to parse YAML frontmatter: {e}. Treating as plain text.")
-            # Fall through to return empty frontmatter and original content
-    return {}, content.strip() # No frontmatter found or parse error
 
 class FileLoader(PersonaLoader, SnippetProvider):
-    """Loads Personas and Snippets from files in specified directories."""
-
-    def __init__(self, personas_base_dir: Path, snippets_base_dir: Path):
+    """
+    Loads personas and snippets from markdown files.
+    
+    Implements both PersonaLoader and SnippetProvider interfaces.
+    """
+    
+    def __init__(self, personas_dir: str = "llm_personas", snippets_dir: str = "snippets"):
         """
-        Initializes the FileLoader.
-
+        Initialize the file loader.
+        
         Args:
-            personas_base_dir: The directory containing persona markdown files.
-            snippets_base_dir: The directory containing snippet files (markdown or text).
+            personas_dir: Directory containing persona markdown files
+            snippets_dir: Directory containing snippet markdown files
         """
-        self.personas_dir = Path(personas_base_dir)
-        self.snippets_dir = Path(snippets_base_dir)
+        self.personas_dir = personas_dir
+        self.snippets_dir = snippets_dir
+        self.logger = logging.getLogger(__name__)
+        
+        # Ensure directories exist
+        for directory in [self.personas_dir, self.snippets_dir]:
+            try:
+                os.makedirs(directory, exist_ok=True)
+                self.logger.info(f"Directory setup: {os.path.abspath(directory)}")
+            except OSError as e:
+                self.logger.error(f"Error creating directory '{directory}': {e}")
 
-        if not self.personas_dir.is_dir():
-            logger.warning(f"Personas directory not found: {self.personas_dir}. Creating it.")
-            self.personas_dir.mkdir(parents=True, exist_ok=True) # Attempt to create
-            # raise ConfigurationError(f"Personas directory not found: {self.personas_dir}")
-
-        if not self.snippets_dir.is_dir():
-            logger.warning(f"Snippets directory not found: {self.snippets_dir}. Creating it.")
-            self.snippets_dir.mkdir(parents=True, exist_ok=True) # Attempt to create
-            # raise ConfigurationError(f"Snippets directory not found: {self.snippets_dir}")
-
-        logger.info(f"FileLoader initialized. Personas: '{self.personas_dir}', Snippets: '{self.snippets_dir}'")
-
-    # --- PersonaLoader Implementation ---
-
-    def load(self, name: str) -> PersonaConfig:
+    def list_personas(self) -> List[str]:
         """
-        Loads a persona from a markdown file.
-        The filename (without extension) is used as the name.
-        YAML frontmatter provides llm_params, the rest is the system_prompt.
+        List available personas.
+        
+        Returns:
+            List of persona names (without .md extension)
         """
-        persona_path = self.personas_dir / f"{name}.md"
-        logger.debug(f"Attempting to load persona '{name}' from {persona_path}")
-
-        if not persona_path.is_file():
-            raise ResourceNotFoundError("persona", name)
-
         try:
-            content = persona_path.read_text(encoding='utf-8')
-            frontmatter, system_prompt = _parse_markdown_frontmatter(content)
-
-            # Ensure system_prompt is not None if file is empty after frontmatter
-            system_prompt = system_prompt or ""
-
-            # Basic validation (can be expanded)
-            if not isinstance(frontmatter, dict):
-                 logger.warning(f"Invalid frontmatter format in {persona_path}, expected dict, got {type(frontmatter)}. Ignoring params.")
-                 frontmatter = {}
-
-            persona_config = PersonaConfig(
-                name=name,
-                system_prompt=system_prompt,
-                llm_params=frontmatter, # Pass the whole dict
-                source_path=str(persona_path)
+            if not os.path.isdir(self.personas_dir):
+                self.logger.warning(f"Personas directory not found: {os.path.abspath(self.personas_dir)}")
+                return []
+                
+            personas = []
+            for filename in os.listdir(self.personas_dir):
+                if filename.lower().endswith(".md"):
+                    name = os.path.splitext(filename)[0]
+                    personas.append(name)
+            return sorted(personas)
+        except Exception as e:
+            self.logger.error(f"Error listing personas: {e}")
+            return []
+            
+    def get_persona(self, name: str) -> Optional[PersonaConfig]:
+        """
+        Load a persona configuration from a markdown file.
+        
+        Args:
+            name: Name of the persona (without .md extension)
+            
+        Returns:
+            PersonaConfig object or None if not found
+        """
+        # Case insensitive matching
+        name_lower = name.lower()
+        
+        # First try exact filename match
+        filepath = os.path.join(self.personas_dir, f"{name}.md")
+        if os.path.isfile(filepath):
+            return self._load_persona_file(filepath, name)
+            
+        # Otherwise try case-insensitive match
+        try:
+            if not os.path.isdir(self.personas_dir):
+                self.logger.warning(f"Personas directory not found: {os.path.abspath(self.personas_dir)}")
+                return None
+                
+            for filename in os.listdir(self.personas_dir):
+                if filename.lower().endswith(".md"):
+                    file_name_base = os.path.splitext(filename)[0]
+                    if file_name_base.lower() == name_lower:
+                        filepath = os.path.join(self.personas_dir, filename)
+                        return self._load_persona_file(filepath, file_name_base)
+                        
+            self.logger.warning(f"Persona '{name}' not found in {self.personas_dir}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Error getting persona '{name}': {e}")
+            return None
+            
+    def _load_persona_file(self, filepath: str, original_name: str) -> Optional[PersonaConfig]:
+        """
+        Parse a markdown file into a PersonaConfig object.
+        
+        Args:
+            filepath: Path to the markdown file
+            original_name: Original name of the persona
+            
+        Returns:
+            PersonaConfig object or None if parsing fails
+        """
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                content = f.read()
+                
+            # Manual YAML frontmatter parsing
+            config = {}
+            system_message = ""
+            
+            if content.startswith("---"):
+                # Find the closing --- marker
+                parts = content[3:].split("---", 1)
+                if len(parts) >= 2:
+                    yaml_part = parts[0].strip()
+                    try:
+                        config = yaml.safe_load(yaml_part) or {}
+                        system_message = parts[1].strip()
+                    except Exception as yaml_err:
+                        self.logger.error(f"Error parsing YAML frontmatter: {yaml_err}")
+                        system_message = content.strip()
+                else:
+                    # No closing --- found, treat whole content as system message
+                    system_message = content.strip()
+            else:
+                # No frontmatter, treat whole content as system message
+                system_message = content.strip()
+                
+            abs_filepath = os.path.abspath(filepath)
+            self.logger.debug(f"Loaded persona '{original_name}' from {abs_filepath}")
+            
+            return PersonaConfig(
+                system_message=system_message,
+                config=config,
+                source_file=abs_filepath,
+                original_name=original_name
             )
-            logger.info(f"Successfully loaded persona '{name}'.")
-            return persona_config
-
-        except FileNotFoundError: # Should be caught by is_file() check, but defensive
-             raise ResourceNotFoundError("persona", name) from None
         except Exception as e:
-            logger.exception(f"Failed to load or parse persona file: {persona_path}")
-            raise ConfigurationError(f"Error loading persona '{name}': {e}") from e
-
-    def list_available(self) -> List[str]:
-        """Lists available persona names (markdown filenames without extension)."""
-        if not self.personas_dir.exists():
-             logger.warning(f"Cannot list personas, directory does not exist: {self.personas_dir}")
-             return []
-        try:
-            return sorted([p.stem for p in self.personas_dir.glob("*.md") if p.is_file()])
-        except Exception as e:
-             logger.exception(f"Failed to list files in personas directory: {self.personas_dir}")
-             return []
-
-    # --- SnippetProvider Implementation ---
-
-    def get(self, name: str) -> str:
+            self.logger.error(f"Error loading persona file '{filepath}': {e}")
+            return None
+            
+    def list_snippets(self) -> List[str]:
         """
-        Gets the content of a snippet file. Tries .md then .txt extension.
+        List available snippets.
+        
+        Returns:
+            List of snippet names (without .md extension)
         """
-        snippet_path_md = self.snippets_dir / f"{name}.md"
-        snippet_path_txt = self.snippets_dir / f"{name}.txt"
-        snippet_path = None
-
-        if snippet_path_md.is_file():
-             snippet_path = snippet_path_md
-        elif snippet_path_txt.is_file():
-             snippet_path = snippet_path_txt
-        else:
-             # Check for name without extension directly
-             direct_path = self.snippets_dir / name
-             if direct_path.is_file():
-                  snippet_path = direct_path
-             else:
-                  raise ResourceNotFoundError("snippet", name)
-
-        logger.debug(f"Attempting to load snippet '{name}' from {snippet_path}")
         try:
-            content = snippet_path.read_text(encoding='utf-8')
-            logger.info(f"Successfully loaded snippet '{name}'.")
-            return content.strip() # Return stripped content
-        except FileNotFoundError: # Defensive
-             raise ResourceNotFoundError("snippet", name) from None
+            if not os.path.isdir(self.snippets_dir):
+                self.logger.warning(f"Snippets directory not found: {os.path.abspath(self.snippets_dir)}")
+                return []
+                
+            snippets = []
+            for filename in os.listdir(self.snippets_dir):
+                if filename.lower().endswith(".md"):
+                    name = os.path.splitext(filename)[0]
+                    snippets.append(name)
+            return sorted(snippets)
         except Exception as e:
-            logger.exception(f"Failed to read snippet file: {snippet_path}")
-            raise ConfigurationError(f"Error loading snippet '{name}': {e}") from e
-
-    def list_available(self) -> List[str]:
-        """Lists available snippet names (filenames without extension)."""
-        if not self.snippets_dir.exists():
-             logger.warning(f"Cannot list snippets, directory does not exist: {self.snippets_dir}")
-             return []
+            self.logger.error(f"Error listing snippets: {e}")
+            return []
+            
+    def get_snippet(self, name: str) -> Optional[str]:
+        """
+        Load a snippet from a markdown file.
+        
+        Args:
+            name: Name of the snippet (without .md extension)
+            
+        Returns:
+            Snippet content as string or None if not found
+        """
+        # Add .md extension if not provided
+        if not name.lower().endswith(".md"):
+            name += ".md"
+            
+        filepath = os.path.join(self.snippets_dir, name)
+        
         try:
-            # List both .md and .txt files, removing extension
-            md_files = {p.stem for p in self.snippets_dir.glob("*.md") if p.is_file()}
-            txt_files = {p.stem for p in self.snippets_dir.glob("*.txt") if p.is_file()}
-            # Consider listing files without extensions too? For now, stick to .md/.txt
-            # other_files = {p.name for p in self.snippets_dir.glob("*") if p.is_file() and not p.suffix in ['.md', '.txt']}
-            return sorted(list(md_files.union(txt_files))) # .union(other_files)
+            if not os.path.isfile(filepath):
+                self.logger.warning(f"Snippet '{name}' not found at {filepath}")
+                return None
+                
+            with open(filepath, "r", encoding="utf-8") as f:
+                content = f.read()
+                
+            self.logger.debug(f"Loaded snippet '{name}' from {filepath}")
+            return content
         except Exception as e:
-             logger.exception(f"Failed to list files in snippets directory: {self.snippets_dir}")
-             return []
+            self.logger.error(f"Error loading snippet '{name}': {e}")
+            return None
 

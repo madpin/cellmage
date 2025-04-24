@@ -42,7 +42,21 @@ def get_default_manager():
         try:
             # Import components needed for the default setup
             from .config import settings
-            from .adapters.llm_client import LiteLLMAdapter
+            
+            # Try to import DirectLLMAdapter first (preferred), fall back to LiteLLM if not available
+            try:
+                from .adapters.direct_client import DirectLLMAdapter
+                adapter_class = DirectLLMAdapter
+            except ImportError:
+                # Fall back to LiteLLMAdapter if DirectLLMAdapter is not available
+                try:
+                    from .adapters.llm_client import LiteLLMAdapter
+                    adapter_class = LiteLLMAdapter
+                except ImportError:
+                    raise ConfigurationError(
+                        "No LLM adapter available. Please install required dependencies."
+                    )
+            
             from .resources.file_loader import FileLoader
             from .storage.markdown_store import MarkdownStore
             try:
@@ -54,7 +68,7 @@ def get_default_manager():
 
             loader = FileLoader(settings.personas_dir, settings.snippets_dir)
             store = MarkdownStore(settings.save_dir)
-            client = LiteLLMAdapter()
+            client = adapter_class()
 
             _default_manager_instance = ChatManager(
                 settings=settings,

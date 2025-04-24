@@ -1,39 +1,72 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import DirectoryPath, Field, HttpUrl
-from typing import Optional
-import warnings
-from pathlib import Path
+import os
+import logging
+from typing import Dict, Optional, Any
 
-class Settings(BaseSettings):
-    """Manages application settings via environment variables, .env file, or defaults."""
-    api_key: Optional[str] = Field(None, validation_alias='NBLLM_API_KEY')
-    api_base: Optional[str] = Field(None, validation_alias='NBLLM_API_BASE') # Changed to str to avoid early validation issues if URL is complex/local
-    log_level: str = Field("INFO", validation_alias='NBLLM_LOG_LEVEL')
-    personas_dir: Path = Field("llm_personas", validation_alias='NBLLM_PERSONAS_DIR')
-    save_dir: Path = Field("llm_conversations", validation_alias='NBLLM_SAVE_DIR')
-    snippets_dir: Path = Field("snippets", validation_alias='NBLLM_SNIPPETS_DIR')
+logger = logging.getLogger(__name__)
 
-    # Default model to use if not specified by persona, override, or call
-    default_model_name: Optional[str] = Field(None, validation_alias='NBLLM_DEFAULT_MODEL')
+class Settings:
+    """
+    Configuration settings for the application.
+    
+    Loads settings from environment variables with the CELLMAGE_ prefix.
+    """
+    
+    def __init__(self):
+        """Initialize settings from environment."""
+        # Try to load from .env file if available and not skipped
+        if os.environ.get("CELLMAGE_SKIP_DOTENV") != "1":
+            try:
+                from dotenv import load_dotenv
+                if load_dotenv():
+                    logger.info("Loaded environment variables from .env file")
+                else:
+                    logger.info("No .env file found or it was empty")
+            except ImportError:
+                logger.info("python-dotenv not installed, skipping .env file loading")
+        
+        # Default settings
+        self.default_model = os.environ.get("CELLMAGE_DEFAULT_MODEL")
+        self.default_persona = os.environ.get("CELLMAGE_DEFAULT_PERSONA")
+        self.auto_display = self._parse_bool(os.environ.get("CELLMAGE_AUTO_DISPLAY", "true"))
+        self.auto_save = self._parse_bool(os.environ.get("CELLMAGE_AUTO_SAVE", "false"))
+        self.autosave_file = os.environ.get("CELLMAGE_AUTOSAVE_FILE", "autosaved_conversation")
+        self.personas_dir = os.environ.get("CELLMAGE_PERSONAS_DIR", "llm_personas")
+        self.snippets_dir = os.environ.get("CELLMAGE_SNIPPETS_DIR", "snippets")
+        self.conversations_dir = os.environ.get("CELLMAGE_CONVERSATIONS_DIR", "llm_conversations")
+        
+        # Logging settings
+        self.log_level = os.environ.get("CELLMAGE_LOG_LEVEL", "INFO").upper()
+        self.log_file = os.environ.get("CELLMAGE_LOG_FILE", "cellmage.log")
+    
+    def update(self, **kwargs) -> None:
+        """
+        Update settings with new values.
+        
+        Args:
+            **kwargs: Settings to update
+        """
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+                logger.debug(f"Updated setting {key} = {value}")
+            else:
+                logger.warning(f"Unknown setting: {key}")
+    
+    def _parse_bool(self, value: Optional[str]) -> bool:
+        """
+        Parse a string as a boolean.
+        
+        Args:
+            value: String value to parse
+            
+        Returns:
+            Boolean value
+        """
+        if value is None:
+            return False
+        return value.lower() in ("true", "1", "yes", "y", "t")
 
-    # Configuration for Pydantic Settings
-    model_config = SettingsConfigDict(
-        env_file='.env',          # Load .env file if present
-        env_file_encoding='utf-8',
-        extra='ignore'            # Ignore extra fields from env/file
-    )
 
-# Singleton instance, loaded once on import
-try:
-    settings = Settings()
-
-    # Create directories if they don't exist after loading settings
-    settings.personas_dir.mkdir(parents=True, exist_ok=True)
-    settings.save_dir.mkdir(parents=True, exist_ok=True)
-    settings.snippets_dir.mkdir(parents=True, exist_ok=True)
-
-except Exception as e:
-    warnings.warn(f"Could not automatically create settings directories: {e}")
-    # Allow execution to continue, components should handle missing dirs later if needed
-    settings = Settings() # Load again to have a default object
+# Create a global settings instance
+settings = Settings()
 

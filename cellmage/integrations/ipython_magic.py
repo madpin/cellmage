@@ -93,163 +93,227 @@ def get_chat_manager() -> ChatManager:
 # --- IPython Specific Implementations ---
 
 class IPythonContextProvider(ContextProvider):
-    """Provides execution context from the IPython environment."""
-    def get_current_context(self) -> Tuple[Optional[int], Optional[str]]:
-        """Returns (execution_count, cell_id) if available, else (None, None)."""
-        ipython = get_ipython()
-        if not ipython or not hasattr(ipython, 'kernel') or not ipython.kernel:
-            logger.debug("IPython environment or kernel not available for context.")
-            return None, None
-
-        # Safer access to execution_count
-        exec_count = getattr(ipython, 'execution_count', None)
-
-        # Cell ID detection logic (refined)
-        cell_id: Optional[str] = None
-        try:
-            # Access parent_header safely
-            parent_header = getattr(ipython.kernel.shell, 'parent_header', None)
-            if not parent_header or not isinstance(parent_header, dict):
-                 logger.debug("Could not retrieve parent_header for cell ID.")
-                 return exec_count, None
-
-            # Look in standard metadata locations first
-            metadata = parent_header.get("metadata", {})
-            if isinstance(metadata, dict):
-                # Prioritize known keys
-                potential_keys = ["cellId", "vscode_cell_id", "google_colab_cell_id"]
-                for key in potential_keys:
-                    cell_id = metadata.get(key)
-                    if isinstance(cell_id, str) and cell_id: break # Found one
-                else: # If loop finishes without break
-                    cell_id = None # Ensure cell_id is None if not found in standard keys
-
-                # Check nested metadata structures if not found yet
-                if not cell_id and isinstance(metadata.get("metadata"), dict): # General nested
-                    for key in potential_keys:
-                        cell_id = metadata["metadata"].get(key)
-                        if isinstance(cell_id, str) and cell_id: break
-                    else: cell_id = None
-
-                if not cell_id and isinstance(metadata.get("colab"), dict): # Colab specific nested
-                    cell_id = metadata["colab"].get("cell_id") # More specific key for Colab
-
-            # Fallback for VSCode specific format if still not found
-            # Check both header and metadata values for the prefix
-            if not cell_id:
-                 search_pools = [parent_header, metadata]
-                 for pool in search_pools:
-                      if not isinstance(pool, dict): continue
-                      for value in pool.values():
-                           if isinstance(value, str) and value.startswith("vscode-notebook-cell:"):
-                                cell_id = value
-                                break
-                      if cell_id: break
-
-            if cell_id:
-                 logger.debug(f"Detected Cell ID: ...{cell_id[-8:]}")
-            else:
-                 logger.debug("Could not detect Cell ID from metadata.")
-
-        except Exception as e:
-            logger.warning(f"Error detecting Cell ID: {e}", exc_info=False)
-            cell_id = None # Ensure None on error
-
-        return exec_count, cell_id
-
-class IPythonStreamHandler(StreamCallbackHandler):
-    """Handles streaming output directly to IPython display, updating a single area."""
+    """
+    Provides execution context from IPython/Jupyter environments.
+    
+    Handles cell IDs, execution counts, and displaying responses.
+    """
+    
+    # Potential metadata keys where cell IDs might be found
+    _POTENTIAL_CELL_ID_KEYS = [
+        "cellId",
+        "vscode_cell_id",
+        "google_colab_cell_id",
+        "metadata"
+    ]
+    
     def __init__(self):
-        self._display_id = str(uuid.uuid4())
-        self._display_handle = None
-        self._buffer = ""
-        self._started = False
-        self._final_content_displayed = False
-        logger.debug(f"IPythonStreamHandler created with display_id: {self._display_id}")
-
-    def on_stream_start(self) -> None:
-        """Initializes the display area."""
-        self._buffer = ""
-        self._final_content_displayed = False
+        """Initialize the IPython context provider."""
+        self.logger = logging.getLogger(__name__)
+        
+        if not _IPYTHON_AVAILABLE:
+            self.logger.warning("IPython not available, some features will be limited.")
+            
+    def get_execution_context(self) -> Tuple[Optional[int], Optional[str]]:
+        """
+        Get the current execution context.
+        
+        Returns:
+            Tuple of (execution_count, cell_id)
+        """
+        exec_count: Optional[int] = None
+        cell_id: Optional[str] = None
+        
+        if not _IPYTHON_AVAILABLE:
+            self.logger.debug("IPython not available, cannot get execution context.")
+            return exec_count, cell_id
+            
         try:
-            # Create an initial display area with a placeholder
-            self._display_handle = display(Markdown("```text\nAssistant (streaming)...\n```"), display_id=self._display_id, raw=True)
-            self._started = True
-            logger.debug(f"Stream display started (ID: {self._display_id}).")
+            ipython = get_ipython()
+            if not ipython:
+                self.logger.debug("Not running in an IPython environment.")
+                return exec_count, cell_id  # Not in IPython
+                
+            # Get Execution Count
+            if hasattr(ipython, "execution_count"):
+                exec_count = ipython.execution_count
+                
+            # Get Cell ID by examining various metadata locations
+            if (
+                hasattr(ipython, "kernel")
+                and hasattr(ipython.kernel, "shell")
+                and hasattr(ipython.kernel.shell, "parent_header")
+                and isinstance(ipython.kernel.shell.parent_header, dict)
+            ):
+                # Initial metadata sources to search
+                metadata = ipython.kernel.shell.parent_header.get("metadata", {})
+                search_pools = [ipython.kernel.shell.parent_header, metadata]
+                
+                # Add nested metadata sources
+                if isinstance(metadata.get("metadata"), dict):
+                    search_pools.append(metadata["metadata"])
+                if isinstance(metadata.get("colab"), dict):
+                    search_pools.append(metadata["colab"])
+                    
+                # Search for cell ID in all possible locations
+                found_id = False
+                for pool in search_pools:
+                    if not isinstance(pool, dict):
+                        continue
+                    
+                    # Check known cell ID keys
+                    for key in self._POTENTIAL_CELL_ID_KEYS:
+                        potential_id = pool.get(key)
+                        if isinstance(potential_id, str) and potential_id:
+                            cell_id = potential_id
+                            found_id = True
+                            break
+                    
+                    # Look for VS Code specific cell ID format
+                    if not found_id:
+                        for value in pool.values():
+                            if isinstance(value, str) and value.startswith("vscode-notebook-cell:"):
+                                cell_id = value
+                                found_id = True
+                                break
+                                
+                    if found_id:
+                        break
+                        
+                if cell_id:
+                    self.logger.debug(f"Detected Cell ID: {cell_id}")
+                else:
+                    self.logger.debug("Could not detect cell ID")
         except Exception as e:
-             logger.exception(f"Failed to create initial display for stream (ID: {self._display_id}).")
-             self._started = False # Mark as not started if display fails
-
-    def on_stream_chunk(self, chunk: str) -> None:
-        """Updates the display area with new content."""
-        if not self._started or not self._display_handle:
-            logger.warning("Stream chunk received but display not started or handle lost.")
-            return # Don't try to update if display setup failed
-
-        self._buffer += chunk
-        # Update the display area with accumulated content, formatted as markdown code block
-        # Using raw=True to prevent potential markdown interpretation issues with partial code/text
-        # Escape triple backticks within the buffer to avoid breaking the markdown block
-        escaped_buffer = self._buffer.replace("```", "` ``")
-        try:
-            update_display(Markdown(f"```text\n{escaped_buffer}\n```"), display_id=self._display_id, raw=True)
-        except Exception as e:
-             # Log error but don't stop stream processing
-             logger.warning(f"Failed to update display for stream chunk (ID: {self._display_id}): {e}")
-
-    def on_stream_end(self, full_response: str) -> None:
-        """Final update to the display area with the complete response."""
-        if not self._started or not self._display_handle:
-             # If display setup failed, print final response as fallback
-             logger.warning("Stream ended but display not started. Printing final response.")
-             print("\n--- Assistant Response (Stream End) ---")
-             print(full_response)
-             print("--------------------------------------")
-             self._final_content_displayed = True
-             return
-
-        # Final update with proper markdown formatting (not just text block)
-        try:
-            update_display(Markdown(f"**Assistant:**\n{full_response}"), display_id=self._display_id, raw=True)
-            self._final_content_displayed = True
-            logger.debug(f"Stream display finished (ID: {self._display_id}).")
-        except Exception as e:
-             logger.exception(f"Failed to make final update to display for stream (ID: {self._display_id}). Printing fallback.")
-             print("\n--- Assistant Response (Stream End - Display Error) ---")
-             print(full_response)
-             print("-------------------------------------------------------")
-             self._final_content_displayed = True # Mark as displayed even if fallback used
-
-        self._started = False # Reset state
-
-    def on_stream_error(self, error: Exception) -> None:
-        """Displays the error in the designated display area or prints it."""
-        logger.error(f"Streaming error occurred: {error}")
-        error_html = f"""
-        <div style="border: 1px solid red; color: red; background-color: #ffebee; padding: 10px; margin-top: 5px; border-radius: 4px;">
-        <strong>Streaming Error:</strong><br><pre style="white-space: pre-wrap; word-wrap: break-word;">{error}</pre>
+            self.logger.warning(f"Error fetching execution context: {e}")
+            
+        return exec_count, cell_id
+        
+    def display_markdown(self, content: str) -> None:
+        """
+        Display markdown content.
+        
+        Args:
+            content: Markdown content to display
+        """
+        if _IPYTHON_AVAILABLE:
+            try:
+                display(Markdown(content))
+            except Exception as e:
+                self.logger.error(f"Error displaying markdown: {e}")
+                print(content)  # Fallback to print
+        else:
+            print(content)
+            
+    def display_response(self, content: str) -> None:
+        """
+        Display an assistant response.
+        
+        Args:
+            content: Response content to display
+        """
+        if _IPYTHON_AVAILABLE:
+            try:
+                display(Markdown(f"**Assistant:**\n{content}"))
+            except Exception as e:
+                self.logger.error(f"Error displaying response: {e}")
+                print(f"Assistant:\n{content}")  # Fallback to print
+        else:
+            print(f"Assistant:\n{content}")
+            
+    def display_stream_start(self) -> Any:
+        """
+        Set up display for a streaming response.
+        
+        Returns:
+            Display object for updating the stream
+        """
+        if _IPYTHON_AVAILABLE:
+            try:
+                return display(Markdown("**Assistant (Streaming):**\n"), display_id=True)
+            except Exception as e:
+                self.logger.error(f"Error setting up stream display: {e}")
+                print("Assistant (Streaming): ", end="", flush=True)
+                return None
+        else:
+            print("Assistant (Streaming): ", end="", flush=True)
+            return None
+            
+    def update_stream(self, display_object: Any, content: str) -> None:
+        """
+        Update a streaming display with new content.
+        
+        Args:
+            display_object: The display object from display_stream_start
+            content: The content to display
+        """
+        if _IPYTHON_AVAILABLE and display_object:
+            try:
+                display_object.update(Markdown(f"**Assistant:**\n{content}"))
+            except Exception as e:
+                self.logger.error(f"Error updating stream display: {e}")
+                print(content, end="", flush=True)
+        else:
+            print(content, end="", flush=True)
+            
+    def display_status(self, success: bool, duration: float, tokens_in: int, tokens_out: int, cost_mili_cents: int) -> None:
+        """
+        Display a status bar with information about the LLM call.
+        
+        Args:
+            success: Whether the call succeeded
+            duration: Time taken in seconds
+            tokens_in: Number of input tokens
+            tokens_out: Number of output tokens
+            cost_mili_cents: Cost in millicents
+        """
+        # Determine display cost unit based on the value
+        if cost_mili_cents < 100000:
+            cost_str = f"{cost_mili_cents / 1000:.2f} cents"
+        else:
+            cost_str = f"{cost_mili_cents / 100000:.2f} USD"
+            
+        # Set status appearance based on success
+        if success:
+            status_text = (
+                f"✅ Success! Ran in {duration:.2f}s. "
+                f"Tokens In: {tokens_in}, Tokens Out: {tokens_out}, Cost: {cost_str}"
+            )
+            bg_color = "#2e7d32"  # Dark green
+            border_color = "#1b5e20"  # Darker green
+            text_color = "#ffffff"  # White
+        else:
+            status_text = (
+                f"⚠️ Warning! Ran in {duration:.2f}s. "
+                f"Tokens In: {tokens_in}, Tokens Out: {tokens_out}, Cost: {cost_str}"
+            )
+            bg_color = "#c62828"  # Dark red
+            border_color = "#8e0000"  # Darker red
+            text_color = "#ffffff"  # White
+            
+        # Create HTML for status bar
+        status_html = f"""
+        <div style="
+            background-color: {bg_color};
+            border: 1px solid {border_color};
+            color: {text_color};
+            padding: 8px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-family: sans-serif;
+        ">
+            {status_text}
         </div>
         """
-        if self._started and self._display_handle and not self._final_content_displayed:
-            # Update the display area to show the error
+        
+        if _IPYTHON_AVAILABLE:
             try:
-                update_display(HTML(error_html), display_id=self._display_id, raw=True)
-                self._final_content_displayed = True # Error message replaces content
+                display(HTML(status_html))
             except Exception as e:
-                 logger.exception(f"Failed to update display with stream error (ID: {self._display_id}). Printing fallback.")
-                 print(f"\nStreaming Error: {error}")
-                 self._final_content_displayed = True
-        elif not self._final_content_displayed:
-            # Fallback to printing the error if display wasn't set up or already finalized
-            print(f"\nStreaming Error: {error}")
-            # Display the formatted HTML error as a fallback if possible
-            try:
-                 display(HTML(error_html), raw=True)
-                 self._final_content_displayed = True
-            except Exception:
-                 pass # Ignore if display fails here too
-
-        self._started = False # Reset state
+                self.logger.error(f"Error displaying status: {e}")
+                print(status_text)  # Fallback to print
+        else:
+            print(status_text)
 
 # --- Magic Class ---
 
