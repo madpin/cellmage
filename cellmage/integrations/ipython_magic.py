@@ -47,7 +47,7 @@ def _init_default_manager() -> ChatManager:
     try:
         # Import necessary components dynamically only if needed
         from ..config import settings
-        from ..adapters.llm_client import LiteLLMAdapter
+        from ..adapters.direct_client import DirectLLMAdapter
         from ..resources.file_loader import FileLoader # Default file-based loaders
         from ..storage.markdown_store import MarkdownStore # Default markdown store
 
@@ -57,7 +57,7 @@ def _init_default_manager() -> ChatManager:
         # Error handling for directory access/creation happens in components now
         loader = FileLoader(settings.personas_dir, settings.snippets_dir)
         store = MarkdownStore(settings.save_dir)
-        client = LiteLLMAdapter() # Relies on settings/env vars
+        client = DirectLLMAdapter() # Relies on settings/env vars
         context_provider = IPythonContextProvider() # Provide IPython context
 
         manager = ChatManager(

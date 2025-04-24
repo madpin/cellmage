@@ -20,7 +20,7 @@ CellMage isn't *actual* magic, but it feels pretty close:
 * ✨ **Intuitive Spellcasting:** Use the `%%llm` cell magic. Write your prompt, run the cell, and *poof* – the LLM's response appears!
 * 📜 **Arcane History Scrolls:** CellMage remembers your conversation. Even better, it detects when you re-run a cell and cleverly avoids duplicating history. Like turning back time, but less paradoxical!
 * 🔮 **Persona Grimoires:** Define different LLM "personalities" (system prompts + configs) in simple Markdown files. Need a Python expert? A terse code generator? A rubber duck? Switch personas with a simple command!
-* 🌍 **Access Diverse Magical Fonts:** Connect to OpenAI, Anthropic, Azure, and other OpenAI-compatible APIs. For even more options, install the optional `litellm` package.
+* 🌍 **Access Diverse Magical Fonts:** Connect to OpenAI, Anthropic, Azure, and other OpenAI-compatible APIs.
 * ⚡️ **Live Conjuring:** Watch the LLM weave its response character-by-character with built-in streaming support (the default!).
 * 🪄 **Ambient Enchantment (Optional):** Feeling lazy? Use `%llm_setup_forever` to automatically treat *any* standard cell you run as a prompt! (Use `%disable_llm_setup_forever` to turn it off).
 * 🧪 **Precise Incantations:** Override models, temperature, and other parameters on-the-fly for specific spells or configure instance-wide defaults.
@@ -33,34 +33,21 @@ CellMage isn't *actual* magic, but it feels pretty close:
 Ready to wield this power? Open your terminal and chant the sacred words:
 
 ```bash
-# Basic installation with built-in DirectLLMAdapter
+# Basic installation
 pip install cellmage
-
-# Or with additional LiteLLM adapter support (more provider options)
-pip install "cellmage[litellm]"
 
 # For LangChain integration
 pip install "cellmage[langchain]"
-
-# For all features
-pip install "cellmage[litellm,langchain]"
 ```
 
 ## LLM Connection Options 🔌
 
-CellMage provides two different adapters for connecting to LLM APIs:
+CellMage provides a DirectLLMAdapter for connecting to LLM APIs:
 
-1. **DirectLLMAdapter** (default, no additional dependencies): 
-   - Connects directly to OpenAI-compatible APIs via standard HTTP requests
-   - Supports standard OpenAI API functionality including streaming
-   - Best for users wanting minimal dependencies
-
-2. **LiteLLMAdapter** (optional, requires `pip install "cellmage[litellm]"`):
-   - Connects to a wide variety of LLM providers through the litellm library
-   - Support for many additional providers like Anthropic, Cohere, Hugging Face, and local models
-   - More configuration options and provider-specific features
-
-CellMage automatically uses DirectLLMAdapter if litellm isn't installed, or LiteLLMAdapter if available.
+**DirectLLMAdapter** (built-in with no additional dependencies): 
+- Connects directly to OpenAI-compatible APIs via standard HTTP requests
+- Supports standard OpenAI API functionality including streaming
+- Simple and reliable with minimal dependencies
 
 ## Summoning Your First Spell (Quick Start) ⚡️
 
@@ -133,7 +120,7 @@ CellMage needs to know how to reach your LLM. Set credentials via:
 
 1.  **Environment Variables (Recommended):**
     * `CELLMAGE_API_KEY`: Your API key.
-    * `CELLMAGE_API_BASE`: The base URL for the API (e.g., `http://localhost:1234/v1` for local OpenAI-compatible APIs). `litellm` often infers this for major providers if not set.
+    * `CELLMAGE_API_BASE`: The base URL for the API (e.g., `http://localhost:1234/v1` for local OpenAI-compatible APIs).
 2.  **`%llm_setup` / `%llm_setup_forever`:** Use the `--api_key` and `--api_base` arguments.
 3.  **Instance Overrides (Advanced):** Use `llm.set_override("api_key", "...")` if you access the underlying `NotebookLLMv6` object directly.
 

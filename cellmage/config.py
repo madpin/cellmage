@@ -38,6 +38,16 @@ class Settings:
         self.log_level = os.environ.get("CELLMAGE_LOG_LEVEL", "INFO").upper()
         self.log_file = os.environ.get("CELLMAGE_LOG_FILE", "cellmage.log")
     
+    @property
+    def save_dir(self):
+        """
+        For compatibility with code that expects save_dir instead of conversations_dir.
+        
+        Returns:
+            The conversations directory path
+        """
+        return self.conversations_dir
+    
     def update(self, **kwargs) -> None:
         """
         Update settings with new values.

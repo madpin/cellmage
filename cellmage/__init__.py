@@ -27,6 +27,13 @@ from .interfaces import (
 # Expose core models
 from .models import Message, PersonaConfig, ConversationMetadata
 
+# Import IPython extension entry points
+try:
+    from .integrations.ipython_magic import load_ipython_extension, unload_ipython_extension
+    _IPYTHON_AVAILABLE = True
+except ImportError:
+    _IPYTHON_AVAILABLE = False
+
 # --- Optional: Provide a default factory function ---
 # This simplifies setup for basic use cases
 
@@ -43,19 +50,14 @@ def get_default_manager():
             # Import components needed for the default setup
             from .config import settings
             
-            # Try to import DirectLLMAdapter first (preferred), fall back to LiteLLM if not available
+            # Import DirectLLMAdapter - no fallback to LiteLLMAdapter
             try:
                 from .adapters.direct_client import DirectLLMAdapter
                 adapter_class = DirectLLMAdapter
             except ImportError:
-                # Fall back to LiteLLMAdapter if DirectLLMAdapter is not available
-                try:
-                    from .adapters.llm_client import LiteLLMAdapter
-                    adapter_class = LiteLLMAdapter
-                except ImportError:
-                    raise ConfigurationError(
-                        "No LLM adapter available. Please install required dependencies."
-                    )
+                raise ConfigurationError(
+                    "DirectLLMAdapter is not available. Please check your installation."
+                )
             
             from .resources.file_loader import FileLoader
             from .storage.markdown_store import MarkdownStore
@@ -108,3 +110,7 @@ __all__ = [
     # Version
     "__version__",
 ]
+
+# Add IPython extension entry points to __all__ if available
+if _IPYTHON_AVAILABLE:
+    __all__ += ["load_ipython_extension", "unload_ipython_extension"]
