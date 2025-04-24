@@ -122,17 +122,45 @@ class ChatManager:
         
         self._active_persona = persona
         
-        # Add system message if not already in history
-        system_messages = [m for m in self.history_manager.get_history() if m.role == "system"]
-        if not system_messages and persona.system_message:
-            # Add system message to history
-            self.history_manager.add_message(
-                Message(
-                    role="system",
-                    content=persona.system_message,
-                    id=str(uuid.uuid4())
+        # Always add the persona's system message if it has one
+        if persona.system_message:
+            # Get current history
+            current_history = self.history_manager.get_history()
+            
+            # Extract system and non-system messages
+            system_messages = [m for m in current_history if m.role == "system"]
+            non_system_messages = [m for m in current_history if m.role != "system"]
+            
+            # If there are existing system messages, we'll need to reorder
+            if system_messages:
+                # Clear the history
+                self.history_manager.clear_history(keep_system=False)
+                
+                # Add persona system message first
+                self.history_manager.add_message(
+                    Message(
+                        role="system",
+                        content=persona.system_message,
+                        id=str(uuid.uuid4())
+                    )
                 )
-            )
+                
+                # Re-add all existing system messages
+                for msg in system_messages:
+                    self.history_manager.add_message(msg)
+                
+                # Re-add all non-system messages
+                for msg in non_system_messages:
+                    self.history_manager.add_message(msg)
+            else:
+                # No existing system messages, just add the persona's system message
+                self.history_manager.add_message(
+                    Message(
+                        role="system",
+                        content=persona.system_message,
+                        id=str(uuid.uuid4())
+                    )
+                )
         
         # Set client overrides if specified in persona config
         if self.llm_client and persona.config:
@@ -242,12 +270,31 @@ class ChatManager:
             self.history_manager.perform_rollback(cell_id)
             
         try:
-            # Convert messages to models.Message format if needed
+            # Get all message history
+            history_messages = self.history_manager.get_history() if self.history_manager else []
+            
+            # Extract any system messages from history
+            system_messages = [m for m in history_messages if m.role == "system"]
+            non_system_messages = [m for m in history_messages if m.role != "system"]
+            
+            # Prepare the messages list with system message(s) first, then other messages
             messages = []
             
-            # Add system message from active persona if any
-            if self._active_persona:
-                messages.insert(0, Message(role="system", content=self._active_persona.system_message, id=str(uuid.uuid4())))
+            # If we have system messages in history, add them first
+            if system_messages:
+                messages.extend(system_messages)
+            # If no system messages in history but we have an active persona, add its system message
+            elif self._active_persona and self._active_persona.system_message:
+                system_message = Message(
+                    role="system", 
+                    content=self._active_persona.system_message, 
+                    id=str(uuid.uuid4())
+                )
+                messages.append(system_message)
+                self.logger.debug("Added system message from active persona")
+            
+            # Now add all non-system messages
+            messages.extend(non_system_messages)
             
             # Setup stream handler if streaming is enabled
             stream_callback = None
@@ -264,10 +311,6 @@ class ChatManager:
                         print(chunk, end='', flush=True)
                         
                 stream_callback = stream_handler
-            
-            # Get all message history if needed
-            history_messages = self.history_manager.get_history() if self.history_manager else []
-            messages.extend(history_messages)
             
             # Add the new user message
             user_message = Message(

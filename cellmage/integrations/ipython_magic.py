@@ -575,6 +575,18 @@ class NotebookLLMMagics(Magics):
     @argument("--show-history", action="store_true", help="Display the current message history.")
     @argument("--status", action="store_true", help="Show current status (persona, overrides, history length).")
     @argument("--model", type=str, help="Set the default model for the LLM client.")
+    @argument(
+        "--snippet",
+        type=str,
+        action="append",
+        help="Add user snippet content before sending prompt. Can be used multiple times.",
+    )
+    @argument(
+        "--sys-snippet",
+        type=str,
+        action="append",
+        help="Add system snippet content before sending prompt. Can be used multiple times.",
+    )
     @line_magic("llm_config")
     def configure_llm(self, line):
         """Configure the LLM session state and manage resources."""
@@ -597,6 +609,26 @@ class NotebookLLMMagics(Magics):
                 print(f"✅ Default model set to: {args.model}")
             else:
                 print(f"⚠️ Could not set model: LLM client not found or doesn't support overrides")
+
+        # --- Handle snippets ---
+        try:
+            if hasattr(args, "sys_snippet") and args.sys_snippet:
+                action_taken = True
+                for name in args.sys_snippet:
+                    if manager.add_snippet(name, role="system"):
+                        print(f"✅ Added system snippet: '{name}'")
+                    else:
+                        print(f"⚠️ Warning: Could not add system snippet '{name}'.")
+            
+            if hasattr(args, "snippet") and args.snippet:
+                action_taken = True
+                for name in args.snippet:
+                    if manager.add_snippet(name, role="user"):
+                        print(f"✅ Added user snippet: '{name}'")
+                    else:
+                        print(f"⚠️ Warning: Could not add user snippet '{name}'.")
+        except Exception as e:
+            print(f"❌ Error processing snippets: {e}")
 
         # --- List Resources ---
         if args.list_personas:
