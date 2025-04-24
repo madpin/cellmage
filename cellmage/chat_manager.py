@@ -211,30 +211,34 @@ class ChatManager:
         """
         if not self.llm_client:
             raise ConfigurationError("No LLM client configured")
-        
+            
         start_time = time.time()
-        user_message_added = False
-        model_name = model or self.settings.default_model
         
+        # Get execution context
+        exec_count, cell_id = None, None
+        if execution_context is not None:
+            exec_count = execution_context.get('execution_count')
+            cell_id = execution_context.get('cell_id')
+        elif self.context_provider:
+            exec_count, cell_id = self.context_provider.get_execution_context()
+            
+        # Log execution context
+        if exec_count is not None:
+            self.logger.debug(f"Execution count: {exec_count}")
+        if cell_id is not None:
+            self.logger.debug(f"Cell ID: {cell_id}")
+            
+        # Check for auto rollback
+        if auto_rollback and cell_id is not None:
+            self.history_manager.perform_rollback(cell_id)
+            
         try:
-            # Create user message
-            user_message = Message(role="user", content=prompt, id=str(uuid.uuid4()))
+            # Convert messages to models.Message format if needed
+            messages = []
             
-            # Add user message to history
-            if add_to_history:
-                self.history_manager.add_message(user_message)
-                user_message_added = True
-            
-            # Prepare messages for LLM
-            messages = self.history_manager.get_history()
-            
-            # Add system message if persona is active
-            if self._active_persona and self._active_persona.system_message:
+            # Add system message from active persona if any
+            if self._active_persona:
                 messages.insert(0, Message(role="system", content=self._active_persona.system_message, id=str(uuid.uuid4())))
-            
-            # Prepare LLM parameters
-            llm_params = {"model": model_name}
-            llm_params.update(kwargs)
             
             # Setup stream handler if streaming is enabled
             stream_callback = None
@@ -244,13 +248,43 @@ class ChatManager:
                 
                 def stream_handler(chunk: str) -> None:
                     """Handle streaming chunks by updating display"""
-                    nonlocal display_handle
-                    if display_handle and self.context_provider:
+                    if display_handle is not None:
                         self.context_provider.update_stream(display_handle, chunk)
-                
+                    else:
+                        # Fallback to print if display handle isn't available
+                        print(chunk, end='', flush=True)
+                        
                 stream_callback = stream_handler
             
+            # Get all message history if needed
+            history_messages = self.history_manager.get_history() if self.history_manager else []
+            messages.extend(history_messages)
+            
+            # Add the new user message
+            user_message = Message(
+                role='user',
+                content=prompt,
+                id=str(uuid.uuid4()),
+                execution_count=exec_count,
+                cell_id=cell_id
+            )
+            
+            # Add to messages we'll send to the LLM
+            messages.append(user_message)
+            
+            # Figure out model to use
+            model_name = model
+            if model_name is None and self._active_persona and self._active_persona.llm_params:
+                model_name = self._active_persona.llm_params.get('model')
+                
+            # Prepare LLM parameters - MOVED HERE AFTER model_name IS DEFINED
+            llm_params = {}
+            if model_name:
+                llm_params["model"] = model_name
+            llm_params.update(kwargs)
+            
             # Call LLM client
+            self.logger.info(f"Sending message to LLM with {len(messages)} messages in context")
             assistant_response_content = self.llm_client.chat(
                 messages=messages, 
                 stream=stream, 
@@ -266,88 +300,82 @@ class ChatManager:
             tokens_out = max(1, len(assistant_response_content) // 4)
             
             # Calculate cost - simplified model for now
-            # Based on rough OpenAI-style pricing (actual cost depends on model)
-            cost_mili_cents = int((tokens_in * 0.005 + tokens_out * 0.015) * 1000)
+            if model_name and "gpt-4" in model_name.lower():
+                # Approximate GPT-4 rates
+                cost_input = tokens_in * 0.03 / 1000  # $0.03 per 1K tokens
+                cost_output = tokens_out * 0.06 / 1000  # $0.06 per 1K tokens
+            else:
+                # Generic/default rates
+                cost_input = tokens_in * 0.01 / 1000  # $0.01 per 1K tokens
+                cost_output = tokens_out * 0.02 / 1000  # $0.02 per 1K tokens
+                
+            cost_dollars = cost_input + cost_output
+            # Convert to millicents (1/100,000 of a dollar) for consistent display
+            cost_mili_cents = int(cost_dollars * 100000)
             
-            # Format cost string with appropriate unit
-            if cost_mili_cents < 1000:  # Less than 1 cent
-                cost_str = f"{cost_mili_cents/1000:.4f}¢"  # Show as fraction of cent
-            elif cost_mili_cents < 100000:  # Less than $1
-                cost_str = f"{cost_mili_cents/1000:.2f}¢"  # Show as cents with ¢ symbol
-            else:  # $1 or more
-                cost_str = f"${cost_mili_cents/100000:.2f}"  # Show as dollars with $ symbol
-            
-            # Update user message metadata with token counts
-            if add_to_history and len(self.history_manager.get_history()) >= 1:
-                # Find the user message and update its metadata
-                user_messages = [m for m in self.history_manager.get_history() if m.role == "user"]
-                if user_messages:
-                    latest_user_msg = user_messages[-1]
-                    latest_user_msg.metadata["tokens_in"] = tokens_in
-            
-            # Create assistant message with metadata
-            assistant_message = Message(
-                role="assistant", 
-                content=assistant_response_content, 
-                id=str(uuid.uuid4()),
-                metadata={
-                    "model_used": model_name,
-                    "tokens_in": tokens_in,
-                    "tokens_out": tokens_out,
-                    "cost_mili_cents": cost_mili_cents,
-                    "cost_str": cost_str
+            # Get the actual model used from the LLM client
+            # Try to get the actual model used from the LLM client's instance overrides
+            actual_model_used = None
+            if hasattr(self.llm_client, "_instance_overrides") and "model" in self.llm_client._instance_overrides:
+                actual_model_used = self.llm_client._instance_overrides.get("model")
+                
+            # If we're adding to history, add both user and assistant messages
+            if add_to_history and assistant_response_content:
+                # Add user message to history WITH token count information
+                user_message.metadata = {
+                    'tokens_in': tokens_in,
+                    'model_used': actual_model_used or model_name
                 }
-            )
+                
+                if self.history_manager:
+                    self.history_manager.add_message(user_message)
+                
+                # Create and add assistant message
+                assistant_message = Message(
+                    role='assistant',
+                    content=assistant_response_content,
+                    id=str(uuid.uuid4()),
+                    metadata={
+                        'tokens_in': tokens_in,
+                        'tokens_out': tokens_out,
+                        'cost_mili_cents': cost_mili_cents,
+                        'model_used': actual_model_used or model_name  # Use the actual model if available
+                    }
+                )
+                
+                if self.history_manager:
+                    self.history_manager.add_message(assistant_message)
             
-            # Add assistant message to history
-            if add_to_history:
-                self.history_manager.add_message(assistant_message)
-            
-            # Display status via context provider
-            if self.context_provider:
+            # Display status bar if context provider is available
+            duration = time.time() - start_time
+            if self.context_provider and not stream:
                 self.context_provider.display_status(
                     success=True,
-                    duration=time.time() - start_time,
+                    duration=duration,
                     tokens_in=tokens_in,
                     tokens_out=tokens_out,
                     cost_mili_cents=cost_mili_cents,
-                    model=model_name
+                    model=actual_model_used or model_name  # Use the actual model if available
                 )
-            
+                
             return assistant_response_content
-        
-        except Exception as e:
-            self.logger.error(f"Error during chat: {e}")
-            if add_to_history and user_message_added:
-                try:
-                    # Use the correct method name for history management
-                    if hasattr(self.history_manager, "revert_last_turn"):
-                        self.history_manager.revert_last_turn()
-                    elif hasattr(self.history_manager, "revert_last_message"):
-                        self.history_manager.revert_last_message()
-                    else:
-                        # Fallback - try to remove the last message manually
-                        history = self.history_manager.get_history()
-                        if history and len(history) > 0:
-                            self.history_manager.clear_history(keep_system=True)
-                            # Add back all messages except the last one
-                            for msg in history[:-1]:
-                                self.history_manager.add_message(msg)
-                    self.logger.debug("Reverted user message after error")
-                except Exception as revert_error:
-                    self.logger.error(f"Failed to revert user message: {revert_error}")
             
-            # Display error status
+        except Exception as e:
+            duration = time.time() - start_time
+            self.logger.error(f"Error during chat: {e}")
+            
+            # Show error in status bar
             if self.context_provider:
                 self.context_provider.display_status(
                     success=False,
-                    duration=time.time() - start_time,
-                    tokens_in=0,
-                    tokens_out=0,
-                    cost_mili_cents=0,
-                    model=model_name
+                    duration=duration,
+                    tokens_in=None,
+                    tokens_out=None,
+                    cost_mili_cents=None,
+                    model=None
                 )
                 
+            # Re-raise to let caller handle
             raise
     
     def list_personas(self) -> List[str]:

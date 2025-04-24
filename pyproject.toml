@@ -24,7 +24,6 @@ dependencies = [
     "requests>=2.25.0",
     "ipython>=8.0",
     "requests",
-    "yaml",
     "PyYAML",
     "python-dotenv",
 ]

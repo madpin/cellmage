@@ -1,9 +1,10 @@
 import os
 import logging
-from typing import Optional
+from typing import Optional, Union
+from ..config import settings  # Import settings to get log level from environment
 
 def setup_logging(
-    log_file: str = "cellmage.log",
+    log_file: Optional[str] = None,
     debug: bool = False,
     console_level: Optional[int] = None
 ) -> logging.Logger:
@@ -18,14 +19,22 @@ def setup_logging(
     Returns:
         Root logger configured with handlers
     """
+    # Use log_file from settings if not provided
+    if log_file is None:
+        log_file = settings.log_file
+    
     # Set up root logger
     logger = logging.getLogger("cellmage")
     logger.handlers = []  # Clear existing handlers to prevent duplicates
     
-    # Determine log levels
-    file_level = logging.DEBUG if debug else logging.INFO
+    # Get log level from settings - convert string to logging level
+    log_level_str = settings.log_level.upper()
+    configured_level = getattr(logging, log_level_str, logging.INFO)
+    
+    # Determine log levels, respecting both debug flag and configured level
+    file_level = logging.DEBUG if debug else configured_level
     if console_level is None:
-        console_level = logging.DEBUG if debug else logging.INFO
+        console_level = logging.DEBUG if debug else configured_level
         
     logger.setLevel(min(file_level, console_level))  # Set to the more verbose of the two
     
@@ -59,13 +68,16 @@ def setup_logging(
     
     # Console Handler
     ch = logging.StreamHandler()
-    ch.setLevel(console_level)
+    if console_level is not None:
+        ch.setLevel(console_level)
+    else:
+        ch.setLevel(logging.INFO)  # Safe default if None
     ch.setFormatter(formatter)
     logger.addHandler(ch)
     
     logger.propagate = False  # Prevent duplicate logging by parent loggers
     
-    # Log startup message
+    # Log startup message (at INFO level so it will be suppressed if level is WARNING+)
     logger.info("Cellmage logging initialized")
     if debug:
         logger.debug("Debug logging enabled")

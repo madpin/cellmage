@@ -425,6 +425,7 @@ class NotebookLLMMagics(Magics):
     @argument('--list-snippets', action='store_true', help="List available snippet names.")
     @argument('--show-history', action='store_true', help="Display the current message history.")
     @argument('--status', action='store_true', help="Show current status (persona, overrides, history length).")
+    @argument('--model', type=str, help="Set the default model for the LLM client.")
     @line_magic('llm_config')
     def configure_llm(self, line):
         """Configure the LLM session state and manage resources."""
@@ -436,6 +437,17 @@ class NotebookLLMMagics(Magics):
             return  # Stop processing
 
         action_taken = False  # Track if any action was performed
+
+        # --- Handle model setting specifically ---
+        # We need to ensure model is properly set on the LLM client
+        if hasattr(args, 'model') and args.model:
+            action_taken = True
+            if hasattr(manager, "llm_client") and hasattr(manager.llm_client, "set_override"):
+                manager.llm_client.set_override("model", args.model)
+                logger.info(f"Setting default model to: {args.model}")
+                print(f"✅ Default model set to: {args.model}")
+            else:
+                print(f"⚠️ Could not set model: LLM client not found or doesn't support overrides")
 
         # --- List Resources ---
         if args.list_personas:
@@ -587,7 +599,9 @@ class NotebookLLMMagics(Magics):
             
         start_time = time.time()
         status_info = {"success": False, "duration": 0.0}
-        # Skip status display due to ChatManager already showing it
+        
+        # The problem is here - we're skipping the status display too aggressively
+        # Set to False initially, we'll conditionally set it to True only when needed
         skip_status_display = False
 
         try:
@@ -625,7 +639,18 @@ class NotebookLLMMagics(Magics):
         # Prepare runtime params
         runtime_params = {}
         if args.model:
-            runtime_params['model'] = args.model
+            # Directly set model override in the LLM client to ensure highest priority
+            if hasattr(manager, "llm_client") and hasattr(manager.llm_client, "set_override"):
+                # Temporarily set model override for this call
+                original_model = None
+                if hasattr(manager.llm_client, "_instance_overrides"):
+                    original_model = manager.llm_client._instance_overrides.get("model")
+                manager.llm_client.set_override("model", args.model)
+                logger.debug(f"Temporarily set model override to: {args.model}")
+            else:
+                # Fallback if direct override not possible
+                runtime_params['model'] = args.model
+        
         if args.temperature is not None:
             runtime_params['temperature'] = args.temperature
         if args.max_tokens is not None:
@@ -643,9 +668,9 @@ class NotebookLLMMagics(Magics):
         logger.debug(f"Runtime params: {runtime_params}")
 
         try:
-            # Only let ChatManager display status if context_provider exists
-            # and we're sending to the main ChatManager instance
-            skip_status_display = manager.context_provider is not None
+            # Only skip status display if streaming is enabled 
+            # This was the problem - wrong logic for determining when to skip
+            skip_status_display = args.stream and not args.persona
             
             # Call the ChatManager's chat method
             result = manager.chat(
@@ -657,22 +682,45 @@ class NotebookLLMMagics(Magics):
                 **runtime_params
             )
             
+            # If we temporarily overrode the model, restore the original value
+            if args.model and hasattr(manager, "llm_client") and hasattr(manager.llm_client, "set_override"):
+                if original_model is not None:
+                    manager.llm_client.set_override("model", original_model)
+                    logger.debug(f"Restored original model override: {original_model}")
+                else:
+                    manager.llm_client.remove_override("model")
+                    logger.debug("Removed temporary model override")
+            
             # If result is successful, mark as success
             if result:
                 status_info["success"] = True
-                status_info["tokens_in"] = manager.history_manager.get_history()[-2].metadata.get("tokens_in") if len(manager.history_manager.get_history()) >= 2 else None
-                status_info["tokens_out"] = manager.history_manager.get_history()[-1].metadata.get("tokens_out") if len(manager.history_manager.get_history()) >= 1 else None
-                status_info["cost_str"] = manager.history_manager.get_history()[-1].metadata.get("cost_str") if len(manager.history_manager.get_history()) >= 1 else None
-                status_info["model_used"] = manager.history_manager.get_history()[-1].metadata.get("model_used") if len(manager.history_manager.get_history()) >= 1 else None
+                try:
+                    history = manager.history_manager.get_history()
+                    if len(history) >= 2:
+                        status_info["tokens_in"] = history[-2].metadata.get("tokens_in")
+                    if len(history) >= 1:
+                        status_info["tokens_out"] = history[-1].metadata.get("tokens_out")
+                        status_info["cost_str"] = history[-1].metadata.get("cost_str")
+                        status_info["model_used"] = history[-1].metadata.get("model_used")
+                except Exception as e:
+                    logger.warning(f"Error retrieving status info from history: {e}")
                 
         except Exception as e:
             print(f"❌ LLM Error: {e}")
             logger.error(f"Error during LLM call: {e}")
             skip_status_display = False
+            
+            # Make sure to restore model override even on error
+            if args.model and hasattr(manager, "llm_client") and hasattr(manager.llm_client, "set_override"):
+                if original_model is not None:
+                    manager.llm_client.set_override("model", original_model)
+                else:
+                    manager.llm_client.remove_override("model")
+                logger.debug("Restored model override after error")
         finally:
             status_info["duration"] = time.time() - start_time
-            if not skip_status_display:
-                self._display_status(status_info)
+            # Always display status bar, regardless of mode
+            self._display_status(status_info)
         
         return None
 

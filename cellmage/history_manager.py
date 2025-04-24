@@ -67,6 +67,19 @@ class HistoryManager:
         # Clear current save path since history has changed
         self.current_save_path = None
         
+    def perform_rollback(self, cell_id: Optional[str] = None) -> bool:
+        """
+        Perform a rollback for a particular cell ID if needed.
+        This is a wrapper around check_and_rollback for clarity in the API.
+        
+        Args:
+            cell_id: The cell ID to perform rollback for
+            
+        Returns:
+            True if rollback was performed, False otherwise
+        """
+        return self.check_and_rollback(cell_id)
+        
     def check_and_rollback(self, cell_id: Optional[str] = None) -> bool:
         """
         Check if a cell is being re-executed and rollback history if needed.

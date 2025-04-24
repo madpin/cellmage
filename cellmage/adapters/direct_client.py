@@ -14,42 +14,49 @@ from ..exceptions import LLMInteractionError, ConfigurationError
 
 class DirectLLMAdapter(LLMClientInterface):
     """
-    Direct HTTP adapter for LLM APIs that implements the LLMClientInterface.
+    Adapter for direct HTTP interaction with OpenAI-compatible APIs.
     
-    This adapter communicates directly with OpenAI-compatible APIs without using
-    the litellm package as a dependency.
+    This adapter handles communication with OpenAI and compatible APIs
+    without requiring external libraries like litellm.
     """
     
     def __init__(
         self,
         api_key: Optional[str] = None,
         api_base: Optional[str] = None,
-        default_model: Optional[str] = None
+        default_model: Optional[str] = None,
+        debug: bool = False
     ):
         """
-        Initialize the Direct LLM adapter.
+        Initialize the adapter.
         
         Args:
-            api_key: API key for the LLM service, falls back to CELLMAGE_API_KEY env var
-            api_base: Base URL for the LLM API, falls back to CELLMAGE_API_BASE env var
-            default_model: Default model to use if not specified elsewhere
+            api_key: API key for the service
+            api_base: Base URL for the API
+            default_model: Default model to use
+            debug: Whether to enable debug logging
         """
         self.logger = logging.getLogger(__name__)
-        self._instance_overrides: Dict[str, Any] = {}
         
-        # Initialize API credentials from parameters or environment variables
+        # Instance overrides
+        self._instance_overrides = {}
+        
+        # Set API key from param or env var
+        api_key = api_key or os.environ.get("CELLMAGE_API_KEY") or os.environ.get("OPENAI_API_KEY")
         if api_key:
             self.set_override("api_key", api_key)
-        elif "CELLMAGE_API_KEY" in os.environ:
-            self.set_override("api_key", os.environ["CELLMAGE_API_KEY"])
             
+        # Set API base from param or env var
+        api_base = api_base or os.environ.get("CELLMAGE_API_BASE") or os.environ.get("OPENAI_API_BASE")
         if api_base:
             self.set_override("api_base", api_base)
-        elif "CELLMAGE_API_BASE" in os.environ:
-            self.set_override("api_base", os.environ["CELLMAGE_API_BASE"])
             
+        # Set default model if provided
         if default_model:
             self.set_override("model", default_model)
+            
+        # Set debug mode
+        self.debug = debug
         
     def set_override(self, key: str, value: Any) -> None:
         """Set an instance-level override for parameters."""
@@ -107,21 +114,23 @@ class DirectLLMAdapter(LLMClientInterface):
         call_overrides: Dict[str, Any]
     ) -> Tuple[str, Dict[str, Any]]:
         """
-        Determine the final model and configuration to use.
+        Determine the model and configuration to use.
         
         Args:
-            model_name: Model name specified at the call level
-            system_message: System message to include
-            call_overrides: Additional overrides for this specific call
+            model_name: Model name to use
+            system_message: System message if any
+            call_overrides: Call-specific overrides
             
         Returns:
-            Tuple of (final_model, final_config)
-            
-        Raises:
-            ConfigurationError: If no valid model can be determined
+            Tuple of (model_name, config_dict)
         """
-        # Merge instance overrides with call overrides, with call taking precedence
-        final_config = self._instance_overrides.copy()
+        # Start with the default config (empty dict)
+        final_config = {}
+        
+        # Layer in instance overrides
+        final_config.update(self._instance_overrides)
+        
+        # Layer in call overrides
         final_config.update(call_overrides)
         
         # Determine final model name, with priority:
@@ -177,58 +186,64 @@ class DirectLLMAdapter(LLMClientInterface):
                 model, system_message, kwargs
             )
             
-            self.logger.info(f"Calling model '{final_model}' with {len(messages)} messages")
-            
-            # Convert our messages to the format expected by the API
-            api_messages = self._convert_messages(messages)
-            
-            # Get base URL and API key
-            api_base = final_config.pop("api_base", None)
-            if not api_base:
-                raise ConfigurationError("API base URL is required but not provided")
-                
+            # Get API credentials
             api_key = final_config.pop("api_key", None)
+            api_base = final_config.pop("api_base", None)
+            
+            if not api_base:
+                raise ConfigurationError(
+                    "No API base URL specified. Provide via api_base parameter in constructor, "
+                    "set_override('api_base'), or set CELLMAGE_API_BASE environment variable."
+                )
+                
             if not api_key:
-                raise ConfigurationError("API key is required but not provided")
+                raise ConfigurationError(
+                    "No API key specified. Provide via api_key parameter in constructor, "
+                    "set_override('api_key'), or set CELLMAGE_API_KEY environment variable."
+                )
             
-            # Ensure api_base ends with /v1 for OpenAI compatibility
-            if not api_base.endswith("/v1"):
-                api_base = f"{api_base}/v1" if not api_base.endswith("/") else f"{api_base}v1"
-            
-            # Create the request payload
-            payload = {
-                "model": final_model,
-                "messages": api_messages,
-                "stream": stream,
-                **final_config
-            }
-            
-            # Set up the headers
+            # Prepare headers
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {api_key}"
             }
             
-            # Make the request
-            if stream:
-                return self._handle_streaming(
-                    api_base, headers, payload, stream_callback
-                )
-            else:
-                return self._handle_non_streaming(
-                    api_base, headers, payload
-                )
+            # Convert messages to the format expected by the API
+            api_messages = []
+            for msg in messages:
+                api_messages.append({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+                
+            # Prepare request payload
+            payload = {
+                "model": final_model,
+                "messages": api_messages,
+                "stream": stream
+            }
             
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"API connection error: {e}")
-            raise LLMInteractionError(f"Connection failed: {e}")
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Invalid JSON response: {e}")
-            raise LLMInteractionError(f"Invalid response format: {e}")
+            # Add any remaining parameters from final_config
+            payload.update(final_config)
+            
+            # Make the API call
+            if stream:
+                return self._handle_streaming(api_base, headers, payload, stream_callback)
+            else:
+                response_content = self._handle_non_streaming(api_base, headers, payload)
+                
+                # Store the actual model used from the API response in our instance overrides
+                # This allows retrieving the model in status reporting
+                self._last_model_used = final_model
+                
+                return response_content
+            
         except Exception as e:
-            self.logger.exception(f"Unexpected error during chat: {e}")
-            raise LLMInteractionError(f"Unexpected error: {e}")
-    
+            self.logger.error(f"Error in chat request: {e}")
+            if self.debug:
+                self.logger.exception("Exception details")
+            raise LLMInteractionError(f"Chat request failed: {e}") from e
+            
     def _convert_messages(self, messages: List[Message]) -> List[Dict[str, str]]:
         """Convert our Message objects to the format expected by the API."""
         return [{"role": msg.role, "content": msg.content} for msg in messages]
@@ -251,6 +266,12 @@ class DirectLLMAdapter(LLMClientInterface):
         # Parse the response
         result = response.json()
         
+        # Store the actual model used from the response
+        if "model" in result:
+            self._last_model_used = result["model"]
+            # Update model in instance overrides to make it available for status reporting
+            self._instance_overrides["model"] = result["model"]
+        
         # Extract the assistant's message
         if "choices" in result and len(result["choices"]) > 0:
             if "message" in result["choices"][0]:
@@ -260,20 +281,20 @@ class DirectLLMAdapter(LLMClientInterface):
         return ""
     
     def _handle_streaming(
-        self, 
-        api_base: str, 
-        headers: Dict[str, str], 
+        self,
+        api_base: str,
+        headers: Dict[str, str],
         payload: Dict[str, Any],
         stream_callback: Optional[StreamCallbackHandler]
     ) -> str:
         """Handle streaming API response."""
         url = f"{api_base}/chat/completions"
         
-        # Set stream to True in the payload
-        payload["stream"] = True
+        # Use a session for streaming
+        session = requests.Session()
         
-        # Make the streaming request
-        response = requests.post(
+        # Set stream=True for requests to get response in chunks
+        response = session.post(
             url,
             headers=headers,
             json=payload,
@@ -284,38 +305,51 @@ class DirectLLMAdapter(LLMClientInterface):
         # Check for errors
         if response.status_code != 200:
             self._handle_error_response(response)
-        
-        full_response = ""
+            
+        accumulated_content = ""
+        model_from_stream = None
         
         # Process the streaming response
         for line in response.iter_lines():
-            if line:
-                # Remove the "data: " prefix, if present
-                line_text = line.decode('utf-8')
-                if line_text.startswith('data: '):
-                    line_text = line_text[6:]  # Remove "data: " prefix
+            if not line:
+                continue
                 
-                # Skip empty lines or [DONE] marker
-                if line_text.strip() == '' or line_text.strip() == '[DONE]':
-                    continue
+            # Remove 'data: ' prefix
+            if line.startswith(b'data: '):
+                line = line[6:]
                 
-                try:
-                    chunk = json.loads(line_text)
-                    
-                    # Extract delta content from the chunk
-                    if "choices" in chunk and len(chunk["choices"]) > 0:
-                        delta = chunk["choices"][0].get("delta", {})
-                        content_chunk = delta.get("content", "")
-                        
-                        if content_chunk:
-                            full_response += content_chunk
+            # Skip "[DONE]" message
+            if line == b'[DONE]':
+                break
+                
+            try:
+                # Parse the JSON chunk
+                chunk_data = json.loads(line)
+                
+                # Get the model from the first chunk
+                if model_from_stream is None and "model" in chunk_data:
+                    model_from_stream = chunk_data["model"]
+                    # Update model in instance overrides to make it available for status reporting
+                    self._instance_overrides["model"] = model_from_stream
+                
+                # Extract content from choices
+                if "choices" in chunk_data and len(chunk_data["choices"]) > 0:
+                    choice = chunk_data["choices"][0]
+                    if "delta" in choice and "content" in choice["delta"]:
+                        content = choice["delta"]["content"]
+                        if content:
+                            accumulated_content += content
                             if stream_callback:
-                                stream_callback(content_chunk)
-                except json.JSONDecodeError:
-                    # Ignore invalid JSON (like the [DONE] marker)
-                    pass
+                                stream_callback(content)
+            except json.JSONDecodeError:
+                self.logger.warning(f"Failed to parse streaming JSON: {line}")
+                continue
         
-        return full_response.strip()
+        # Store the actual model used from the streaming response
+        if model_from_stream:
+            self._last_model_used = model_from_stream
+        
+        return accumulated_content
     
     def _handle_error_response(self, response: requests.Response) -> None:
         """Handle error responses from the API."""
