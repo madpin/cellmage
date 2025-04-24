@@ -134,14 +134,43 @@ class FileLoader(PersonaLoader, SnippetProvider):
             abs_filepath = os.path.abspath(filepath)
             self.logger.debug(f"Loaded persona '{original_name}' from {abs_filepath}")
             
-            return PersonaConfig(
-                system_message=system_message,
-                config=config,
-                source_file=abs_filepath,
-                original_name=original_name
-            )
+            # Make sure 'name' is in the config
+            if 'name' not in config:
+                # Set the name to the original filename (without extension)
+                config['name'] = original_name
+                self.logger.info(f"Persona name not found in frontmatter. Using filename '{original_name}' as persona name.")
+            
+            try:
+                # Create PersonaConfig using only the fields in the model definition
+                return PersonaConfig(
+                    name=config['name'],  # Required field
+                    system_message=system_message,  # Required field
+                    config=config,  # Optional config dictionary
+                    source_path=abs_filepath  # Optional source path (renamed from source_file)
+                )
+            except Exception as validation_err:
+                # Provide a helpful error message with a template and debugging info
+                self.logger.error(f"Error creating PersonaConfig: {validation_err}")
+                self.logger.debug(f"Config data: {config}")
+                self.logger.debug(f"System message: {system_message[:100]}...")
+                
+                template = f"""---
+name: {original_name}
+description: A brief description of this persona
+# Optional parameters:
+# temperature: 0.7
+# model: gpt-4.1-mini
+---
+{system_message}"""
+                print(f"\n❌ Error loading persona '{original_name}': {validation_err}")
+                print(f"Your persona file might have incorrect frontmatter. Please check '{os.path.basename(filepath)}' and ensure it has the following format:")
+                print("\n" + "-" * 60)
+                print(template[:template.find('---', 3) + 3])
+                print("-" * 60 + "\n")
+                return None
         except Exception as e:
             self.logger.error(f"Error loading persona file '{filepath}': {e}")
+            print(f"\n❌ Error reading persona file '{original_name}': {e}")
             return None
             
     def list_snippets(self) -> List[str]:

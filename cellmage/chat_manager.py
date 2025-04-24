@@ -136,9 +136,18 @@ class ChatManager:
         
         # Set client overrides if specified in persona config
         if self.llm_client and persona.config:
+            # Define which fields are valid API parameters that should be passed to the LLM
+            valid_llm_params = {
+                "model", "temperature", "top_p", "n", "stream", "max_tokens", 
+                "presence_penalty", "frequency_penalty", "logit_bias", "stop"
+            }
+            
             for key, value in persona.config.items():
-                if key != "system_message":  # Skip system message as it's handled separately
+                # Only set override if it's a valid LLM API parameter
+                if key in valid_llm_params:
                     self.llm_client.set_override(key, value)
+                elif key != "system_message":  # Skip system_message as it's handled separately
+                    self.logger.debug(f"Skipping non-API parameter from persona config: {key}")
         
         self.logger.info(f"Default persona set to '{name}'")
     
@@ -274,8 +283,8 @@ class ChatManager:
             
             # Figure out model to use
             model_name = model
-            if model_name is None and self._active_persona and self._active_persona.llm_params:
-                model_name = self._active_persona.llm_params.get('model')
+            if model_name is None and self._active_persona and self._active_persona.config:
+                model_name = self._active_persona.config.get('model')
                 
             # Prepare LLM parameters - MOVED HERE AFTER model_name IS DEFINED
             llm_params = {}

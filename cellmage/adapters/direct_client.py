@@ -154,6 +154,14 @@ class DirectLLMAdapter(LLMClientInterface):
         # Remove model from config since it's passed separately
         final_config.pop("model", None)
         
+        # Filter out non-API fields that could cause issues
+        # Common fields in persona config that shouldn't be sent to API
+        fields_to_remove = ["name", "description", "original_name", "source_path"]
+        for field in fields_to_remove:
+            if field in final_config:
+                self.logger.debug(f"Removing non-API field from config: {field}")
+                final_config.pop(field, None)
+        
         return final_model, final_config
     
     def chat(
