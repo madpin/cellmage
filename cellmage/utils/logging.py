@@ -29,12 +29,16 @@ def setup_logging(
     
     # Get log level from settings - convert string to logging level
     log_level_str = settings.log_level.upper()
-    configured_level = getattr(logging, log_level_str, logging.INFO)
+    configured_level = getattr(logging, log_level_str, logging.INFO)  # Default to INFO for file logs
+    
+    # Get console log level from settings - convert string to logging level
+    console_level_str = settings.console_log_level.upper()
+    configured_console_level = getattr(logging, console_level_str, logging.WARNING)  # Default to WARNING for console
     
     # Determine log levels, respecting both debug flag and configured level
     file_level = logging.DEBUG if debug else configured_level
     if console_level is None:
-        console_level = logging.DEBUG if debug else configured_level
+        console_level = logging.DEBUG if debug else configured_console_level
         
     logger.setLevel(min(file_level, console_level))  # Set to the more verbose of the two
     
@@ -51,7 +55,7 @@ def setup_logging(
             os.makedirs(log_dir, exist_ok=True)
             
         fh = logging.FileHandler(log_file, encoding="utf-8")
-        fh.setLevel(file_level)
+        fh.setLevel(logging.INFO if not debug else logging.DEBUG)  # Always INFO or DEBUG if debug=True
         fh.setFormatter(formatter)
         logger.addHandler(fh)
     except Exception as e:
@@ -59,7 +63,7 @@ def setup_logging(
         
         # Set up a basic console handler as a fallback
         fallback = logging.StreamHandler()
-        fallback.setLevel(logging.INFO)
+        fallback.setLevel(logging.WARNING)  # Change fallback to WARNING
         fallback.setFormatter(formatter)
         logger.addHandler(fallback)
         
@@ -71,7 +75,7 @@ def setup_logging(
     if console_level is not None:
         ch.setLevel(console_level)
     else:
-        ch.setLevel(logging.INFO)  # Safe default if None
+        ch.setLevel(logging.WARNING)  # Changed default from INFO to WARNING
     ch.setFormatter(formatter)
     logger.addHandler(ch)
     

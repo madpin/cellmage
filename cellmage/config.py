@@ -36,6 +36,7 @@ class Settings:
         
         # Logging settings
         self.log_level = os.environ.get("CELLMAGE_LOG_LEVEL", "INFO").upper()
+        self.console_log_level = os.environ.get("CELLMAGE_CONSOLE_LOG_LEVEL", "WARNING").upper()
         self.log_file = os.environ.get("CELLMAGE_LOG_FILE", "cellmage.log")
     
     @property
