@@ -2,45 +2,92 @@ import os
 import logging
 from typing import Dict, Optional, Any
 
+from pydantic import BaseModel, Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 logger = logging.getLogger(__name__)
 
-class Settings:
+class Settings(BaseSettings):
     """
-    Configuration settings for the application.
+    Configuration settings for the application using Pydantic.
     
-    Loads settings from environment variables with the CELLMAGE_ prefix.
+    This class provides strongly-typed configuration settings that are automatically
+    loaded from environment variables with the CELLMAGE_ prefix. It also supports
+    loading from .env files automatically.
+    
+    Example:
+        # Access settings
+        from cellmage.config import settings
+        model_name = settings.default_model
+        
+        # Update settings
+        settings.update(default_model="gpt-4")
     """
+    # Default settings
+    default_model: str = Field(
+        default="gpt-4.1-nano",
+        description="Default LLM model to use for chat"
+    )
+    default_persona: Optional[str] = Field(
+        default=None,
+        description="Default persona to use for chat"
+    )
+    auto_display: bool = Field(
+        default=True,
+        description="Whether to automatically display chat messages"
+    )
+    auto_save: bool = Field(
+        default=False,
+        description="Whether to automatically save conversations"
+    )
+    autosave_file: str = Field(
+        default="autosaved_conversation",
+        description="Filename for auto-saved conversations"
+    )
+    personas_dir: str = Field(
+        default="llm_personas",
+        description="Directory containing persona definitions"
+    )
+    snippets_dir: str = Field(
+        default="snippets",
+        description="Directory containing snippets"
+    )
+    conversations_dir: str = Field(
+        default="llm_conversations",
+        description="Directory for saved conversations"
+    )
     
-    def __init__(self):
-        """Initialize settings from environment."""
-        # Try to load from .env file if available and not skipped
-        if os.environ.get("CELLMAGE_SKIP_DOTENV") != "1":
-            try:
-                from dotenv import load_dotenv
-                if load_dotenv():
-                    logger.info("Loaded environment variables from .env file")
-                else:
-                    logger.info("No .env file found or it was empty")
-            except ImportError:
-                logger.info("python-dotenv not installed, skipping .env file loading")
-        
-        # Default settings
-        self.default_model = os.environ.get("CELLMAGE_DEFAULT_MODEL", "gpt-4.1-nano")
-        self.default_persona = os.environ.get("CELLMAGE_DEFAULT_PERSONA")
-        self.auto_display = self._parse_bool(os.environ.get("CELLMAGE_AUTO_DISPLAY", "true"))
-        self.auto_save = self._parse_bool(os.environ.get("CELLMAGE_AUTO_SAVE", "false"))
-        self.autosave_file = os.environ.get("CELLMAGE_AUTOSAVE_FILE", "autosaved_conversation")
-        self.personas_dir = os.environ.get("CELLMAGE_PERSONAS_DIR", "llm_personas")
-        self.snippets_dir = os.environ.get("CELLMAGE_SNIPPETS_DIR", "snippets")
-        self.conversations_dir = os.environ.get("CELLMAGE_CONVERSATIONS_DIR", "llm_conversations")
-        
-        # Logging settings
-        self.log_level = os.environ.get("CELLMAGE_LOG_LEVEL", "INFO").upper()
-        self.console_log_level = os.environ.get("CELLMAGE_CONSOLE_LOG_LEVEL", "WARNING").upper()
-        self.log_file = os.environ.get("CELLMAGE_LOG_FILE", "cellmage.log")
+    # Logging settings
+    log_level: str = Field(
+        default="INFO",
+        description="Global logging level"
+    )
+    console_log_level: str = Field(
+        default="WARNING",
+        description="Console logging level"
+    )
+    log_file: str = Field(
+        default="cellmage.log",
+        description="Log file path"
+    )
+    
+    model_config = SettingsConfigDict(
+        env_prefix="CELLMAGE_",
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        validate_default=True,
+    )
+    
+    @field_validator("log_level", "console_log_level")
+    @classmethod
+    def uppercase_log_levels(cls, v):
+        """Ensure log levels are uppercase."""
+        return v.upper() if isinstance(v, str) else v
     
     @property
-    def save_dir(self):
+    def save_dir(self) -> str:
         """
         For compatibility with code that expects save_dir instead of conversations_dir.
         
@@ -62,22 +109,17 @@ class Settings:
                 logger.debug(f"Updated setting {key} = {value}")
             else:
                 logger.warning(f"Unknown setting: {key}")
-    
-    def _parse_bool(self, value: Optional[str]) -> bool:
-        """
-        Parse a string as a boolean.
         
-        Args:
-            value: String value to parse
-            
-        Returns:
-            Boolean value
-        """
-        if value is None:
-            return False
-        return value.lower() in ("true", "1", "yes", "y", "t")
-
+        # Validate after update
+        object.__setattr__(self, "__dict__", self.model_validate(self.__dict__).model_dump())
 
 # Create a global settings instance
-settings = Settings()
+try:
+    settings = Settings()
+    logger.info("Settings loaded successfully using Pydantic")
+except Exception as e:
+    logger.exception(f"Error loading settings: {e}")
+    # Fallback to default settings
+    settings = Settings.model_construct()
+    logger.warning("Using default settings due to configuration error")
 
