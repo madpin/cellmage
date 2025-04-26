@@ -206,6 +206,40 @@ class NotebookLLMMagics(Magics):
             # Display status bar
             context_provider.display_status(status_info)
 
+    def _prepare_runtime_params(self, args) -> Dict[str, Any]:
+        """Extract runtime parameters from args and convert to dictionary.
+        
+        This builds a dictionary of parameters that can be passed to the LLM client.
+        """
+        runtime_params = {}
+        
+        # Handle simple parameters
+        if hasattr(args, "temperature") and args.temperature is not None:
+            runtime_params["temperature"] = args.temperature
+            
+        if hasattr(args, "max_tokens") and args.max_tokens is not None:
+            runtime_params["max_tokens"] = args.max_tokens
+            
+        # Handle arbitrary parameters from --param
+        if hasattr(args, "param") and args.param:
+            for key, value in args.param:
+                # Try to convert string values to appropriate types
+                try:
+                    # First try to convert to int or float if it looks numeric
+                    if "." in value:
+                        parsed_value = float(value)
+                    else:
+                        try:
+                            parsed_value = int(value)
+                        except ValueError:
+                            parsed_value = value
+                except ValueError:
+                    parsed_value = value
+                    
+                runtime_params[key] = parsed_value
+                
+        return runtime_params
+
     # --- Implementation of persona handling ---
     def _handle_persona_commands(self, args, manager: ChatManager) -> bool:
         """Handle persona-related arguments."""
@@ -667,6 +701,48 @@ class NotebookLLMMagics(Magics):
             # Always display status bar
             context_provider.display_status(status_info)
 
+        return None
+
+    @cell_magic("py")
+    def execute_python(self, line, cell):
+        """Execute the cell as normal Python code, bypassing ambient mode.
+        
+        This magic is useful when ambient mode is enabled but you want to
+        execute a specific cell as regular Python code without LLM processing.
+        
+        Variables defined in this cell will be available in other cells.
+        
+        Usage:
+        %%py
+        # This will run as normal Python code
+        x = 10
+        print(f"The value is {x}")
+        """
+        if not _IPYTHON_AVAILABLE:
+            print("❌ IPython not available. Cannot execute cell.", file=sys.stderr)
+            return
+
+        try:
+            # Get the shell from self.shell (provided by the Magics base class)
+            shell = self.shell
+            
+            # Execute the cell as normal Python code in the user's namespace
+            logger.info("Executing cell as normal Python code via %%py magic")
+            
+            # Run the cell in the user's namespace
+            result = shell.run_cell(cell)
+            
+            # Handle execution errors
+            if result.error_before_exec or result.error_in_exec:
+                if result.error_in_exec:
+                    print(f"❌ Error during execution: {result.error_in_exec}", file=sys.stderr)
+                else:
+                    print(f"❌ Error before execution: {result.error_before_exec}", file=sys.stderr)
+            
+        except Exception as e:
+            print(f"❌ Error executing Python cell: {e}", file=sys.stderr)
+            logger.error(f"Error during %%py execution: {e}")
+            
         return None
 
 
