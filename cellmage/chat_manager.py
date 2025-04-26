@@ -329,10 +329,23 @@ class ChatManager:
             if model_name is None and self._active_persona and self._active_persona.config:
                 model_name = self._active_persona.config.get('model')
                 
-            # Prepare LLM parameters - MOVED HERE AFTER model_name IS DEFINED
+            # Prepare LLM parameters
             llm_params = {}
             if model_name:
                 llm_params["model"] = model_name
+                
+            # FIX: Handle the 'overrides' parameter correctly
+            # If there's an 'overrides' dictionary in kwargs, unpack its contents into llm_params
+            if 'overrides' in kwargs:
+                if isinstance(kwargs['overrides'], dict):
+                    self.logger.debug(f"Applying parameter overrides: {kwargs['overrides']}")
+                    llm_params.update(kwargs['overrides'])
+                else:
+                    self.logger.warning(f"Ignoring non-dictionary 'overrides': {kwargs['overrides']}")
+                # Remove 'overrides' from kwargs to prevent it from being sent as a parameter
+                del kwargs['overrides']
+                
+            # Add any remaining kwargs to llm_params
             llm_params.update(kwargs)
             
             # Call LLM client

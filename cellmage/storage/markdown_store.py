@@ -75,23 +75,27 @@ class MarkdownStore(HistoryStore):
         filename = os.path.splitext(filename)[0]
         full_path = os.path.join(self.save_dir, f"{filename}.md")
         
-        # Convert metadata to serializable dict
+        # Calculate additional metadata that might be useful
+        total_messages = len(messages)
+        turns = len([m for m in messages if m.role == "user"])
+        
+        # Convert metadata to serializable dict using only fields that exist
         metadata_dict = {
+            "session_id": str(metadata.session_id),
             "saved_at": metadata.saved_at.isoformat(),
-            "total_messages": metadata.total_messages,
-            "turns": metadata.turns,
-            "default_model_name": metadata.default_model_name,
-            "default_personality_name": metadata.default_personality_name,
+            "total_messages": total_messages,  # Calculated, not from ConversationMetadata
+            "turns": turns,  # Calculated, not from ConversationMetadata
         }
         
-        if metadata.personality_config:
-            metadata_dict["personality_config"] = metadata.personality_config
+        # Only add optional fields if they're present
+        if metadata.persona_name:
+            metadata_dict["persona_name"] = metadata.persona_name
             
-        if metadata.execution_counts:
-            metadata_dict["execution_counts"] = metadata.execution_counts
+        if metadata.model_name:
+            metadata_dict["model_name"] = metadata.model_name
             
-        if metadata.cell_ids_present:
-            metadata_dict["cell_ids_present"] = metadata.cell_ids_present
+        if metadata.total_tokens:
+            metadata_dict["total_tokens"] = metadata.total_tokens
             
         # Prepare content parts
         content_parts = []
@@ -176,14 +180,11 @@ class MarkdownStore(HistoryStore):
             
             # Create metadata object
             metadata = ConversationMetadata(
+                session_id=uuid.UUID(metadata_dict.get("session_id", str(uuid.uuid4()))),
                 saved_at=datetime.fromisoformat(metadata_dict.get("saved_at", datetime.now().isoformat())),
-                total_messages=metadata_dict.get("total_messages", 0),
-                turns=metadata_dict.get("turns", 0),
-                default_model_name=metadata_dict.get("default_model_name"),
-                default_personality_name=metadata_dict.get("default_personality_name"),
-                personality_config=metadata_dict.get("personality_config"),
-                execution_counts=metadata_dict.get("execution_counts", []),
-                cell_ids_present=metadata_dict.get("cell_ids_present", 0)
+                persona_name=metadata_dict.get("persona_name"),
+                model_name=metadata_dict.get("model_name"),
+                total_tokens=metadata_dict.get("total_tokens"),
             )
             
             # Parse content into messages

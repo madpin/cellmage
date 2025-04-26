@@ -171,19 +171,30 @@ class HistoryManager:
             self.logger.warning("Cannot save: History is empty")
             return None
             
-        # Create metadata
-        execution_counts = sorted(list(set(
-            m.execution_count for m in self.history 
-            if m.execution_count is not None
-        )))
-        cell_ids = [m.cell_id for m in self.history if m.cell_id is not None]
+        # Count tokens from message metadata
+        total_tokens = 0
+        messages_with_tokens = [m for m in self.history if 'tokens_in' in m.metadata or 'tokens_out' in m.metadata]
+        for message in messages_with_tokens:
+            total_tokens += message.metadata.get('tokens_in', 0)
+            total_tokens += message.metadata.get('tokens_out', 0)
+            
+        # Find current persona name and model if available
+        persona_name = None
+        model_name = None
         
+        # Try to get model and persona from the most recent assistant message
+        for message in reversed(self.history):
+            if message.role == "assistant" and 'model_used' in message.metadata:
+                model_name = message.metadata.get('model_used')
+                break
+        
+        # Create metadata that matches the ConversationMetadata class definition
         metadata = ConversationMetadata(
+            session_id=str(uuid.uuid4()),
             saved_at=datetime.now(),
-            total_messages=len(self.history),
-            turns=len([m for m in self.history if m.role == "user"]),
-            execution_counts=execution_counts,
-            cell_ids_present=len(set(cell_ids))
+            persona_name=persona_name,
+            model_name=model_name,
+            total_tokens=total_tokens if total_tokens > 0 else None
         )
         
         try:

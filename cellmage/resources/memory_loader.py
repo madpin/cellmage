@@ -57,10 +57,11 @@ class MemoryLoader(PersonaLoader, SnippetProvider):
             system_message: System message for the persona
             config: Optional configuration for the persona
         """
+        # Fix: use 'name' parameter instead of 'original_name' which doesn't exist
         self.personas[name] = PersonaConfig(
+            name=name,  # Correctly passing the name parameter
             system_message=system_message,
-            config=config or {},
-            original_name=name
+            config=config or {}
         )
         self.logger.info(f"Added persona '{name}' to memory")
     
