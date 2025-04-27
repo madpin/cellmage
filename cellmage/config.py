@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     default_model: str = Field(default="gpt-4.1-nano", description="Default LLM model to use for chat")
     default_persona: Optional[str] = Field(default=None, description="Default persona to use for chat")
     auto_display: bool = Field(default=True, description="Whether to automatically display chat messages")
-    auto_save: bool = Field(default=False, description="Whether to automatically save conversations")
+    auto_save: bool = Field(default=True, description="Whether to automatically save conversations")
     autosave_file: str = Field(
         default="autosaved_conversation", description="Filename for auto-saved conversations"
     )

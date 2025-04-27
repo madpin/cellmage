@@ -65,6 +65,9 @@ class ChatManager:
         self.persona_loader = persona_loader
         self.snippet_provider = snippet_provider
 
+        # Store creation timestamp for auto-save filename
+        self.creation_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
         # Set up history manager
         self.history_manager = HistoryManager(history_store=history_store, context_provider=context_provider)
         self.context_provider = context_provider
@@ -223,24 +226,22 @@ class ChatManager:
         **kwargs,
     ) -> Optional[str]:
         """
-        Send a message to the LLM and get a response.
+        Send a message to the LLM.
 
         Args:
             prompt: The user's message
-            persona_name: Override the persona to use
-            model: Override the model to use
+            persona_name: Optional persona name to use for this call
+            model: Optional model name to use for this call
             stream: Whether to stream the response
-            add_to_history: Whether to add the message to history
-            auto_rollback: Whether to check for and perform history rollback
-            execution_context: Execution context data if already determined
-            **kwargs: Additional parameters to pass to the LLM
+            add_to_history: Whether to add the messages to history
+            auto_rollback: Whether to automatically rollback on cell re-execution
+            execution_context: Optional execution context information
+            **kwargs: Additional parameters to pass to the LLM client
 
         Returns:
-            The LLM's response or None if failed
+            Assistant's response or None on error
         """
-        if not self.llm_client:
-            raise ConfigurationError("No LLM client configured")
-
+        # Start timing the call for performance tracking
         start_time = time.time()
 
         # Get execution context
@@ -449,6 +450,17 @@ class ChatManager:
 
                 if self.history_manager:
                     self.history_manager.add_message(assistant_message)
+                    
+                # Auto-save the conversation if enabled in settings
+                if self.settings.auto_save and self.history_manager:
+                    try:
+                        # Use the autosave_file setting with the fixed creation timestamp
+                        autosave_filename = f"{self.settings.autosave_file}_{self.creation_datetime}"
+                        saved_path = self.history_manager.save_conversation(autosave_filename)
+                        if saved_path:
+                            self.logger.info(f"Auto-saved conversation to {saved_path}")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to auto-save conversation: {e}")
 
             # Display status bar if context provider is available
             duration = time.time() - start_time
@@ -518,7 +530,13 @@ class ChatManager:
         Returns:
             Path to the saved file or None if failed
         """
-        return self.history_manager.save_conversation(filename)
+        if filename:
+            # Add the creation timestamp to the filename to ensure consistency
+            filename_with_date = f"{filename}_{self.creation_datetime}"
+            return self.history_manager.save_conversation(filename_with_date)
+        else:
+            # If no filename provided, let the history manager handle it
+            return self.history_manager.save_conversation(None)
 
     def load_conversation(self, filepath: str) -> bool:
         """

@@ -71,6 +71,11 @@ class MarkdownStore(HistoryStore):
                 filename = f"chat_{now}_{safe_words if safe_words else 'conversation'}"
             else:
                 filename = f"chat_{now}"
+        else:
+            # Only add timestamp if the filename doesn't already contain a date pattern (YYYYMMDD_HHMMSS)
+            if not any(part.isdigit() and len(part) == 8 for part in filename.split('_')):
+                now = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"{filename}_{now}"
 
         # Ensure filename doesn't have extension
         filename = os.path.splitext(filename)[0]
@@ -79,6 +84,9 @@ class MarkdownStore(HistoryStore):
         # Calculate additional metadata that might be useful
         total_messages = len(messages)
         turns = len([m for m in messages if m.role == "user"])
+
+        # Format the current date for display
+        current_date = datetime.now().strftime("%B %d, %Y")
 
         # Convert metadata to serializable dict using only fields that exist
         metadata_dict = {
@@ -100,6 +108,9 @@ class MarkdownStore(HistoryStore):
 
         # Prepare content parts
         content_parts = []
+
+        # Add date header
+        content_parts.append(f"# Conversation on {current_date}\n\n")
 
         # Group messages by role for better readability
         current_role = None
