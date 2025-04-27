@@ -12,8 +12,16 @@ try:
 except ImportError:
     _DIRECT_AVAILABLE = False
 
-# Export the DirectLLMAdapter as the default
+try:
+    from .langchain_client import LangChainAdapter
+
+    _LANGCHAIN_AVAILABLE = True
+except ImportError:
+    _LANGCHAIN_AVAILABLE = False
+
+# Export available adapters
+__all__ = []
 if _DIRECT_AVAILABLE:
-    __all__ = ["DirectLLMAdapter"]
-else:
-    __all__ = []
+    __all__.append("DirectLLMAdapter")
+if _LANGCHAIN_AVAILABLE:
+    __all__.append("LangChainAdapter")

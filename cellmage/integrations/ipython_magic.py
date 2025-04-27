@@ -71,18 +71,36 @@ def _init_default_manager() -> ChatManager:
     global _initialization_error
     try:
         # Import necessary components dynamically only if needed
-        from ..adapters.direct_client import DirectLLMAdapter
         from ..config import settings
         from ..resources.file_loader import FileLoader
         from ..storage.markdown_store import MarkdownStore
 
-        logger.info("Initializing default ChatManager components...")
+        # Determine which adapter to use
+        adapter_type = os.environ.get("CELLMAGE_ADAPTER", "direct").lower()
+        
+        logger.info(f"Initializing default ChatManager with adapter type: {adapter_type}")
 
         # Create default dependencies
         loader = FileLoader(settings.personas_dir, settings.snippets_dir)
         store = MarkdownStore(settings.save_dir)
-        client = DirectLLMAdapter(default_model=settings.default_model)
         context_provider = get_ipython_context_provider()
+        
+        # Initialize the appropriate LLM client adapter
+        if adapter_type == "langchain":
+            try:
+                from ..adapters.langchain_client import LangChainAdapter
+                client = LangChainAdapter(default_model=settings.default_model)
+                logger.info("Using LangChain adapter")
+            except ImportError:
+                # Fall back to Direct adapter if LangChain is not available
+                logger.warning("LangChain adapter requested but not available. Falling back to Direct adapter.")
+                from ..adapters.direct_client import DirectLLMAdapter
+                client = DirectLLMAdapter(default_model=settings.default_model)
+        else:
+            # Default case: use Direct adapter
+            from ..adapters.direct_client import DirectLLMAdapter
+            client = DirectLLMAdapter(default_model=settings.default_model)
+            logger.info("Using Direct adapter")
 
         manager = ChatManager(
             settings=settings,
@@ -457,6 +475,97 @@ class NotebookLLMMagics(Magics):
 
         return action_taken
 
+    # --- Implementation of adapter switching ---
+    def _handle_adapter_switch(self, args, manager: ChatManager) -> bool:
+        """Handle adapter switching."""
+        action_taken = False
+        
+        if hasattr(args, "adapter") and args.adapter:
+            action_taken = True
+            adapter_type = args.adapter.lower()
+            
+            try:
+                # Import necessary components dynamically
+                from ..config import settings
+                
+                # Initialize the appropriate LLM client adapter
+                if adapter_type == "langchain":
+                    try:
+                        from ..adapters.langchain_client import LangChainAdapter
+                        
+                        # Create new adapter instance with current settings from existing client
+                        current_api_key = None
+                        current_api_base = None
+                        current_model = settings.default_model
+                        
+                        if manager.llm_client:
+                            if hasattr(manager.llm_client, "get_overrides"):
+                                overrides = manager.llm_client.get_overrides()
+                                current_api_key = overrides.get("api_key")
+                                current_api_base = overrides.get("api_base")
+                                current_model = overrides.get("model", current_model)
+                        
+                        # Create the new adapter
+                        new_client = LangChainAdapter(
+                            api_key=current_api_key,
+                            api_base=current_api_base,
+                            default_model=current_model
+                        )
+                        
+                        # Set the new adapter
+                        manager.llm_client = new_client
+                        
+                        # Update env var for persistence between sessions
+                        os.environ["CELLMAGE_ADAPTER"] = "langchain"
+                        
+                        print("✅ Switched to LangChain adapter")
+                        logger.info("Switched to LangChain adapter")
+                        
+                    except ImportError:
+                        print("❌ LangChain adapter not available. Make sure langchain is installed.")
+                        logger.error("LangChain adapter requested but not available")
+                        
+                elif adapter_type == "direct":
+                    from ..adapters.direct_client import DirectLLMAdapter
+                    
+                    # Create new adapter instance with current settings from existing client
+                    current_api_key = None
+                    current_api_base = None
+                    current_model = settings.default_model
+                    
+                    if manager.llm_client:
+                        if hasattr(manager.llm_client, "get_overrides"):
+                            overrides = manager.llm_client.get_overrides()
+                            current_api_key = overrides.get("api_key")
+                            current_api_base = overrides.get("api_base")
+                            current_model = overrides.get("model", current_model)
+                    
+                    # Create the new adapter
+                    new_client = DirectLLMAdapter(
+                        api_key=current_api_key,
+                        api_base=current_api_base,
+                        default_model=current_model
+                    )
+                    
+                    # Set the new adapter
+                    manager.llm_client = new_client
+                    
+                    # Update env var for persistence between sessions
+                    os.environ["CELLMAGE_ADAPTER"] = "direct"
+                    
+                    print("✅ Switched to Direct adapter")
+                    logger.info("Switched to Direct adapter")
+                    
+                else:
+                    print(f"❌ Unknown adapter type: {adapter_type}")
+                    logger.error(f"Unknown adapter type requested: {adapter_type}")
+                    
+            except Exception as e:
+                print(f"❌ Error switching adapter: {e}")
+                logger.exception(f"Error switching to adapter {adapter_type}: {e}")
+                
+        return action_taken
+
     # --- Implementation of status display ---
     def _show_status(self, manager: ChatManager) -> None:
         """Show current status information."""
@@ -529,6 +638,12 @@ class NotebookLLMMagics(Magics):
         help="Show current status (persona, overrides, history length).",
     )
     @argument("--model", type=str, help="Set the default model for the LLM client.")
+    @argument(
+        "--adapter",
+        type=str,
+        choices=["direct", "langchain"],
+        help="Switch to a different LLM adapter implementation.",
+    )
     @line_magic("llm_config")
     def configure_llm(self, line):
         """Configure the LLM session state and manage resources."""
@@ -549,6 +664,7 @@ class NotebookLLMMagics(Magics):
         action_taken |= self._handle_override_commands(args, manager)
         action_taken |= self._handle_history_commands(args, manager)
         action_taken |= self._handle_persistence_commands(args, manager)
+        action_taken |= self._handle_adapter_switch(args, manager)
 
         # Default action or if explicitly requested: show status
         if args.status or not action_taken:
