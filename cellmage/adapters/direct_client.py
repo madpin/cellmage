@@ -79,9 +79,33 @@ class DirectLLMAdapter(LLMClientInterface):
             self.logger.debug(f"[Override] Key '{key}' not found, nothing removed.")
 
     def clear_overrides(self) -> None:
-        """Remove all instance-level overrides."""
+        """
+        Remove all instance-level overrides except api_key and api_base.
+        For model, reset it to the default from settings.
+        """
+        # Save api_key, api_base and default model
+        api_key = self._instance_overrides.get("api_key")
+        api_base = self._instance_overrides.get("api_base")
+        
+        # Import settings to get the default model
+        from ..config import settings
+        default_model = settings.default_model
+        
+        # Clear all overrides
         self._instance_overrides = {}
-        self.logger.info("[Override] All instance overrides cleared.")
+        
+        # Restore the preserved values
+        if api_key is not None:
+            self._instance_overrides["api_key"] = api_key
+        
+        if api_base is not None:
+            self._instance_overrides["api_base"] = api_base
+            
+        # Set model to the default value
+        if default_model is not None:
+            self._instance_overrides["model"] = default_model
+            
+        self.logger.info("[Override] Overrides cleared, preserving api_key and api_base. Model reset to default.")
 
     def get_overrides(self) -> Dict[str, Any]:
         """

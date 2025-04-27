@@ -67,11 +67,32 @@ class FileLoader(PersonaLoader, SnippetProvider):
         Load a persona configuration from a markdown file.
 
         Args:
-            name: Name of the persona (without .md extension)
+            name: Name of the persona (without .md extension) or path to a .md file
+                 If name starts with '/' or '.', it will be treated as file path
 
         Returns:
             PersonaConfig object or None if not found
         """
+        # Check if name represents a file path (starts with '/' or '.')
+        if name.startswith('/') or name.startswith('.'):
+            # Direct file path case - ensure it has .md extension
+            if not name.lower().endswith('.md'):
+                filepath = f"{name}.md"
+            else:
+                filepath = name
+                
+            # Extract the base name for use as original_name
+            original_name = os.path.splitext(os.path.basename(filepath))[0]
+            
+            # Try to load directly from the given path
+            if os.path.isfile(filepath):
+                self.logger.debug(f"Loading persona from direct path: {filepath}")
+                return self._load_persona_file(filepath, original_name)
+                
+            self.logger.warning(f"Persona file not found at path: {filepath}")
+            return None
+
+        # Standard case - search in configured directory
         # Case insensitive matching
         name_lower = name.lower()
 
@@ -146,6 +167,15 @@ class FileLoader(PersonaLoader, SnippetProvider):
                 self.logger.info(
                     f"Persona name not found in frontmatter. Using filename '{original_name}' as persona name."
                 )
+                
+            # Make sure 'model' is in the config - this is crucial for external personas
+            if "model" not in config:
+                # Import settings to get the default model
+                from ..config import settings
+                config["model"] = settings.default_model
+                self.logger.info(
+                    f"Model not specified in persona '{original_name}'. Using default model: {settings.default_model}"
+                )
 
             try:
                 # Create PersonaConfig using only the fields in the model definition
@@ -164,9 +194,9 @@ class FileLoader(PersonaLoader, SnippetProvider):
                 template = f"""---
 name: {original_name}
 description: A brief description of this persona
+model: gpt-4.1-nano
 # Optional parameters:
 # temperature: 0.7
-# model: gpt-4.1-mini
 ---
 {system_message}"""
                 print(f"\n❌ Error loading persona '{original_name}': {validation_err}")
@@ -209,12 +239,34 @@ description: A brief description of this persona
         Load a snippet from a markdown file.
 
         Args:
-            name: Name of the snippet (without .md extension)
+            name: Name of the snippet (without .md extension) or path to a file
+                 If name starts with '/' or '.', it will be treated as file path
 
         Returns:
             Snippet content as string or None if not found
         """
-        # Add .md extension if not provided
+        # Check if name represents a file path (starts with '/' or '.')
+        if name.startswith('/') or name.startswith('.'):
+            # Direct file path case
+            filepath = name
+            
+            # Try to load directly from the given path
+            try:
+                if not os.path.isfile(filepath):
+                    self.logger.warning(f"Snippet file not found at path: {filepath}")
+                    return None
+
+                with open(filepath, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                self.logger.debug(f"Loaded snippet from direct path: {filepath}")
+                return content
+            except Exception as e:
+                self.logger.error(f"Error loading snippet from path '{filepath}': {e}")
+                return None
+        
+        # Standard case - search in configured directory
+        # Add .md extension if not provided and we're using the default directory lookup
         if not name.lower().endswith(".md"):
             name += ".md"
 
@@ -287,11 +339,23 @@ class MultiFileLoader(PersonaLoader, SnippetProvider):
         Load a persona configuration, searching across all directories.
 
         Args:
-            name: Name of the persona (without .md extension)
+            name: Name of the persona (without .md extension) or path to a .md file
+                 If name starts with '/' or '.', it will be treated as file path
 
         Returns:
             First matching PersonaConfig object or None if not found
         """
+        # Check if name represents a file path (starts with '/' or '.')
+        if name.startswith('/') or name.startswith('.'):
+            # For direct file paths, use the first loader to handle it
+            # (any loader can handle direct paths)
+            if self.persona_loaders:
+                return self.persona_loaders[0].get_persona(name)
+            else:
+                self.logger.warning("No persona loaders available to handle direct file path")
+                return None
+
+        # Standard case - search through configured directories
         for loader in self.persona_loaders:
             persona = loader.get_persona(name)
             if persona:
@@ -318,11 +382,23 @@ class MultiFileLoader(PersonaLoader, SnippetProvider):
         Load a snippet, searching across all directories.
 
         Args:
-            name: Name of the snippet (without .md extension)
+            name: Name of the snippet (without .md extension) or path to a file
+                 If name starts with '/' or '.', it will be treated as file path
 
         Returns:
             Snippet content as string or None if not found
         """
+        # Check if name represents a file path (starts with '/' or '.')
+        if name.startswith('/') or name.startswith('.'):
+            # For direct file paths, use the first loader to handle it
+            # (any loader can handle direct paths)
+            if self.snippet_loaders:
+                return self.snippet_loaders[0].get_snippet(name)
+            else:
+                self.logger.warning("No snippet loaders available to handle direct file path")
+                return None
+
+        # Standard case - search through configured directories
         for loader in self.snippet_loaders:
             snippet = loader.get_snippet(name)
             if snippet:

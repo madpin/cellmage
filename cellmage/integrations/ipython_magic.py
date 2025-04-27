@@ -9,6 +9,7 @@ import os
 import sys
 import time
 from typing import Any, Dict, List, Optional
+import uuid
 
 # IPython imports with fallback handling
 try:
@@ -55,6 +56,7 @@ from ..exceptions import (
     PersistenceError,
     ResourceNotFoundError,
 )
+from ..models import Message
 
 # Logging setup
 logger = logging.getLogger(__name__)
@@ -740,13 +742,43 @@ class NotebookLLMMagics(Magics):
             return
 
         # Check if the persona exists if one was specified
+        temp_persona = None
         if args.persona:
-            if not manager.persona_loader.get_persona(args.persona):
+            temp_persona = manager.persona_loader.get_persona(args.persona)
+            if not temp_persona:
                 print(f"❌ Error: Persona '{args.persona}' not found.")
                 print("  To list available personas, use: %llm_config --list-personas")
                 status_info["duration"] = time.time() - start_time
                 context_provider.display_status(status_info)
                 return
+                
+            # If using an external persona (starts with / or .), ensure its system message is added
+            # and it's the first system message
+            if (args.persona.startswith('/') or args.persona.startswith('.')) and temp_persona.system_message:
+                logger.info(f"Adding system message from external persona: {args.persona}")
+                
+                # Get current history
+                current_history = manager.history_manager.get_history()
+
+                # Extract system and non-system messages
+                system_messages = [m for m in current_history if m.role == "system"]
+                non_system_messages = [m for m in current_history if m.role != "system"]
+
+                # Clear the history
+                manager.history_manager.clear_history(keep_system=False)
+
+                # Add persona system message first
+                manager.history_manager.add_message(
+                    Message(role="system", content=temp_persona.system_message, id=str(uuid.uuid4()))
+                )
+
+                # Re-add all existing system messages (if any)
+                for msg in system_messages:
+                    manager.history_manager.add_message(msg)
+
+                # Re-add all non-system messages
+                for msg in non_system_messages:
+                    manager.history_manager.add_message(msg)
 
         # Rest of the method remains the same
         prompt = cell.strip()

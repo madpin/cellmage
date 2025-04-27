@@ -262,6 +262,18 @@ class ChatManager:
             self.history_manager.perform_rollback(cell_id)
 
         try:
+            # If persona_name is provided, try to load and set it temporarily
+            temp_persona = None
+            if persona_name:
+                if self.persona_loader:
+                    temp_persona = self.persona_loader.get_persona(persona_name)
+                    if not temp_persona:
+                        self.logger.warning(f"Persona '{persona_name}' not found, using active persona instead.")
+                    else:
+                        self.logger.info(f"Using persona '{persona_name}' for this request")
+                else:
+                    self.logger.warning("No persona loader configured, ignoring persona_name parameter.")
+
             # Get all message history
             history_messages = self.history_manager.get_history() if self.history_manager else []
 
@@ -276,6 +288,13 @@ class ChatManager:
             if system_messages:
                 messages.extend(system_messages)
             # If no system messages in history but we have an active persona, add its system message
+            elif temp_persona and temp_persona.system_message:
+                # Use the temp persona's system message if provided
+                system_message = Message(
+                    role="system", content=temp_persona.system_message, id=str(uuid.uuid4())
+                )
+                messages.append(system_message)
+                self.logger.debug("Added system message from temporary persona")
             elif self._active_persona and self._active_persona.system_message:
                 system_message = Message(
                     role="system", content=self._active_persona.system_message, id=str(uuid.uuid4())
@@ -314,15 +333,48 @@ class ChatManager:
             # Add to messages we'll send to the LLM
             messages.append(user_message)
 
-            # Figure out model to use
+            # Figure out model to use with more robust fallbacks
             model_name = model
-            if model_name is None and self._active_persona and self._active_persona.config:
+            
+            # If model not specified directly, try to get it from the temp persona if available
+            if model_name is None and temp_persona and temp_persona.config and "model" in temp_persona.config:
+                model_name = temp_persona.config.get("model")
+                self.logger.debug(f"Using model from temporary persona: {model_name}")
+                
+            # If still no model, try to get it from the active persona if available
+            if model_name is None and self._active_persona and self._active_persona.config and "model" in self._active_persona.config:
                 model_name = self._active_persona.config.get("model")
+                self.logger.debug(f"Using model from active persona: {model_name}")
+                
+            # If still no model, check if LLM client has a model override set
+            if model_name is None and hasattr(self.llm_client, "_instance_overrides") and "model" in self.llm_client._instance_overrides:
+                model_name = self.llm_client._instance_overrides.get("model")
+                self.logger.debug(f"Using model from LLM client override: {model_name}")
+                
+            # Final fallback to the default model from settings
+            if model_name is None:
+                model_name = self.settings.default_model
+                self.logger.debug(f"Using default model from settings: {model_name}")
+                
+            # Ensure we have a model specified at this point
+            if model_name is None:
+                raise ConfigurationError("No model specified and no default model available in settings.")
 
             # Prepare LLM parameters
             llm_params = {}
-            if model_name:
-                llm_params["model"] = model_name
+            
+            # Always set the model explicitly 
+            llm_params["model"] = model_name
+
+            # Apply parameter overrides from temp persona if available
+            if temp_persona and temp_persona.config:
+                valid_llm_params = {
+                    "temperature", "top_p", "n", "stream", "max_tokens", 
+                    "presence_penalty", "frequency_penalty", "logit_bias", "stop"
+                }
+                for key, value in temp_persona.config.items():
+                    if key in valid_llm_params:
+                        llm_params[key] = value
 
             # FIX: Handle the 'overrides' parameter correctly
             # If there's an 'overrides' dictionary in kwargs, unpack its contents into llm_params
@@ -339,7 +391,7 @@ class ChatManager:
             llm_params.update(kwargs)
 
             # Call LLM client
-            self.logger.info(f"Sending message to LLM with {len(messages)} messages in context")
+            self.logger.info(f"Sending message to LLM with {len(messages)} messages in context using model: {model_name}")
             assistant_response_content = self.llm_client.chat(
                 messages=messages, stream=stream, stream_callback=stream_callback, **llm_params
             )
@@ -401,14 +453,14 @@ class ChatManager:
             # Display status bar if context provider is available
             duration = time.time() - start_time
             if self.context_provider and not stream:
-                self.context_provider.display_status(
-                    success=True,
-                    duration=duration,
-                    tokens_in=tokens_in,
-                    tokens_out=tokens_out,
-                    cost_mili_cents=cost_mili_cents,
-                    model=actual_model_used or model_name,  # Use the actual model if available
-                )
+                self.context_provider.display_status({
+                    "success": True,
+                    "duration": duration,
+                    "tokens_in": tokens_in,
+                    "tokens_out": tokens_out,
+                    "cost_mili_cents": cost_mili_cents,
+                    "model": actual_model_used or model_name  # Use the actual model if available
+                })
 
             return assistant_response_content
 
@@ -418,14 +470,14 @@ class ChatManager:
 
             # Show error in status bar
             if self.context_provider:
-                self.context_provider.display_status(
-                    success=False,
-                    duration=duration,
-                    tokens_in=None,
-                    tokens_out=None,
-                    cost_mili_cents=None,
-                    model=None,
-                )
+                self.context_provider.display_status({
+                    "success": False,
+                    "duration": duration,
+                    "tokens_in": None,
+                    "tokens_out": None,
+                    "cost_mili_cents": None,
+                    "model": None
+                })
 
             # Re-raise to let caller handle
             raise
