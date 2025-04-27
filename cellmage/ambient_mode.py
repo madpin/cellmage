@@ -105,11 +105,21 @@ def _auto_process_cells(lines: List[str]) -> List[str]:
     # Skip processing for cells with explicit %%llm or other known magics
     if any(line.strip().startswith(("%%", "%load", "%reload", "%llm_config", "%disable_llm")) for line in lines):
         return lines
+        
+    # Skip processing for internal Jupyter functions
+    cell_content = "\n".join(lines)
+    if "__jupyter_exec_background__" in cell_content:
+        logger.debug("Skipping ambient mode for internal Jupyter function")
+        return lines
+        
+    # Skip processing for known completion/autocomplete related code patterns
+    if "get_ipython().kernel.do_complete" in cell_content:
+        logger.debug("Skipping ambient mode for code completion function")
+        return lines
 
     # Replace the cell content with code that will call process_cell_as_prompt
     # This is the magic - instead of executing the cell content directly,
     # we execute code that will send it to the LLM
-    cell_content = "\n".join(lines)
 
     # Generate cleaner code with proper spacing and clear separation between statements
     # Use multiple approaches to find the NotebookLLMMagics instance for better reliability
@@ -155,7 +165,9 @@ try:
         magics_instance.process_cell_as_prompt({repr(cell_content)})
     else:
         print('Error: Could not find registered NotebookLLMMagics instance. Please run \"%load_ext cellmage.integrations.ipython_magic\" first.', file=sys.stderr)
-        print('You can also try restarting the kernel.', file=sys.stderr)
+except RuntimeError as re:
+    print(f'Runtime error: {{re}}', file=sys.stderr)
+    print('You can also try restarting the kernel.', file=sys.stderr)
 except ImportError as e:
     print(f'Error importing modules: {{e}}. Is cellmage installed correctly?', file=sys.stderr)
 except Exception as e:

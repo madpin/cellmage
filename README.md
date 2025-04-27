@@ -77,69 +77,59 @@ CellMage provides a DirectLLMAdapter for connecting to LLM APIs:
 
 ## Mastering the Arcane Arts (Core Concepts) 📖
 
+### Available Magic Commands
+
+CellMage provides the following IPython magic commands:
+
+* `%%llm` - Cell magic to send your prompt to the LLM
+* `%llm_config` - Line magic to configure session state and manage resources 
+* `%llm_config_persistent` - Enable ambient mode (process regular cells as LLM prompts)
+* `%disable_llm_config_persistent` - Disable ambient mode
+* `%%py` - Execute a cell as normal Python code when ambient mode is active
+
+For a comprehensive reference of all available magic commands and their arguments, see the [IPython Magic Commands documentation](docs/source/ipython_magic_commands.md).
+
 ### The `%%llm` Cell Spell
 
 This is your bread-and-butter. Anything in a cell marked with `%%llm` at the top gets sent as a prompt to the currently configured LLM.
 
 ```python
-%%llm --model ollama/codellama --persona python_expert
+%%llm --model gpt-4o --persona python_expert
 Write a python function that takes a list of numbers and returns the sum,
 but handle potential type errors gracefully.
 ```
 
-* `--model`: Temporarily use a different model for this spell.
-* `--persona`: Temporarily use a different personality for this spell.
-* `--nostream`: Disable streaming output just for this cell.
-* `--debug`: Get verbose logging output for this specific call.
+Common arguments:
+* `-p`, `--persona`: Temporarily use a different personality for this spell
+* `-m`, `--model`: Temporarily use a different model for this spell
+* `-t`, `--temperature`: Set temperature for this call
+* `--max-tokens`: Set max_tokens for this call
+* `--no-stream`: Disable streaming output just for this cell
+* `--no-history`: Don't add this exchange to conversation history
+* `--param KEY VALUE`: Set any other LLM param ad-hoc (e.g., `--param top_p 0.9`)
 
-### Configuring Your Wand (`%llm_setup` & `%llm_setup_forever`)
+### Configuring Your Session (`%llm_config` & `%llm_config_persistent`)
 
-* `%llm_setup`: Configure CellMage for the current session. Set defaults like your preferred model, API endpoints, persona folders, logging preferences, etc.
+* `%llm_config`: Configure CellMage for the current session. Set defaults like your preferred model, API endpoints, persona folders, logging preferences, etc.
     ```python
-    %llm_setup --default_model gpt-4o --persona coding_assistant --auto_save True --debug True
+    %llm_config --model gpt-4o --persona coding_assistant --auto_save True --status
     ```
-* `%llm_setup_forever`: Does the same as `%llm_setup`, *but also* enables the "Ambient Enchantment" mode, treating subsequent non-magic cells as prompts. Great for pure chat sessions! Use `%disable_llm_config_persistent` to deactivate.
-
-### The Grimoire of Personas
-
-Create `.md` files in a designated folder (default: `llm_personas`). The file content is the system prompt. Add YAML frontmatter for specific configs (like model, temperature):
-
-```markdown
----
-model: gpt-3.5-turbo
-temperature: 0.2
----
-You are a helpful Python programming assistant. You provide clear, concise code examples and explanations. You prefer Pythonic solutions.
-```
-
-Save as `python_expert.md`, then use `%llm_setup --persona python_expert` or `%%llm --persona python_expert`.
-
-### Connecting to Magical Fonts (API Config)
-
-CellMage needs to know how to reach your LLM. Set credentials via:
-
-1.  **Environment Variables (Recommended):**
-    * `CELLMAGE_API_KEY`: Your API key.
-    * `CELLMAGE_API_BASE`: The base URL for the API (e.g., `http://localhost:1234/v1` for local OpenAI-compatible APIs).
-2.  **`%llm_setup` / `%llm_setup_forever`:** Use the `--api_key` and `--api_base` arguments.
-3.  **Instance Overrides (Advanced):** Use `llm.set_override("api_key", "...")` if you access the underlying `NotebookLLMv6` object directly.
-
-### Peeking into the Scrolls (History & Rollback)
-
-CellMage automatically keeps track of your conversation.
-
-* `llm.show_history()`: Display the recent conversation turns.
-* `llm.get_history_df()`: Get the history as a Pandas DataFrame (if Pandas is installed).
-* `llm.revert_last()`: Manually undo the last user/assistant turn.
-* **Automatic Rollback:** If CellMage detects you've re-run a cell where you previously called `%%llm`, it magically removes the *previous* result from history before running the new one. No more cluttered history from experimentation!
-
-### Live Conjuring (Streaming)
-
-Streaming is enabled by default. You'll see the response appear token by token. Use `%%llm --nostream` or `%llm_setup --auto_display False` (which implies no streaming display) to disable it if needed.
+* `%llm_config_persistent`: Does the same as `%llm_config`, *but also* enables the "Ambient Enchantment" mode, treating subsequent non-magic cells as prompts. Great for pure chat sessions! Use `%disable_llm_config_persistent` to deactivate.
 
 ### Ambient Enchantment (Auto-Processing)
 
-Run `%llm_setup_forever`. Now, just type a prompt in a regular cell and run it! CellMage intercepts it and sends it to the LLM. Magic! Remember to `%disable_llm_config_persistent` when you want normal cell execution back.
+Run `%llm_config_persistent`. Now, just type a prompt in a regular cell and run it! CellMage intercepts it and sends it to the LLM. Magic!
+
+To run actual Python code while in ambient mode, use the `%%py` cell magic:
+
+```python
+%%py
+# This will run as normal Python code, not as an LLM prompt
+x = 10
+print(f"The value is {x}")
+```
+
+Remember to use `%disable_llm_config_persistent` when you want normal cell execution back.
 
 ### Spell Snippets
 

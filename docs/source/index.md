@@ -7,6 +7,7 @@
 
 installation
 overview
+ipython_magic_commands
 ```
 
 ```{toctree}
