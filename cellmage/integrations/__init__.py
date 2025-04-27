@@ -10,8 +10,9 @@ try:
         IPythonContextProvider,
         NotebookLLMMagics,
         load_ipython_extension,
-        unload_ipython_extension
+        unload_ipython_extension,
     )
+
     _IPYTHON_AVAILABLE = True
 except ImportError:
     _IPYTHON_AVAILABLE = False
@@ -21,7 +22,7 @@ if _IPYTHON_AVAILABLE:
         "IPythonContextProvider",
         "NotebookLLMMagics",
         "load_ipython_extension",
-        "unload_ipython_extension"
+        "unload_ipython_extension",
     ]
 else:
     __all__ = []

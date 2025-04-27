@@ -1,78 +1,51 @@
-import os
 import logging
-from typing import Dict, Optional, Any, List, Union
+import os
+from typing import List, Optional, Union
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
+
 class Settings(BaseSettings):
     """
     Configuration settings for the application using Pydantic.
-    
+
     This class provides strongly-typed configuration settings that are automatically
     loaded from environment variables with the CELLMAGE_ prefix. It also supports
     loading from .env files automatically.
     """
+
     # Default settings
-    default_model: str = Field(
-        default="gpt-4.1-nano",
-        description="Default LLM model to use for chat"
-    )
-    default_persona: Optional[str] = Field(
-        default=None,
-        description="Default persona to use for chat"
-    )
-    auto_display: bool = Field(
-        default=True,
-        description="Whether to automatically display chat messages"
-    )
-    auto_save: bool = Field(
-        default=False,
-        description="Whether to automatically save conversations"
-    )
+    default_model: str = Field(default="gpt-4.1-nano", description="Default LLM model to use for chat")
+    default_persona: Optional[str] = Field(default=None, description="Default persona to use for chat")
+    auto_display: bool = Field(default=True, description="Whether to automatically display chat messages")
+    auto_save: bool = Field(default=False, description="Whether to automatically save conversations")
     autosave_file: str = Field(
-        default="autosaved_conversation",
-        description="Filename for auto-saved conversations"
+        default="autosaved_conversation", description="Filename for auto-saved conversations"
     )
     personas_dir: str = Field(
-        default="llm_personas",
-        description="Primary directory containing persona definitions"
+        default="llm_personas", description="Primary directory containing persona definitions"
     )
     personas_dirs_list: List[str] = Field(
         default_factory=list,
         alias="personas_dirs",
-        description="Additional directories containing persona definitions"
+        description="Additional directories containing persona definitions",
     )
-    snippets_dir: str = Field(
-        default="llm_snippets",
-        description="Primary directory containing snippets"
-    )
+    snippets_dir: str = Field(default="llm_snippets", description="Primary directory containing snippets")
     snippets_dirs_list: List[str] = Field(
-        default_factory=list, 
+        default_factory=list,
         alias="snippets_dirs",
-        description="Additional directories containing snippets"
+        description="Additional directories containing snippets",
     )
-    conversations_dir: str = Field(
-        default="llm_conversations",
-        description="Directory for saved conversations"
-    )
-    
+    conversations_dir: str = Field(default="llm_conversations", description="Directory for saved conversations")
+
     # Logging settings
-    log_level: str = Field(
-        default="INFO",
-        description="Global logging level"
-    )
-    console_log_level: str = Field(
-        default="WARNING",
-        description="Console logging level"
-    )
-    log_file: str = Field(
-        default="cellmage.log",
-        description="Log file path"
-    )
-    
+    log_level: str = Field(default="INFO", description="Global logging level")
+    console_log_level: str = Field(default="WARNING", description="Console logging level")
+    log_file: str = Field(default="cellmage.log", description="Log file path")
+
     model_config = SettingsConfigDict(
         env_prefix="CELLMAGE_",
         case_sensitive=False,
@@ -81,24 +54,29 @@ class Settings(BaseSettings):
         extra="ignore",
         validate_default=True,
     )
-    
+
     def __init__(self, **data):
         # Process environment variables before initialization
-        env_personas_dirs = os.environ.get('CELLMAGE_PERSONAS_DIRS')
+        env_personas_dirs = os.environ.get("CELLMAGE_PERSONAS_DIRS")
         if env_personas_dirs:
             dirs = [d.strip() for d in env_personas_dirs.replace(";", ",").split(",") if d.strip()]
-            data['personas_dirs'] = dirs
+            data["personas_dirs"] = dirs
             logger.debug(f"Set personas_dirs from environment: {dirs}")
-            
-        env_snippets_dirs = os.environ.get('CELLMAGE_SNIPPETS_DIRS')
+
+        env_snippets_dirs = os.environ.get("CELLMAGE_SNIPPETS_DIRS")
         if env_snippets_dirs:
             dirs = [d.strip() for d in env_snippets_dirs.replace(";", ",").split(",") if d.strip()]
-            data['snippets_dirs'] = dirs
+            data["snippets_dirs"] = dirs
             logger.debug(f"Set snippets_dirs from environment: {dirs}")
-        
+
         # Call parent init
         super().__init__(**data)
-    
+
+        # Check if conversations_dir exists and enable auto_save if it does
+        if os.path.exists(self.conversations_dir) and os.path.isdir(self.conversations_dir):
+            self.auto_save = True
+            logger.info(f"Found '{self.conversations_dir}' folder. Auto-save enabled automatically.")
+
     @property
     def personas_dirs(self) -> List[str]:
         """Get additional persona directories"""
@@ -111,7 +89,7 @@ class Settings(BaseSettings):
             self.personas_dirs_list = [d.strip() for d in value.replace(";", ",").split(",") if d.strip()]
         else:
             self.personas_dirs_list = value
-    
+
     @property
     def snippets_dirs(self) -> List[str]:
         """Get additional snippet directories"""
@@ -124,7 +102,7 @@ class Settings(BaseSettings):
             self.snippets_dirs_list = [d.strip() for d in value.replace(";", ",").split(",") if d.strip()]
         else:
             self.snippets_dirs_list = value
-    
+
     @property
     def all_personas_dirs(self) -> List[str]:
         """Get all persona directories including the primary one."""
@@ -133,7 +111,7 @@ class Settings(BaseSettings):
             if dir and dir not in dirs:
                 dirs.append(dir)
         return dirs
-    
+
     @property
     def all_snippets_dirs(self) -> List[str]:
         """Get all snippet directories including the primary one."""
@@ -142,21 +120,21 @@ class Settings(BaseSettings):
             if dir and dir not in dirs:
                 dirs.append(dir)
         return dirs
-    
+
     @property
     def save_dir(self) -> str:
         """
         For compatibility with code that expects save_dir instead of conversations_dir.
-        
+
         Returns:
             The conversations directory path
         """
         return self.conversations_dir
-    
+
     def update(self, **kwargs) -> None:
         """
         Update settings with new values.
-        
+
         Args:
             **kwargs: Settings to update
         """
@@ -166,9 +144,10 @@ class Settings(BaseSettings):
                 logger.debug(f"Updated setting {key} = {value}")
             else:
                 logger.warning(f"Unknown setting: {key}")
-        
+
         # Validate after update
         object.__setattr__(self, "__dict__", self.model_validate(self.__dict__).model_dump())
+
 
 # Create a global settings instance
 try:
@@ -179,4 +158,3 @@ except Exception as e:
     # Fallback to default settings
     settings = Settings.model_construct()
     logger.warning("Using default settings due to configuration error")
-

@@ -1,24 +1,25 @@
-import os
 import logging
-import yaml
-from typing import Dict, List, Optional, Any, Union
+import os
+from typing import Any, Dict, List, Optional, Union
 
-from ..models import PersonaConfig
-from ..interfaces import PersonaLoader, SnippetProvider
+import yaml
+
 from ..exceptions import ResourceNotFoundError
+from ..interfaces import PersonaLoader, SnippetProvider
+from ..models import PersonaConfig
 
 
 class FileLoader(PersonaLoader, SnippetProvider):
     """
     Loads personas and snippets from markdown files.
-    
+
     Implements both PersonaLoader and SnippetProvider interfaces.
     """
-    
+
     def __init__(self, personas_dir: str = "llm_personas", snippets_dir: str = "llm_snippets"):
         """
         Initialize the FileLoader.
-        
+
         Args:
             personas_dir: Directory containing persona markdown files
             snippets_dir: Directory containing snippet markdown files
@@ -26,13 +27,13 @@ class FileLoader(PersonaLoader, SnippetProvider):
         self.personas_dir = personas_dir or "llm_personas"  # Ensure non-empty value
         self.snippets_dir = snippets_dir or "llm_snippets"  # Ensure non-empty value
         self.logger = logging.getLogger(__name__)
-        
+
         # Ensure directories exist
         for directory in [self.personas_dir, self.snippets_dir]:
             if not directory.strip():  # Skip empty strings
                 self.logger.warning(f"Skipping empty directory path")
                 continue
-                
+
             try:
                 os.makedirs(directory, exist_ok=True)
                 self.logger.info(f"Directory setup: {os.path.abspath(directory)}")
@@ -42,7 +43,7 @@ class FileLoader(PersonaLoader, SnippetProvider):
     def list_personas(self) -> List[str]:
         """
         List available personas.
-        
+
         Returns:
             List of persona names (without .md extension)
         """
@@ -50,7 +51,7 @@ class FileLoader(PersonaLoader, SnippetProvider):
             if not os.path.isdir(self.personas_dir):
                 self.logger.warning(f"Personas directory not found: {os.path.abspath(self.personas_dir)}")
                 return []
-                
+
             personas = []
             for filename in os.listdir(self.personas_dir):
                 if filename.lower().endswith(".md"):
@@ -60,63 +61,63 @@ class FileLoader(PersonaLoader, SnippetProvider):
         except Exception as e:
             self.logger.error(f"Error listing personas: {e}")
             return []
-            
+
     def get_persona(self, name: str) -> Optional[PersonaConfig]:
         """
         Load a persona configuration from a markdown file.
-        
+
         Args:
             name: Name of the persona (without .md extension)
-            
+
         Returns:
             PersonaConfig object or None if not found
         """
         # Case insensitive matching
         name_lower = name.lower()
-        
+
         # First try exact filename match
         filepath = os.path.join(self.personas_dir, f"{name}.md")
         if os.path.isfile(filepath):
             return self._load_persona_file(filepath, name)
-            
+
         # Otherwise try case-insensitive match
         try:
             if not os.path.isdir(self.personas_dir):
                 self.logger.warning(f"Personas directory not found: {os.path.abspath(self.personas_dir)}")
                 return None
-                
+
             for filename in os.listdir(self.personas_dir):
                 if filename.lower().endswith(".md"):
                     file_name_base = os.path.splitext(filename)[0]
                     if file_name_base.lower() == name_lower:
                         filepath = os.path.join(self.personas_dir, filename)
                         return self._load_persona_file(filepath, file_name_base)
-                        
+
             self.logger.warning(f"Persona '{name}' not found in {self.personas_dir}")
             return None
         except Exception as e:
             self.logger.error(f"Error getting persona '{name}': {e}")
             return None
-            
+
     def _load_persona_file(self, filepath: str, original_name: str) -> Optional[PersonaConfig]:
         """
         Parse a markdown file into a PersonaConfig object.
-        
+
         Args:
             filepath: Path to the markdown file
             original_name: Original name of the persona
-            
+
         Returns:
             PersonaConfig object or None if parsing fails
         """
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 content = f.read()
-                
+
             # Manual YAML frontmatter parsing
             config = {}
             system_message = ""
-            
+
             if content.startswith("---"):
                 # Find the closing --- marker
                 parts = content[3:].split("---", 1)
@@ -134,30 +135,32 @@ class FileLoader(PersonaLoader, SnippetProvider):
             else:
                 # No frontmatter, treat whole content as system message
                 system_message = content.strip()
-                
+
             abs_filepath = os.path.abspath(filepath)
             self.logger.debug(f"Loaded persona '{original_name}' from {abs_filepath}")
-            
+
             # Make sure 'name' is in the config
-            if 'name' not in config:
+            if "name" not in config:
                 # Set the name to the original filename (without extension)
-                config['name'] = original_name
-                self.logger.info(f"Persona name not found in frontmatter. Using filename '{original_name}' as persona name.")
-            
+                config["name"] = original_name
+                self.logger.info(
+                    f"Persona name not found in frontmatter. Using filename '{original_name}' as persona name."
+                )
+
             try:
                 # Create PersonaConfig using only the fields in the model definition
                 return PersonaConfig(
-                    name=config['name'],  # Required field
+                    name=config["name"],  # Required field
                     system_message=system_message,  # Required field
                     config=config,  # Optional config dictionary
-                    source_path=abs_filepath  # Optional source path (renamed from source_file)
+                    source_path=abs_filepath,  # Optional source path (renamed from source_file)
                 )
             except Exception as validation_err:
                 # Provide a helpful error message with a template and debugging info
                 self.logger.error(f"Error creating PersonaConfig: {validation_err}")
                 self.logger.debug(f"Config data: {config}")
                 self.logger.debug(f"System message: {system_message[:100]}...")
-                
+
                 template = f"""---
 name: {original_name}
 description: A brief description of this persona
@@ -167,20 +170,22 @@ description: A brief description of this persona
 ---
 {system_message}"""
                 print(f"\n❌ Error loading persona '{original_name}': {validation_err}")
-                print(f"Your persona file might have incorrect frontmatter. Please check '{os.path.basename(filepath)}' and ensure it has the following format:")
+                print(
+                    f"Your persona file might have incorrect frontmatter. Please check '{os.path.basename(filepath)}' and ensure it has the following format:"
+                )
                 print("\n" + "-" * 60)
-                print(template[:template.find('---', 3) + 3])
+                print(template[: template.find("---", 3) + 3])
                 print("-" * 60 + "\n")
                 return None
         except Exception as e:
             self.logger.error(f"Error loading persona file '{filepath}': {e}")
             print(f"\n❌ Error reading persona file '{original_name}': {e}")
             return None
-            
+
     def list_snippets(self) -> List[str]:
         """
         List available snippets.
-        
+
         Returns:
             List of snippet names (without .md extension)
         """
@@ -188,7 +193,7 @@ description: A brief description of this persona
             if not os.path.isdir(self.snippets_dir):
                 self.logger.warning(f"Snippets directory not found: {os.path.abspath(self.snippets_dir)}")
                 return []
-                
+
             snippets = []
             for filename in os.listdir(self.snippets_dir):
                 if filename.lower().endswith(".md"):
@@ -198,31 +203,31 @@ description: A brief description of this persona
         except Exception as e:
             self.logger.error(f"Error listing snippets: {e}")
             return []
-            
+
     def get_snippet(self, name: str) -> Optional[str]:
         """
         Load a snippet from a markdown file.
-        
+
         Args:
             name: Name of the snippet (without .md extension)
-            
+
         Returns:
             Snippet content as string or None if not found
         """
         # Add .md extension if not provided
         if not name.lower().endswith(".md"):
             name += ".md"
-            
+
         filepath = os.path.join(self.snippets_dir, name)
-        
+
         try:
             if not os.path.isfile(filepath):
                 self.logger.warning(f"Snippet '{name}' not found at {filepath}")
                 return None
-                
+
             with open(filepath, "r", encoding="utf-8") as f:
                 content = f.read()
-                
+
             self.logger.debug(f"Loaded snippet '{name}' from {filepath}")
             return content
         except Exception as e:
@@ -233,15 +238,15 @@ description: A brief description of this persona
 class MultiFileLoader(PersonaLoader, SnippetProvider):
     """
     Loads personas and snippets from multiple directories.
-    
+
     This class allows searching for resources across multiple directories,
     returning the first match found.
     """
-    
+
     def __init__(self, personas_dirs: List[str] = None, snippets_dirs: List[str] = None):
         """
         Initialize the MultiFileLoader.
-        
+
         Args:
             personas_dirs: List of directories containing persona markdown files
             snippets_dirs: List of directories containing snippet markdown files
@@ -250,17 +255,17 @@ class MultiFileLoader(PersonaLoader, SnippetProvider):
         self.personas_dirs = [d for d in (personas_dirs or ["llm_personas"]) if d and d.strip()]
         if not self.personas_dirs:
             self.personas_dirs = ["llm_personas"]  # Fallback to default if all were empty
-            
+
         self.snippets_dirs = [d for d in (snippets_dirs or ["llm_snippets"]) if d and d.strip()]
         if not self.snippets_dirs:
             self.snippets_dirs = ["llm_snippets"]  # Fallback to default if all were empty
-            
+
         self.logger = logging.getLogger(__name__)
-        
+
         # Create individual loaders for each directory
         self.persona_loaders = [FileLoader(personas_dir=d, snippets_dir="") for d in self.personas_dirs]
         self.snippet_loaders = [FileLoader(personas_dir="", snippets_dir=d) for d in self.snippets_dirs]
-        
+
         # Log configuration
         self.logger.info(f"MultiFileLoader initialized with persona directories: {self.personas_dirs}")
         self.logger.info(f"MultiFileLoader initialized with snippet directories: {self.snippets_dirs}")
@@ -268,7 +273,7 @@ class MultiFileLoader(PersonaLoader, SnippetProvider):
     def list_personas(self) -> List[str]:
         """
         List available personas from all directories.
-        
+
         Returns:
             Combined list of persona names (without .md extension)
         """
@@ -276,14 +281,14 @@ class MultiFileLoader(PersonaLoader, SnippetProvider):
         for loader in self.persona_loaders:
             all_personas.update(loader.list_personas())
         return sorted(list(all_personas))
-            
+
     def get_persona(self, name: str) -> Optional[PersonaConfig]:
         """
         Load a persona configuration, searching across all directories.
-        
+
         Args:
             name: Name of the persona (without .md extension)
-            
+
         Returns:
             First matching PersonaConfig object or None if not found
         """
@@ -292,14 +297,14 @@ class MultiFileLoader(PersonaLoader, SnippetProvider):
             if persona:
                 self.logger.debug(f"Found persona '{name}' in {loader.personas_dir}")
                 return persona
-                
+
         self.logger.warning(f"Persona '{name}' not found in any directory: {self.personas_dirs}")
         return None
-            
+
     def list_snippets(self) -> List[str]:
         """
         List available snippets from all directories.
-        
+
         Returns:
             Combined list of snippet names (without .md extension)
         """
@@ -307,14 +312,14 @@ class MultiFileLoader(PersonaLoader, SnippetProvider):
         for loader in self.snippet_loaders:
             all_snippets.update(loader.list_snippets())
         return sorted(list(all_snippets))
-            
+
     def get_snippet(self, name: str) -> Optional[str]:
         """
         Load a snippet, searching across all directories.
-        
+
         Args:
             name: Name of the snippet (without .md extension)
-            
+
         Returns:
             Snippet content as string or None if not found
         """
@@ -323,7 +328,6 @@ class MultiFileLoader(PersonaLoader, SnippetProvider):
             if snippet:
                 self.logger.debug(f"Found snippet '{name}' in {loader.snippets_dir}")
                 return snippet
-                
+
         self.logger.warning(f"Snippet '{name}' not found in any directory: {self.snippets_dirs}")
         return None
-

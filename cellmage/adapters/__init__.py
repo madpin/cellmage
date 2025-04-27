@@ -7,6 +7,7 @@ external libraries and APIs to work with the cellmage library.
 
 try:
     from .direct_client import DirectLLMAdapter
+
     _DIRECT_AVAILABLE = True
 except ImportError:
     _DIRECT_AVAILABLE = False

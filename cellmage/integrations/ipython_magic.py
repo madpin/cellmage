@@ -4,16 +4,17 @@ IPython magic commands for CellMage.
 This module provides magic commands for using CellMage in IPython/Jupyter notebooks.
 """
 
+import logging
+import os
 import sys
 import time
-import logging
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
 
 # IPython imports with fallback handling
 try:
     from IPython import get_ipython
-    from IPython.core.magic import Magics, line_magic, cell_magic, magics_class
-    from IPython.core.magic_arguments import magic_arguments, argument, parse_argstring
+    from IPython.core.magic import Magics, cell_magic, line_magic, magics_class
+    from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
 
     _IPYTHON_AVAILABLE = True
 except ImportError:
@@ -38,21 +39,22 @@ except ImportError:
     class Magics:
         pass  # Dummy base class
 
+
+from ..ambient_mode import (
+    disable_ambient_mode,
+    enable_ambient_mode,
+    is_ambient_mode_enabled,
+)
+
 # Project imports
 from ..chat_manager import ChatManager
+from ..context_providers.ipython_context_provider import get_ipython_context_provider
 from ..exceptions import (
-    ResourceNotFoundError,
     ConfigurationError,
     LLMInteractionError,
     PersistenceError,
+    ResourceNotFoundError,
 )
-from ..ambient_mode import (
-    enable_ambient_mode,
-    disable_ambient_mode,
-    is_ambient_mode_enabled,
-)
-from ..context_providers.ipython_context_provider import get_ipython_context_provider
-
 
 # Logging setup
 logger = logging.getLogger(__name__)
@@ -67,8 +69,8 @@ def _init_default_manager() -> ChatManager:
     global _initialization_error
     try:
         # Import necessary components dynamically only if needed
-        from ..config import settings
         from ..adapters.direct_client import DirectLLMAdapter
+        from ..config import settings
         from ..resources.file_loader import FileLoader
         from ..storage.markdown_store import MarkdownStore
 
@@ -126,7 +128,7 @@ class NotebookLLMMagics(Magics):
             logger.info("NotebookLLMMagics initialized and ChatManager accessed successfully.")
         except Exception as e:
             logger.error(f"Error initializing NotebookLLM during magic setup: {e}")
-    
+
     def _get_manager(self) -> ChatManager:
         """Helper to get the manager instance, with clear error handling."""
         if not _IPYTHON_AVAILABLE:
@@ -142,7 +144,7 @@ class NotebookLLMMagics(Magics):
                 file=sys.stderr,
             )
             raise RuntimeError("NotebookLLM manager unavailable.") from e
-    
+
     def process_cell_as_prompt(self, cell_content: str) -> None:
         """Process a regular code cell as an LLM prompt in ambient mode."""
         if not _IPYTHON_AVAILABLE:
@@ -199,18 +201,18 @@ class NotebookLLMMagics(Magics):
 
     def _prepare_runtime_params(self, args) -> Dict[str, Any]:
         """Extract runtime parameters from args and convert to dictionary.
-        
+
         This builds a dictionary of parameters that can be passed to the LLM client.
         """
         runtime_params = {}
-        
+
         # Handle simple parameters
         if hasattr(args, "temperature") and args.temperature is not None:
             runtime_params["temperature"] = args.temperature
-            
+
         if hasattr(args, "max_tokens") and args.max_tokens is not None:
             runtime_params["max_tokens"] = args.max_tokens
-            
+
         # Handle arbitrary parameters from --param
         if hasattr(args, "param") and args.param:
             for key, value in args.param:
@@ -226,24 +228,27 @@ class NotebookLLMMagics(Magics):
                             parsed_value = value
                 except ValueError:
                     parsed_value = value
-                    
+
                 runtime_params[key] = parsed_value
-                
+
         return runtime_params
 
     # --- Implementation of persona handling ---
     def _handle_persona_commands(self, args, manager: ChatManager) -> bool:
         """Handle persona-related arguments."""
         action_taken = False
-        
+
         if args.list_personas:
             action_taken = True
             try:
                 personas = manager.list_personas()
-                print("Available Personas:", ", ".join(f"'{p}'" for p in personas) if personas else "None")
+                print(
+                    "Available Personas:",
+                    ", ".join(f"'{p}'" for p in personas) if personas else "None",
+                )
             except Exception as e:
                 print(f"❌ Error listing personas: {e}")
-        
+
         if args.show_persona:
             action_taken = True
             try:
@@ -261,7 +266,7 @@ class NotebookLLMMagics(Magics):
             except Exception as e:
                 print(f"❌ Error retrieving active persona: {e}")
                 print("  Try listing available personas with: %llm_config --list-personas")
-        
+
         if args.persona:
             action_taken = True
             try:
@@ -271,14 +276,14 @@ class NotebookLLMMagics(Magics):
                 print(f"❌ Error: Persona '{args.persona}' not found.")
             except Exception as e:
                 print(f"❌ Error setting persona '{args.persona}': {e}")
-        
+
         return action_taken
 
     # --- Implementation of snippet handling ---
     def _handle_snippet_commands(self, args, manager: ChatManager) -> bool:
         """Handle snippet-related arguments."""
         action_taken = False
-        
+
         try:
             if hasattr(args, "sys_snippet") and args.sys_snippet:
                 action_taken = True
@@ -287,7 +292,7 @@ class NotebookLLMMagics(Magics):
                         print(f"✅ Added system snippet: '{name}'")
                     else:
                         print(f"⚠️ Warning: Could not add system snippet '{name}'.")
-            
+
             if hasattr(args, "snippet") and args.snippet:
                 action_taken = True
                 for name in args.snippet:
@@ -295,24 +300,27 @@ class NotebookLLMMagics(Magics):
                         print(f"✅ Added user snippet: '{name}'")
                     else:
                         print(f"⚠️ Warning: Could not add user snippet '{name}'.")
-                        
+
             if args.list_snippets:
                 action_taken = True
                 try:
                     snippets = manager.list_snippets()
-                    print("Available Snippets:", ", ".join(f"'{s}'" for s in snippets) if snippets else "None")
+                    print(
+                        "Available Snippets:",
+                        ", ".join(f"'{s}'" for s in snippets) if snippets else "None",
+                    )
                 except Exception as e:
                     print(f"❌ Error listing snippets: {e}")
         except Exception as e:
             print(f"❌ Error processing snippets: {e}")
-            
+
         return action_taken
 
     # --- Implementation of override handling ---
     def _handle_override_commands(self, args, manager: ChatManager) -> bool:
         """Handle override-related arguments."""
         action_taken = False
-        
+
         if args.set_override:
             action_taken = True
             key, value = args.set_override
@@ -335,24 +343,24 @@ class NotebookLLMMagics(Magics):
             action_taken = True
             manager.clear_overrides()
             print("✅ All overrides cleared.")
-            
+
         if args.show_overrides:
             action_taken = True
             overrides = manager.get_overrides()
             print("Active Overrides:", overrides if overrides else "None")
-            
+
         return action_taken
 
     # --- Implementation of history handling ---
     def _handle_history_commands(self, args, manager: ChatManager) -> bool:
         """Handle history-related arguments."""
         action_taken = False
-        
+
         if args.clear_history:
             action_taken = True
             manager.clear_history()
             print("✅ Chat history cleared.")
-            
+
         if args.show_history:
             action_taken = True
             history = manager.get_history()
@@ -368,14 +376,14 @@ class NotebookLLMMagics(Magics):
                         f"    (ID: ...{msg.id[-6:]}, Cell: {msg.cell_id[-8:] if msg.cell_id else 'N/A'}, Exec: {msg.execution_count})"
                     )
             print("--------------------------")
-            
+
         return action_taken
 
     # --- Implementation of persistence handling ---
     def _handle_persistence_commands(self, args, manager: ChatManager) -> bool:
         """Handle persistence-related arguments."""
         action_taken = False
-        
+
         if args.list_sessions:
             action_taken = True
             try:
@@ -383,7 +391,26 @@ class NotebookLLMMagics(Magics):
                 print("Saved Sessions:", ", ".join(f"'{s}'" for s in sessions) if sessions else "None")
             except Exception as e:
                 print(f"❌ Error listing saved sessions: {e}")
-        
+
+        # Handle auto-save configuration
+        if hasattr(args, "auto_save") and args.auto_save:
+            action_taken = True
+            try:
+                manager.settings.auto_save = True
+                print(
+                    f"✅ Auto-save enabled. Conversations will be saved to: {os.path.abspath(manager.settings.conversations_dir)}"
+                )
+            except Exception as e:
+                print(f"❌ Error enabling auto-save: {e}")
+
+        if hasattr(args, "no_auto_save") and args.no_auto_save:
+            action_taken = True
+            try:
+                manager.settings.auto_save = False
+                print("✅ Auto-save disabled.")
+            except Exception as e:
+                print(f"❌ Error disabling auto-save: {e}")
+
         if args.load:
             action_taken = True
             try:
@@ -401,6 +428,7 @@ class NotebookLLMMagics(Magics):
             action_taken = True
             try:
                 from pathlib import Path
+
                 filename = args.save if isinstance(args.save, str) else None
                 save_path = manager.save_session(identifier=filename)
                 print(f"✅ Session saved to '{Path(save_path).name}'.")  # Show only filename
@@ -408,14 +436,14 @@ class NotebookLLMMagics(Magics):
                 print(f"❌ Error saving session: {e}")
             except Exception as e:
                 print(f"❌ Unexpected error saving session: {e}")
-                
+
         return action_taken
 
     # --- Implementation of model setting ---
     def _handle_model_setting(self, args, manager: ChatManager) -> bool:
         """Handle model setting."""
         action_taken = False
-        
+
         if hasattr(args, "model") and args.model:
             action_taken = True
             if hasattr(manager, "llm_client") and hasattr(manager.llm_client, "set_override"):
@@ -424,7 +452,7 @@ class NotebookLLMMagics(Magics):
                 print(f"✅ Default model set to: {args.model}")
             else:
                 print(f"⚠️ Could not set model: LLM client not found or doesn't support overrides")
-                
+
         return action_taken
 
     # --- Implementation of status display ---
@@ -444,19 +472,60 @@ class NotebookLLMMagics(Magics):
     @argument("-p", "--persona", type=str, help="Select and activate a persona by name.")
     @argument("--show-persona", action="store_true", help="Show the currently active persona details.")
     @argument("--list-personas", action="store_true", help="List available persona names.")
-    @argument("--set-override", nargs=2, metavar=("KEY", "VALUE"), help="Set a temporary LLM param override (e.g., --set-override temperature 0.5).")
+    @argument(
+        "--set-override",
+        nargs=2,
+        metavar=("KEY", "VALUE"),
+        help="Set a temporary LLM param override (e.g., --set-override temperature 0.5).",
+    )
     @argument("--remove-override", type=str, metavar="KEY", help="Remove a specific override key.")
     @argument("--clear-overrides", action="store_true", help="Clear all temporary LLM param overrides.")
     @argument("--show-overrides", action="store_true", help="Show the currently active overrides.")
-    @argument("--clear-history", action="store_true", help="Clear the current chat history (keeps system prompt).")
+    @argument(
+        "--clear-history",
+        action="store_true",
+        help="Clear the current chat history (keeps system prompt).",
+    )
     @argument("--show-history", action="store_true", help="Display the current message history.")
-    @argument("--save", type=str, nargs="?", const=True, metavar="FILENAME", help="Save session. If no name, uses current session ID. '.md' added automatically.")
-    @argument("--load", type=str, metavar="SESSION_ID", help="Load session from specified identifier (filename without .md).")
+    @argument(
+        "--save",
+        type=str,
+        nargs="?",
+        const=True,
+        metavar="FILENAME",
+        help="Save session. If no name, uses current session ID. '.md' added automatically.",
+    )
+    @argument(
+        "--load",
+        type=str,
+        metavar="SESSION_ID",
+        help="Load session from specified identifier (filename without .md).",
+    )
     @argument("--list-sessions", action="store_true", help="List saved session identifiers.")
+    @argument(
+        "--auto-save",
+        action="store_true",
+        help="Enable automatic saving of conversations to the conversations directory.",
+    )
+    @argument("--no-auto-save", action="store_true", help="Disable automatic saving of conversations.")
     @argument("--list-snippets", action="store_true", help="List available snippet names.")
-    @argument("--snippet", type=str, action="append", help="Add user snippet content before sending prompt. Can be used multiple times.")
-    @argument("--sys-snippet", type=str, action="append", help="Add system snippet content before sending prompt. Can be used multiple times.")
-    @argument("--status", action="store_true", help="Show current status (persona, overrides, history length).")
+    @argument(
+        "--snippet",
+        type=str,
+        action="append",
+        help="Add user snippet content before sending prompt. Can be used multiple times.",
+    )
+    @argument(
+        "--sys-snippet",
+        type=str,
+        action="append",
+        help="Add system snippet content before sending prompt. Can be used multiple times.",
+    )
+    @argument(
+        "--status",
+        action="store_true",
+        help="Show current status (persona, overrides, history length).",
+    )
     @argument("--model", type=str, help="Set the default model for the LLM client.")
     @line_magic("llm_config")
     def configure_llm(self, line):
@@ -487,19 +556,54 @@ class NotebookLLMMagics(Magics):
     @argument("-p", "--persona", type=str, help="Select and activate a persona by name.")
     @argument("--show-persona", action="store_true", help="Show the currently active persona details.")
     @argument("--list-personas", action="store_true", help="List available persona names.")
-    @argument("--set-override", nargs=2, metavar=("KEY", "VALUE"), help="Set a temporary LLM param override (e.g., --set-override temperature 0.5).")
+    @argument(
+        "--set-override",
+        nargs=2,
+        metavar=("KEY", "VALUE"),
+        help="Set a temporary LLM param override (e.g., --set-override temperature 0.5).",
+    )
     @argument("--remove-override", type=str, metavar="KEY", help="Remove a specific override key.")
     @argument("--clear-overrides", action="store_true", help="Clear all temporary LLM param overrides.")
     @argument("--show-overrides", action="store_true", help="Show the currently active overrides.")
-    @argument("--clear-history", action="store_true", help="Clear the current chat history (keeps system prompt).")
+    @argument(
+        "--clear-history",
+        action="store_true",
+        help="Clear the current chat history (keeps system prompt).",
+    )
     @argument("--show-history", action="store_true", help="Display the current message history.")
-    @argument("--save", type=str, nargs="?", const=True, metavar="FILENAME", help="Save session. If no name, uses current session ID. '.md' added automatically.")
-    @argument("--load", type=str, metavar="SESSION_ID", help="Load session from specified identifier (filename without .md).")
+    @argument(
+        "--save",
+        type=str,
+        nargs="?",
+        const=True,
+        metavar="FILENAME",
+        help="Save session. If no name, uses current session ID. '.md' added automatically.",
+    )
+    @argument(
+        "--load",
+        type=str,
+        metavar="SESSION_ID",
+        help="Load session from specified identifier (filename without .md).",
+    )
     @argument("--list-sessions", action="store_true", help="List saved session identifiers.")
     @argument("--list-snippets", action="store_true", help="List available snippet names.")
-    @argument("--snippet", type=str, action="append", help="Add user snippet content before sending prompt. Can be used multiple times.")
-    @argument("--sys-snippet", type=str, action="append", help="Add system snippet content before sending prompt. Can be used multiple times.")
-    @argument("--status", action="store_true", help="Show current status (persona, overrides, history length).")
+    @argument(
+        "--snippet",
+        type=str,
+        action="append",
+        help="Add user snippet content before sending prompt. Can be used multiple times.",
+    )
+    @argument(
+        "--sys-snippet",
+        type=str,
+        action="append",
+        help="Add system snippet content before sending prompt. Can be used multiple times.",
+    )
+    @argument(
+        "--status",
+        action="store_true",
+        help="Show current status (persona, overrides, history length).",
+    )
     @argument("--model", type=str, help="Set the default model for the LLM client.")
     @line_magic("llm_config_persistent")
     def configure_llm_persistent(self, line):
@@ -512,13 +616,13 @@ class NotebookLLMMagics(Magics):
         """
         # First, apply all the regular llm_config settings
         args = parse_argstring(self.configure_llm_persistent, line)
-        
+
         try:
             manager = self._get_manager()
         except Exception as e:
             print(f"Error getting manager: {e}")
             return  # Stop processing
-            
+
         # Track if any action was performed
         action_taken = False
 
@@ -578,13 +682,44 @@ class NotebookLLMMagics(Magics):
     @argument("-m", "--model", type=str, help="Use specific model for THIS call only.")
     @argument("-t", "--temperature", type=float, help="Set temperature for THIS call.")
     @argument("--max-tokens", type=int, dest="max_tokens", help="Set max_tokens for THIS call.")
-    @argument("--no-history", action="store_false", dest="add_to_history", help="Do not add this exchange to history.")
-    @argument("--no-stream", action="store_false", dest="stream", help="Do not stream output (wait for full response).")
-    @argument("--no-rollback", action="store_false", dest="auto_rollback", help="Disable auto-rollback check for this cell run.")
-    @argument("--param", nargs=2, metavar=("KEY", "VALUE"), action="append", help="Set any other LLM param ad-hoc (e.g., --param top_p 0.9).")
+    @argument(
+        "--no-history",
+        action="store_false",
+        dest="add_to_history",
+        help="Do not add this exchange to history.",
+    )
+    @argument(
+        "--no-stream",
+        action="store_false",
+        dest="stream",
+        help="Do not stream output (wait for full response).",
+    )
+    @argument(
+        "--no-rollback",
+        action="store_false",
+        dest="auto_rollback",
+        help="Disable auto-rollback check for this cell run.",
+    )
+    @argument(
+        "--param",
+        nargs=2,
+        metavar=("KEY", "VALUE"),
+        action="append",
+        help="Set any other LLM param ad-hoc (e.g., --param top_p 0.9).",
+    )
     @argument("--list-snippets", action="store_true", help="List available snippet names.")
-    @argument("--snippet", type=str, action="append", help="Add user snippet content before sending prompt. Can be used multiple times.")
-    @argument("--sys-snippet", type=str, action="append", help="Add system snippet content before sending prompt. Can be used multiple times.")
+    @argument(
+        "--snippet",
+        type=str,
+        action="append",
+        help="Add user snippet content before sending prompt. Can be used multiple times.",
+    )
+    @argument(
+        "--sys-snippet",
+        type=str,
+        action="append",
+        help="Add system snippet content before sending prompt. Can be used multiple times.",
+    )
     @cell_magic("llm")
     def execute_llm(self, line, cell):
         """Send the cell content as a prompt to the LLM, applying arguments."""
@@ -603,6 +738,15 @@ class NotebookLLMMagics(Magics):
             status_info["duration"] = time.time() - start_time
             context_provider.display_status(status_info)
             return
+
+        # Check if the persona exists if one was specified
+        if args.persona:
+            if not manager.persona_loader.get_persona(args.persona):
+                print(f"❌ Error: Persona '{args.persona}' not found.")
+                print("  To list available personas, use: %llm_config --list-personas")
+                status_info["duration"] = time.time() - start_time
+                context_provider.display_status(status_info)
+                return
 
         # Rest of the method remains the same
         prompt = cell.strip()
@@ -623,7 +767,7 @@ class NotebookLLMMagics(Magics):
 
         # Prepare runtime params
         runtime_params = self._prepare_runtime_params(args)
-        
+
         # Handle model override
         original_model = None
         if args.model:
@@ -697,12 +841,12 @@ class NotebookLLMMagics(Magics):
     @cell_magic("py")
     def execute_python(self, line, cell):
         """Execute the cell as normal Python code, bypassing ambient mode.
-        
+
         This magic is useful when ambient mode is enabled but you want to
         execute a specific cell as regular Python code without LLM processing.
-        
+
         Variables defined in this cell will be available in other cells.
-        
+
         Usage:
         %%py
         # This will run as normal Python code
@@ -716,24 +860,24 @@ class NotebookLLMMagics(Magics):
         try:
             # Get the shell from self.shell (provided by the Magics base class)
             shell = self.shell
-            
+
             # Execute the cell as normal Python code in the user's namespace
             logger.info("Executing cell as normal Python code via %%py magic")
-            
+
             # Run the cell in the user's namespace
             result = shell.run_cell(cell)
-            
+
             # Handle execution errors
             if result.error_before_exec or result.error_in_exec:
                 if result.error_in_exec:
                     print(f"❌ Error during execution: {result.error_in_exec}", file=sys.stderr)
                 else:
                     print(f"❌ Error before execution: {result.error_before_exec}", file=sys.stderr)
-            
+
         except Exception as e:
             print(f"❌ Error executing Python cell: {e}", file=sys.stderr)
             logger.error(f"Error during %%py execution: {e}")
-            
+
         return None
 
 

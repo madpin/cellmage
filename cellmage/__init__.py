@@ -1,7 +1,8 @@
-__version__ = '0.1.0'
+__version__ = "0.1.0"
 
 # Configure logging as early as possible
 from .utils.logging import setup_logging
+
 setup_logging()
 
 # Import required Python libraries
@@ -11,29 +12,35 @@ import os
 # Expose key classes and exceptions for easier import by users
 from .chat_manager import ChatManager
 from .exceptions import (
-    NotebookLLMError,
     ConfigurationError,
-    ResourceNotFoundError,
-    LLMInteractionError,
     HistoryManagementError,
+    LLMInteractionError,
+    NotebookLLMError,
     PersistenceError,
-    SnippetError
+    ResourceNotFoundError,
+    SnippetError,
 )
+
 # Expose interfaces if they are intended for external implementation/type hinting
 from .interfaces import (
+    ContextProvider,
+    HistoryStore,
     LLMClientInterface,
     PersonaLoader,
     SnippetProvider,
-    HistoryStore,
-    ContextProvider,
-    StreamCallbackHandler
+    StreamCallbackHandler,
 )
+
 # Expose core models
-from .models import Message, PersonaConfig, ConversationMetadata
+from .models import ConversationMetadata, Message, PersonaConfig
 
 # Import IPython extension entry points
 try:
-    from .integrations.ipython_magic import load_ipython_extension, unload_ipython_extension
+    from .integrations.ipython_magic import (
+        load_ipython_extension,
+        unload_ipython_extension,
+    )
+
     _IPYTHON_AVAILABLE = True
 except ImportError:
     _IPYTHON_AVAILABLE = False
@@ -42,6 +49,7 @@ except ImportError:
 # This simplifies setup for basic use cases
 
 _default_manager_instance = None
+
 
 def get_default_manager():
     """
@@ -53,35 +61,36 @@ def get_default_manager():
         try:
             # Import components needed for the default setup
             from .config import settings
-            
+
             # Import DirectLLMAdapter - no fallback to LiteLLMAdapter
             try:
                 from .adapters.direct_client import DirectLLMAdapter
+
                 adapter_class = DirectLLMAdapter
             except ImportError:
-                raise ConfigurationError(
-                    "DirectLLMAdapter is not available. Please check your installation."
-                )
-            
+                raise ConfigurationError("DirectLLMAdapter is not available. Please check your installation.")
+
             from .resources.file_loader import MultiFileLoader
             from .storage.markdown_store import MarkdownStore
+
             try:
-                 from .integrations.ipython_magic import IPythonContextProvider
-                 context_provider = IPythonContextProvider()
+                from .integrations.ipython_magic import IPythonContextProvider
+
+                context_provider = IPythonContextProvider()
             except ImportError:
-                 # IPython not available, use None for context
-                 context_provider = None
+                # IPython not available, use None for context
+                context_provider = None
 
             # Set up multiple folders for personas and snippets
             persona_dirs = settings.all_personas_dirs.copy()  # Start with configured dirs
             snippet_dirs = settings.all_snippets_dirs.copy()
-            
+
             # Auto-detect additional directories
             # First check the root of the project
             root_snippets = "snippets"
             if os.path.isdir(root_snippets) and root_snippets not in snippet_dirs:
                 snippet_dirs.append(root_snippets)
-                
+
             # Check for notebook directories
             notebook_dir = os.path.abspath("notebooks")
             if os.path.isdir(notebook_dir):
@@ -90,12 +99,12 @@ def get_default_manager():
                     notebooks_personas_dir = os.path.join(notebook_dir, subdir_name)
                     if os.path.isdir(notebooks_personas_dir) and notebooks_personas_dir not in persona_dirs:
                         persona_dirs.append(notebooks_personas_dir)
-                
+
                 for subdir_name in ["llm_snippets", "snippets"]:
                     notebooks_snippets_dir = os.path.join(notebook_dir, subdir_name)
                     if os.path.isdir(notebooks_snippets_dir) and notebooks_snippets_dir not in snippet_dirs:
                         snippet_dirs.append(notebooks_snippets_dir)
-                    
+
                 # Check subdirectories: examples, tests, tutorials
                 for folder in ["examples", "tests", "tutorials"]:
                     sub_dir = os.path.join(notebook_dir, folder)
@@ -105,7 +114,7 @@ def get_default_manager():
                             sub_personas_dir = os.path.join(sub_dir, subdir_name)
                             if os.path.isdir(sub_personas_dir) and sub_personas_dir not in persona_dirs:
                                 persona_dirs.append(sub_personas_dir)
-                        
+
                         # Check for snippet directories
                         for subdir_name in ["llm_snippets", "snippets"]:
                             sub_snippets_dir = os.path.join(sub_dir, subdir_name)
@@ -128,12 +137,13 @@ def get_default_manager():
                 persona_loader=loader,
                 snippet_provider=loader,
                 history_store=store,
-                context_provider=context_provider
+                context_provider=context_provider,
             )
         except Exception as e:
-             # Log or raise a more specific setup error
-             raise NotebookLLMError(f"Failed to create default ChatManager: {e}") from e
+            # Log or raise a more specific setup error
+            raise NotebookLLMError(f"Failed to create default ChatManager: {e}") from e
     return _default_manager_instance
+
 
 __all__ = [
     "ChatManager",

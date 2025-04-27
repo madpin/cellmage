@@ -5,9 +5,9 @@ This module provides an implementation of the ContextProvider interface
 that works with IPython/Jupyter environments.
 """
 
-import sys
 import logging
-from typing import Dict, Any, Optional, Tuple
+import sys
+from typing import Any, Dict, Optional, Tuple
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 # Try to import IPython dependencies with fallbacks
 try:
     from IPython import get_ipython
-    from IPython.display import display, Markdown, HTML, clear_output
+    from IPython.display import HTML, Markdown, clear_output, display
+
     _IPYTHON_AVAILABLE = True
 except ImportError:
     _IPYTHON_AVAILABLE = False
@@ -24,6 +25,7 @@ except ImportError:
 _WIDGETS_AVAILABLE = False
 try:
     import ipywidgets as widgets
+
     _WIDGETS_AVAILABLE = True
 except ImportError:
     logger.debug("ipywidgets not available, falling back to simpler display methods")
@@ -31,53 +33,54 @@ except ImportError:
 # Import from parent package
 from ..interfaces import ContextProvider
 
+
 class IPythonContextProvider(ContextProvider):
     """
     Implementation of the ContextProvider interface for IPython/Jupyter environments.
-    
+
     This class provides methods to:
     - Display LLM responses in Markdown format
     - Display status information in a styled HTML box
     - Get execution context from the IPython environment
     """
-    
+
     def __init__(self):
         """Initialize the context provider."""
         self._ipython = get_ipython() if _IPYTHON_AVAILABLE else None
-    
+
     def display_markdown(self, content: str) -> None:
         """
         Display content as Markdown in the notebook.
-        
+
         Args:
             content: The markdown content to display
         """
         if not _IPYTHON_AVAILABLE:
             print(content)
             return
-        
+
         try:
             display(Markdown(content))
         except Exception as e:
             logger.error(f"Error displaying markdown content: {e}")
             # Fallback to plain text
             print(content)
-    
+
     def display_response(self, content: str) -> None:
         """
         Display an assistant response in the user interface.
-        
+
         Args:
             content: Response content to display
         """
         # For IPython, we'll use the same display_markdown method
         # but we could add styling specific to assistant responses
         self.display_markdown(content)
-    
+
     def display_stream_start(self) -> Any:
         """
         Set up display for a streaming response.
-        
+
         Returns:
             An object (output widget) that can be used to update the display
         """
@@ -85,7 +88,7 @@ class IPythonContextProvider(ContextProvider):
             # For non-IPython environments, return a simple placeholder
             print("(Streaming response started...)")
             return {"content": ""}
-        
+
         try:
             # Use ipywidgets if available, otherwise fall back to simpler approach
             if _WIDGETS_AVAILABLE:
@@ -101,11 +104,11 @@ class IPythonContextProvider(ContextProvider):
             # Emergency fallback
             print("(Streaming response started...)")
             return {"content": ""}
-    
+
     def update_stream(self, display_object: Any, content: str) -> None:
         """
         Update a streaming display with new content.
-        
+
         Args:
             display_object: The display object from display_stream_start
             content: The content to display
@@ -114,9 +117,9 @@ class IPythonContextProvider(ContextProvider):
             # For non-IPython environments or if display failed to initialize
             print(content, end="", flush=True)
             return
-        
+
         try:
-            if _WIDGETS_AVAILABLE and hasattr(display_object, 'clear_output'):
+            if _WIDGETS_AVAILABLE and hasattr(display_object, "clear_output"):
                 # If we have a proper Output widget
                 with display_object:
                     clear_output(wait=True)
@@ -134,11 +137,11 @@ class IPythonContextProvider(ContextProvider):
             logger.error(f"Error updating stream display: {e}")
             # Emergency fallback
             print(content, end="", flush=True)
-    
+
     def display_status(self, status_info: Dict[str, Any]) -> None:
         """
         Display status information in a styled HTML box.
-        
+
         Args:
             status_info: Dictionary with status information including:
                 - success (bool): Whether the operation was successful
@@ -156,7 +159,7 @@ class IPythonContextProvider(ContextProvider):
                     parts.append(f"{key}: {value}")
             print(" | ".join(parts))
             return
-        
+
         duration = status_info.get("duration", 0.0)
         success = status_info.get("success", False)
         tokens_in = status_info.get("tokens_in")
@@ -198,45 +201,42 @@ class IPythonContextProvider(ContextProvider):
         except Exception:
             # Fallback if display fails
             print(f"Status: {status_text}")
-    
+
     def get_cell_metadata(self) -> Dict[str, Any]:
         """
         Get metadata about the current execution context.
-        
+
         Returns:
             Dict with context information including:
                 - cell_id: ID of the current cell
                 - execution_count: Current execution count
         """
-        result = {
-            "cell_id": None,
-            "execution_count": None
-        }
-        
+        result = {"cell_id": None, "execution_count": None}
+
         if not _IPYTHON_AVAILABLE or not self._ipython:
             return result
-        
+
         # Try to get the parent header from the IPython shell
         try:
             parent = self._ipython.get_parent()
-            if parent and 'metadata' in parent:
-                metadata = parent['metadata']
-                result["cell_id"] = metadata.get('cellId')
+            if parent and "metadata" in parent:
+                metadata = parent["metadata"]
+                result["cell_id"] = metadata.get("cellId")
         except Exception as e:
             logger.debug(f"Error getting cell ID: {e}")
-        
+
         # Try to get the execution count
         try:
             result["execution_count"] = self._ipython.execution_count
         except Exception as e:
             logger.debug(f"Error getting execution count: {e}")
-        
+
         return result
 
     def get_execution_context(self) -> Tuple[Optional[int], Optional[str]]:
         """
         Get the current execution context.
-        
+
         Returns:
             Tuple of (execution_count, cell_id)
         """
@@ -247,8 +247,10 @@ class IPythonContextProvider(ContextProvider):
         """Check if IPython is available."""
         return _IPYTHON_AVAILABLE
 
+
 # Create a singleton instance
 _instance: Optional[IPythonContextProvider] = None
+
 
 def get_ipython_context_provider() -> IPythonContextProvider:
     """Get or create the singleton IPythonContextProvider instance."""

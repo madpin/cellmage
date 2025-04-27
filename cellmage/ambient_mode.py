@@ -5,9 +5,9 @@ This module handles the IPython input transformers that enable "ambient mode" -
 the ability to treat regular code cells as LLM prompts automatically.
 """
 
-import sys
 import logging
-from typing import List, Optional, Any
+import sys
+from typing import Any, List, Optional
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -15,30 +15,32 @@ logger = logging.getLogger(__name__)
 # Global state
 _ambient_mode_enabled = False
 
+
 def is_ambient_mode_enabled() -> bool:
     """Check if ambient mode is currently enabled."""
     global _ambient_mode_enabled
     return _ambient_mode_enabled
 
+
 def enable_ambient_mode(ipython_shell: Any) -> bool:
     """
     Enable ambient mode by registering an input transformer with IPython.
-    
+
     Args:
         ipython_shell: The IPython shell instance
-        
+
     Returns:
         bool: True if enabled successfully, False otherwise
     """
     global _ambient_mode_enabled
-    
+
     if not ipython_shell:
         logger.error("Cannot enable ambient mode: No IPython shell provided")
         return False
-        
+
     # Register the transformer if it's not already registered
     transformer_func = _auto_process_cells
-    
+
     # Register with input_transformers_cleanup for better compatibility
     transformer_list = ipython_shell.input_transformers_cleanup
     if transformer_func not in transformer_list:
@@ -50,30 +52,31 @@ def enable_ambient_mode(ipython_shell: Any) -> bool:
         logger.info("Ambient mode was already enabled")
         return False
 
+
 def disable_ambient_mode(ipython_shell: Any) -> bool:
     """
     Disable ambient mode by removing the input transformer from IPython.
-    
+
     Args:
         ipython_shell: The IPython shell instance
-        
+
     Returns:
         bool: True if disabled successfully, False otherwise
     """
     global _ambient_mode_enabled
-    
+
     if not ipython_shell:
         logger.error("Cannot disable ambient mode: No IPython shell provided")
         return False
-        
+
     transformer_func = _auto_process_cells
     transformer_list = ipython_shell.input_transformers_cleanup
-    
+
     try:
         # Remove all instances just in case it was added multiple times
         while transformer_func in transformer_list:
             transformer_list.remove(transformer_func)
-        
+
         _ambient_mode_enabled = False
         logger.info("Ambient mode disabled")
         return True
@@ -84,33 +87,34 @@ def disable_ambient_mode(ipython_shell: Any) -> bool:
         logger.error(f"Error disabling ambient mode: {e}")
         return False
 
+
 def _auto_process_cells(lines: List[str]) -> List[str]:
     """
     IPython input transformer that processes regular code cells as LLM prompts.
-    
+
     Args:
         lines: The lines of the cell being executed
-        
+
     Returns:
         List[str]: The transformed lines
     """
     # Skip processing for empty cells or cells starting with % or ! (magics or shell)
     if not lines or not lines[0] or lines[0].startswith(("%", "!")):
         return lines
-        
+
     # Skip processing for cells with explicit %%llm or other known magics
     if any(line.strip().startswith(("%%", "%load", "%reload", "%llm_config", "%disable_llm")) for line in lines):
         return lines
-        
+
     # Replace the cell content with code that will call process_cell_as_prompt
     # This is the magic - instead of executing the cell content directly,
     # we execute code that will send it to the LLM
     cell_content = "\n".join(lines)
-    
+
     # Generate cleaner code with proper spacing and clear separation between statements
     # Use multiple approaches to find the NotebookLLMMagics instance for better reliability
     new_lines = [
-f"""import sys
+        f"""import sys
 try:
     # Method 1: Direct import and instance lookup
     from cellmage.integrations.ipython_magic import NotebookLLMMagics, get_chat_manager
@@ -157,15 +161,16 @@ except ImportError as e:
 except Exception as e:
     print(f'Error during ambient mode processing: {{e}}', file=sys.stderr)"""
     ]
-    
+
     return new_lines
+
 
 def process_cell_as_prompt(cell_content: str, magics_instance: Any) -> None:
     """
     Process a regular code cell as an LLM prompt.
-    This is a standalone version of the function that can be called 
+    This is a standalone version of the function that can be called
     directly by the input transformer.
-    
+
     Args:
         cell_content: The content of the cell to process
         magics_instance: The NotebookLLMMagics instance to use

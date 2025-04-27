@@ -22,7 +22,7 @@ CellMage isn't *actual* magic, but it feels pretty close:
 * 🔮 **Persona Grimoires:** Define different LLM "personalities" (system prompts + configs) in simple Markdown files. Need a Python expert? A terse code generator? A rubber duck? Switch personas with a simple command!
 * 🌍 **Access Diverse Magical Fonts:** Connect to OpenAI, Anthropic, Azure, and other OpenAI-compatible APIs.
 * ⚡️ **Live Conjuring:** Watch the LLM weave its response character-by-character with built-in streaming support (the default!).
-* 🪄 **Ambient Enchantment (Optional):** Feeling lazy? Use `%llm_setup_forever` to automatically treat *any* standard cell you run as a prompt! (Use `%disable_llm_setup_forever` to turn it off).
+* 🪄 **Ambient Enchantment (Optional):** Feeling lazy? Use `%llm_setup_forever` to automatically treat *any* standard cell you run as a prompt! (Use `%disable_llm_config_persistent` to turn it off).
 * 🧪 **Precise Incantations:** Override models, temperature, and other parameters on-the-fly for specific spells or configure instance-wide defaults.
 * GOTO **Re-usable Spell Snippets:** Inject content from local files (like code context or data samples) directly into the conversation history before casting your spell.
 * 💰 **Mana Tracking:** Get a handy status bar after each call showing duration and estimated cost (because even magic has its price!).
@@ -98,7 +98,7 @@ but handle potential type errors gracefully.
     ```python
     %llm_setup --default_model gpt-4o --persona coding_assistant --auto_save True --debug True
     ```
-* `%llm_setup_forever`: Does the same as `%llm_setup`, *but also* enables the "Ambient Enchantment" mode, treating subsequent non-magic cells as prompts. Great for pure chat sessions! Use `%disable_llm_setup_forever` to deactivate.
+* `%llm_setup_forever`: Does the same as `%llm_setup`, *but also* enables the "Ambient Enchantment" mode, treating subsequent non-magic cells as prompts. Great for pure chat sessions! Use `%disable_llm_config_persistent` to deactivate.
 
 ### The Grimoire of Personas
 
@@ -139,7 +139,7 @@ Streaming is enabled by default. You'll see the response appear token by token. 
 
 ### Ambient Enchantment (Auto-Processing)
 
-Run `%llm_setup_forever`. Now, just type a prompt in a regular cell and run it! CellMage intercepts it and sends it to the LLM. Magic! Remember to `%disable_llm_setup_forever` when you want normal cell execution back.
+Run `%llm_setup_forever`. Now, just type a prompt in a regular cell and run it! CellMage intercepts it and sends it to the LLM. Magic! Remember to `%disable_llm_config_persistent` when you want normal cell execution back.
 
 ### Spell Snippets
 
