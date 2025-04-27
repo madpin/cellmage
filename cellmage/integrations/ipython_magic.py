@@ -52,16 +52,7 @@ from ..ambient_mode import (
     is_ambient_mode_enabled,
 )
 from ..context_providers.ipython_context_provider import get_ipython_context_provider
-from .magic_args import (
-    persona_args,
-    override_args,
-    history_args,
-    persistence_args,
-    snippet_args,
-    config_args,
-    llm_execution_args,
-    add_argument_group,
-)
+
 
 # Logging setup
 logger = logging.getLogger(__name__)

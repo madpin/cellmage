@@ -155,6 +155,37 @@ Need to include the content of a file (like code context or data) in your prompt
 
 The snippet content will be added to the history for the *next* LLM call.
 
+### Multiple Persona and Snippet Folders
+
+CellMage supports using personas and snippets from multiple directories, making it easier to organize resources by project or purpose:
+
+1. **Environment Variables**: Set additional directories using comma-separated values:
+   ```bash
+   # Using environment variables
+   export CELLMAGE_PERSONAS_DIRS=project_A/personas,project_B/personas
+   export CELLMAGE_SNIPPETS_DIRS=project_A/snippets,project_B/snippets
+   ```
+
+2. **Auto-discovery**: CellMage automatically looks for personas and snippets in standard locations:
+   - Root `llm_personas` and `llm_snippets` directories
+   - `notebooks/llm_personas`, `notebooks/llm_snippets`
+   - `notebooks/examples` and `notebooks/tests` subdirectories
+
+3. **Custom Loaders**: For programmatic access to multiple directories:
+   ```python
+   from cellmage.resources.file_loader import MultiFileLoader
+   
+   # Create a loader with multiple directories
+   loader = MultiFileLoader(
+       personas_dirs=["llm_personas", "project_A/personas"], 
+       snippets_dirs=["llm_snippets", "project_A/snippets"]
+   )
+   
+   # See available resources
+   print(f"Available personas: {loader.list_personas()}")
+   print(f"Available snippets: {loader.list_snippets()}")
+   ```
+
 ### Mana Tracking (Status Bar)
 
 After each successful call, a small status bar appears showing:

@@ -1,8 +1,8 @@
 import os
 import logging
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -14,14 +14,6 @@ class Settings(BaseSettings):
     This class provides strongly-typed configuration settings that are automatically
     loaded from environment variables with the CELLMAGE_ prefix. It also supports
     loading from .env files automatically.
-    
-    Example:
-        # Access settings
-        from cellmage.config import settings
-        model_name = settings.default_model
-        
-        # Update settings
-        settings.update(default_model="gpt-4")
     """
     # Default settings
     default_model: str = Field(
@@ -46,11 +38,21 @@ class Settings(BaseSettings):
     )
     personas_dir: str = Field(
         default="llm_personas",
-        description="Directory containing persona definitions"
+        description="Primary directory containing persona definitions"
+    )
+    personas_dirs_list: List[str] = Field(
+        default_factory=list,
+        alias="personas_dirs",
+        description="Additional directories containing persona definitions"
     )
     snippets_dir: str = Field(
-        default="snippets",
-        description="Directory containing snippets"
+        default="llm_snippets",
+        description="Primary directory containing snippets"
+    )
+    snippets_dirs_list: List[str] = Field(
+        default_factory=list, 
+        alias="snippets_dirs",
+        description="Additional directories containing snippets"
     )
     conversations_dir: str = Field(
         default="llm_conversations",
@@ -80,11 +82,66 @@ class Settings(BaseSettings):
         validate_default=True,
     )
     
-    @field_validator("log_level", "console_log_level")
-    @classmethod
-    def uppercase_log_levels(cls, v):
-        """Ensure log levels are uppercase."""
-        return v.upper() if isinstance(v, str) else v
+    def __init__(self, **data):
+        # Process environment variables before initialization
+        env_personas_dirs = os.environ.get('CELLMAGE_PERSONAS_DIRS')
+        if env_personas_dirs:
+            dirs = [d.strip() for d in env_personas_dirs.replace(";", ",").split(",") if d.strip()]
+            data['personas_dirs'] = dirs
+            logger.debug(f"Set personas_dirs from environment: {dirs}")
+            
+        env_snippets_dirs = os.environ.get('CELLMAGE_SNIPPETS_DIRS')
+        if env_snippets_dirs:
+            dirs = [d.strip() for d in env_snippets_dirs.replace(";", ",").split(",") if d.strip()]
+            data['snippets_dirs'] = dirs
+            logger.debug(f"Set snippets_dirs from environment: {dirs}")
+        
+        # Call parent init
+        super().__init__(**data)
+    
+    @property
+    def personas_dirs(self) -> List[str]:
+        """Get additional persona directories"""
+        return self.personas_dirs_list
+
+    @personas_dirs.setter
+    def personas_dirs(self, value: Union[List[str], str]) -> None:
+        """Set additional persona directories"""
+        if isinstance(value, str):
+            self.personas_dirs_list = [d.strip() for d in value.replace(";", ",").split(",") if d.strip()]
+        else:
+            self.personas_dirs_list = value
+    
+    @property
+    def snippets_dirs(self) -> List[str]:
+        """Get additional snippet directories"""
+        return self.snippets_dirs_list
+
+    @snippets_dirs.setter
+    def snippets_dirs(self, value: Union[List[str], str]) -> None:
+        """Set additional snippet directories"""
+        if isinstance(value, str):
+            self.snippets_dirs_list = [d.strip() for d in value.replace(";", ",").split(",") if d.strip()]
+        else:
+            self.snippets_dirs_list = value
+    
+    @property
+    def all_personas_dirs(self) -> List[str]:
+        """Get all persona directories including the primary one."""
+        dirs = [self.personas_dir]
+        for dir in self.personas_dirs:
+            if dir and dir not in dirs:
+                dirs.append(dir)
+        return dirs
+    
+    @property
+    def all_snippets_dirs(self) -> List[str]:
+        """Get all snippet directories including the primary one."""
+        dirs = [self.snippets_dir]
+        for dir in self.snippets_dirs:
+            if dir and dir not in dirs:
+                dirs.append(dir)
+        return dirs
     
     @property
     def save_dir(self) -> str:

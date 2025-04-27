@@ -1,7 +1,7 @@
 import os
 import logging
 import yaml
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 
 from ..models import PersonaConfig
 from ..interfaces import PersonaLoader, SnippetProvider
@@ -15,20 +15,24 @@ class FileLoader(PersonaLoader, SnippetProvider):
     Implements both PersonaLoader and SnippetProvider interfaces.
     """
     
-    def __init__(self, personas_dir: str = "llm_personas", snippets_dir: str = "snippets"):
+    def __init__(self, personas_dir: str = "llm_personas", snippets_dir: str = "llm_snippets"):
         """
-        Initialize the file loader.
+        Initialize the FileLoader.
         
         Args:
             personas_dir: Directory containing persona markdown files
             snippets_dir: Directory containing snippet markdown files
         """
-        self.personas_dir = personas_dir
-        self.snippets_dir = snippets_dir
+        self.personas_dir = personas_dir or "llm_personas"  # Ensure non-empty value
+        self.snippets_dir = snippets_dir or "llm_snippets"  # Ensure non-empty value
         self.logger = logging.getLogger(__name__)
         
         # Ensure directories exist
         for directory in [self.personas_dir, self.snippets_dir]:
+            if not directory.strip():  # Skip empty strings
+                self.logger.warning(f"Skipping empty directory path")
+                continue
+                
             try:
                 os.makedirs(directory, exist_ok=True)
                 self.logger.info(f"Directory setup: {os.path.abspath(directory)}")
@@ -224,4 +228,102 @@ description: A brief description of this persona
         except Exception as e:
             self.logger.error(f"Error loading snippet '{name}': {e}")
             return None
+
+
+class MultiFileLoader(PersonaLoader, SnippetProvider):
+    """
+    Loads personas and snippets from multiple directories.
+    
+    This class allows searching for resources across multiple directories,
+    returning the first match found.
+    """
+    
+    def __init__(self, personas_dirs: List[str] = None, snippets_dirs: List[str] = None):
+        """
+        Initialize the MultiFileLoader.
+        
+        Args:
+            personas_dirs: List of directories containing persona markdown files
+            snippets_dirs: List of directories containing snippet markdown files
+        """
+        # Filter out empty directory paths
+        self.personas_dirs = [d for d in (personas_dirs or ["llm_personas"]) if d and d.strip()]
+        if not self.personas_dirs:
+            self.personas_dirs = ["llm_personas"]  # Fallback to default if all were empty
+            
+        self.snippets_dirs = [d for d in (snippets_dirs or ["llm_snippets"]) if d and d.strip()]
+        if not self.snippets_dirs:
+            self.snippets_dirs = ["llm_snippets"]  # Fallback to default if all were empty
+            
+        self.logger = logging.getLogger(__name__)
+        
+        # Create individual loaders for each directory
+        self.persona_loaders = [FileLoader(personas_dir=d, snippets_dir="") for d in self.personas_dirs]
+        self.snippet_loaders = [FileLoader(personas_dir="", snippets_dir=d) for d in self.snippets_dirs]
+        
+        # Log configuration
+        self.logger.info(f"MultiFileLoader initialized with persona directories: {self.personas_dirs}")
+        self.logger.info(f"MultiFileLoader initialized with snippet directories: {self.snippets_dirs}")
+
+    def list_personas(self) -> List[str]:
+        """
+        List available personas from all directories.
+        
+        Returns:
+            Combined list of persona names (without .md extension)
+        """
+        all_personas = set()
+        for loader in self.persona_loaders:
+            all_personas.update(loader.list_personas())
+        return sorted(list(all_personas))
+            
+    def get_persona(self, name: str) -> Optional[PersonaConfig]:
+        """
+        Load a persona configuration, searching across all directories.
+        
+        Args:
+            name: Name of the persona (without .md extension)
+            
+        Returns:
+            First matching PersonaConfig object or None if not found
+        """
+        for loader in self.persona_loaders:
+            persona = loader.get_persona(name)
+            if persona:
+                self.logger.debug(f"Found persona '{name}' in {loader.personas_dir}")
+                return persona
+                
+        self.logger.warning(f"Persona '{name}' not found in any directory: {self.personas_dirs}")
+        return None
+            
+    def list_snippets(self) -> List[str]:
+        """
+        List available snippets from all directories.
+        
+        Returns:
+            Combined list of snippet names (without .md extension)
+        """
+        all_snippets = set()
+        for loader in self.snippet_loaders:
+            all_snippets.update(loader.list_snippets())
+        return sorted(list(all_snippets))
+            
+    def get_snippet(self, name: str) -> Optional[str]:
+        """
+        Load a snippet, searching across all directories.
+        
+        Args:
+            name: Name of the snippet (without .md extension)
+            
+        Returns:
+            Snippet content as string or None if not found
+        """
+        for loader in self.snippet_loaders:
+            snippet = loader.get_snippet(name)
+            if snippet:
+                self.logger.debug(f"Found snippet '{name}' in {loader.snippets_dir}")
+                return snippet
+                
+        self.logger.warning(f"Snippet '{name}' not found in any directory: {self.snippets_dirs}")
+        return None
 
