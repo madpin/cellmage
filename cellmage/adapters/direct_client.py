@@ -42,6 +42,16 @@ class DirectLLMAdapter(LLMClientInterface):
 
         # Instance overrides
         self._instance_overrides = {}
+        
+        # Initialize model mapper and try to load default mappings
+        from ..model_mapping import ModelMapper
+        self.model_mapper = ModelMapper()
+        
+        # Try to find and load default mapping file
+        mapping_file = ModelMapper.find_mapping_file()
+        if mapping_file:
+            self.model_mapper.load_mappings(mapping_file)
+            self.logger.info(f"Loaded model mappings from {mapping_file}")
 
         # Set API key from param or env var
         api_key = api_key or os.environ.get("CELLMAGE_API_KEY") or os.environ.get("OPENAI_API_KEY")
@@ -159,13 +169,18 @@ class DirectLLMAdapter(LLMClientInterface):
         # Layer in call overrides
         final_config.update(call_overrides)
 
-        # Determine final model name, with priority:
+        # Get model name with priority:
         # 1. Call overrides
         # 2. Instance overrides
         # 3. Model name passed to this method
-        final_model = call_overrides.get("model") or self._instance_overrides.get("model") or model_name
-
-        # Unlike litellm, we don't modify the model name with provider prefixes
+        model_alias = call_overrides.get("model") or self._instance_overrides.get("model") or model_name
+            
+        # Translate model alias to full name
+        final_model = self.model_mapper.get_full_name(model_alias) if model_alias else None
+            
+        # Store original model alias for reference
+        if model_alias and model_alias != final_model:
+            self.logger.info(f"Translated model alias '{model_alias}' to '{final_model}'")
 
         if not final_model:
             raise ConfigurationError(

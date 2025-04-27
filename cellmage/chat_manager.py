@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 import uuid
 from datetime import datetime
@@ -11,6 +12,7 @@ from .exceptions import (
     NotebookLLMError,
     ResourceNotFoundError,
 )
+from .model_mapping import ModelMapper
 from .history_manager import HistoryManager
 from .interfaces import (
     ContextProvider,
@@ -64,6 +66,21 @@ class ChatManager:
         self.llm_client = llm_client
         self.persona_loader = persona_loader
         self.snippet_provider = snippet_provider
+        
+        # Initialize model mapper
+        self.model_mapper = ModelMapper()
+        
+        # Load model mappings if configured
+        if self.settings.model_mappings_file:
+            self.model_mapper.load_mappings(self.settings.model_mappings_file)
+        elif self.settings.auto_find_mappings and context_provider:
+            # Try to get notebook directory from context provider
+            exec_context = context_provider.get_execution_context()
+            if exec_context and len(exec_context) > 1 and exec_context[1]:
+                notebook_dir = os.path.dirname(exec_context[1])
+                mapping_file = ModelMapper.find_mapping_file(notebook_dir)
+                if mapping_file:
+                    self.model_mapper.load_mappings(mapping_file)
 
         # Store creation timestamp for auto-save filename
         self.creation_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")

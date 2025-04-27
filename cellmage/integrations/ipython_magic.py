@@ -461,7 +461,7 @@ class NotebookLLMMagics(Magics):
 
     # --- Implementation of model setting ---
     def _handle_model_setting(self, args, manager: ChatManager) -> bool:
-        """Handle model setting."""
+        """Handle model setting and mapping configuration."""
         action_taken = False
 
         if hasattr(args, "model") and args.model:
@@ -472,6 +472,38 @@ class NotebookLLMMagics(Magics):
                 print(f"✅ Default model set to: {args.model}")
             else:
                 print(f"⚠️ Could not set model: LLM client not found or doesn't support overrides")
+        
+        if hasattr(args, "list_mappings") and args.list_mappings:
+            action_taken = True
+            if hasattr(manager.llm_client, "model_mapper"):
+                mappings = manager.llm_client.model_mapper.get_mappings()
+                if mappings:
+                    print("\nCurrent model mappings:")
+                    for alias, full_name in sorted(mappings.items()):
+                        print(f"  {alias:<10} -> {full_name}")
+                else:
+                    print("\nNo model mappings configured")
+            else:
+                print("⚠️ Model mapping not available")
+
+        if hasattr(args, "add_mapping") and args.add_mapping:
+            action_taken = True
+            if hasattr(manager.llm_client, "model_mapper"):
+                alias, full_name = args.add_mapping
+                manager.llm_client.model_mapper.add_mapping(alias, full_name)
+                print(f"✅ Added mapping: {alias} -> {full_name}")
+            else:
+                print("⚠️ Model mapping not available")
+
+        if hasattr(args, "remove_mapping") and args.remove_mapping:
+            action_taken = True
+            if hasattr(manager.llm_client, "model_mapper"):
+                if manager.llm_client.model_mapper.remove_mapping(args.remove_mapping):
+                    print(f"✅ Removed mapping for: {args.remove_mapping}")
+                else:
+                    print(f"⚠️ No mapping found for: {args.remove_mapping}")
+            else:
+                print("⚠️ Model mapping not available")
 
         return action_taken
 
@@ -583,6 +615,18 @@ class NotebookLLMMagics(Magics):
     @argument("-p", "--persona", type=str, help="Select and activate a persona by name.")
     @argument("--show-persona", action="store_true", help="Show the currently active persona details.")
     @argument("--list-personas", action="store_true", help="List available persona names.")
+    @argument("--list-mappings", action="store_true", help="List current model name mappings")
+    @argument(
+        "--add-mapping",
+        nargs=2,
+        metavar=("ALIAS", "FULL_NAME"),
+        help="Add a model name mapping (e.g., --add-mapping g4 gpt-4)",
+    )
+    @argument(
+        "--remove-mapping",
+        type=str,
+        help="Remove a model name mapping",
+    )
     @argument(
         "--set-override",
         nargs=2,

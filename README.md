@@ -23,7 +23,8 @@ CellMage isn't *actual* magic, but it feels pretty close:
 * 🌍 **Access Diverse Magical Fonts:** Connect to OpenAI, Anthropic, Azure, and other OpenAI-compatible APIs.
 * ⚡️ **Live Conjuring:** Watch the LLM weave its response character-by-character with built-in streaming support (the default!).
 * 🪄 **Ambient Enchantment (Optional):** Feeling lazy? Use `%llm_setup_forever` to automatically treat *any* standard cell you run as a prompt! (Use `%disable_llm_config_persistent` to turn it off).
-* 🧪 **Precise Incantations:** Override models, temperature, and other parameters on-the-fly for specific spells or configure instance-wide defaults.
+* 🧪 **Precise Incantations:** Override models, temperature, and other parameters on-the-fly for specific spells or configure instance-wide defaults. Use model aliases (like 'g4' for 'gpt-4') for quick access to your favorite models.
+* 📝 **Model Aliases:** Define short aliases for your frequently used models in a `cellmage_models.yml` file or manage them through magic commands.
 * GOTO **Re-usable Spell Snippets:** Inject content from local files (like code context or data samples) directly into the conversation history before casting your spell.
 * 💰 **Mana Tracking:** Get a handy status bar after each call showing duration and estimated cost (because even magic has its price!).
 * 📚 **Detailed Spell Logs:** Keep a record of your magical experiments with robust file logging.
@@ -115,6 +116,31 @@ Common arguments:
     %llm_config --model gpt-4o --persona coding_assistant --auto_save True --status
     ```
 * `%llm_config_persistent`: Does the same as `%llm_config`, *but also* enables the "Ambient Enchantment" mode, treating subsequent non-magic cells as prompts. Great for pure chat sessions! Use `%disable_llm_config_persistent` to deactivate.
+
+### Model Aliases
+
+CellMage supports defining short aliases for model names. You can:
+
+1. Create a `cellmage_models.yml` file in your project directory:
+```yaml
+# Model aliases
+g4: gpt-4
+g4t: gpt-4-turbo
+c2: claude-2
+```
+
+2. Manage aliases through magic commands:
+```python
+%llm_config --list-mappings  # Show current mappings
+%llm_config --add-mapping g4 gpt-4  # Add new mapping
+%llm_config --remove-mapping g4  # Remove mapping
+```
+
+Then use your aliases anywhere you'd use a model name:
+```python
+%llm_config --model g4  # Use GPT-4
+%%llm -m g4t  # Use GPT-4 Turbo for this cell
+```
 
 ### Ambient Enchantment (Auto-Processing)
 

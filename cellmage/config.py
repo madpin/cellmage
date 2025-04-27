@@ -40,6 +40,16 @@ class Settings(BaseSettings):
         description="Additional directories containing snippets",
     )
     conversations_dir: str = Field(default="llm_conversations", description="Directory for saved conversations")
+    
+    # Model mapping settings
+    model_mappings_file: Optional[str] = Field(
+        default=None,
+        description="Path to YAML file containing model name mappings"
+    )
+    auto_find_mappings: bool = Field(
+        default=True,
+        description="Automatically look for .cellmage_models.yml in notebook directory"
+    )
 
     # Logging settings
     log_level: str = Field(default="INFO", description="Global logging level")

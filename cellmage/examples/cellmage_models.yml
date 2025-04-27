@@ -1,0 +1,32 @@
+# Model name mappings
+# Format: alias: full_model_name
+
+# GPT-4 models
+g4: gpt-4
+g4t: gpt-4-turbo
+g4v: gpt-4-vision
+
+# GPT-3.5 models
+g3: gpt-3.5-turbo
+g35: gpt-3.5-turbo
+g35t: gpt-3.5-turbo-16k
+
+# Claude models
+c2: claude-2
+c3: claude-3
+c3h: claude-3-haiku
+c3s: claude-3-sonnet
+c3o: claude-3-opus
+
+# Mistral models
+m7: mistral-7b
+m8: mistral-8x7b
+mm: mixtral-8x7b
+
+# Anthropic models
+a2: anthropic-claude-2
+a3: anthropic-claude-3
+
+# DeepSeek models
+r1: deepseek-coder
+r2: deepseek-math

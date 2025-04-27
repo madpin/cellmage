@@ -54,10 +54,21 @@ The `%llm_config` line magic is used to configure your LLM session state and man
 | `--status` | Show current status (persona, overrides, history length) |
 | `--model NAME` | Set the default model for the LLM client |
 | `--adapter {direct,langchain}` | Switch to a different LLM adapter implementation |
+| `--list-mappings` | List current model name mappings |
+| `--add-mapping ALIAS FULL_NAME` | Add a model name mapping (e.g., `--add-mapping g4 gpt-4`) |
+| `--remove-mapping ALIAS` | Remove a model name mapping |
 
 #### Examples
 
 ```python
+# List current model mappings
+%llm_config --list-mappings
+
+# Add a model alias
+%llm_config --add-mapping g4 gpt-4
+
+# Remove a model alias
+%llm_config --remove-mapping g4
 # Set a specific persona
 %llm_config --persona python_expert
 
