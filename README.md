@@ -1,238 +1,247 @@
-# 🧙 CellMage ✨
+# 🪄 Cellmage: Your Notebook LLM Wizard 🎩
 
-[![PyPI version](https://badge.fury.io/py/cellmage.svg)](https://badge.fury.io/py/cellmage) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-**Stop juggling browser tabs! Start casting LLM spells directly in your Jupyter Notebook cells!**
+**Tired of wrestling with LLM APIs in your notebooks? Cellmage seamlessly integrates Large Language Models (LLMs) directly into your Jupyter/IPython workflow.**
 
-<p align="center">
-  <img src="docs/images/cellmage_logo.png" alt="CellMage Logo Concept" width="200"/>
-</p>
+Stop copy-pasting, managing complex client code, or losing context. Cellmage provides intuitive magic commands (`%%llm`, `%llm_config`) to chat with models, manage conversation history, switch personas, inject context snippets, and even enable an "ambient" mode where *every* cell becomes an LLM prompt!
 
-Ever find yourself deep in a complex data analysis or coding session, only to hit a wall? You need a quick code snippet, an explanation, or just some creative brainstorming juice from your favorite Large Language Model. But *ugh*, that means breaking your flow, opening a new tab, copying, pasting, context-switching... the magic is *gone*.
+It's designed for **data scientists, software engineers, researchers, and students** who want to leverage LLMs *within* their existing notebook environment with minimal friction. Spend less time on boilerplate, more time on solving actual problems (or generating cool sci-fi plots, we don't judge!).
 
-**Fear not, apprentice! CellMage is here to restore the enchantment!** 🪄
+[![PyPI version](https://badge.fury.io/py/cellmage.svg)](https://badge.fury.io/py/cellmage)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Documentation Status](https://readthedocs.org/projects/cellmage/badge/?version=latest)](https://cellmage.readthedocs.io/en/latest/?badge=latest)
 
-CellMage is your personal LLM wizard, living right inside your Jupyter or IPython notebook. It provides powerful, intuitive magic commands to interact with LLMs without ever leaving your cell-based sanctuary.
+---
 
-## What Sorcery is This? (Core Features)
+## ✨ Key Features
 
-CellMage isn't *actual* magic, but it feels pretty close:
+*   **🧙 IPython Magic Commands:** Effortlessly interact with LLMs using simple `%` and `%%` commands.
+*   **🎭 Personas:** Define and switch between different AI personalities (e.g., 'code_reviewer', 'data_analyst', 'rubber_duck_debugger').
+*   **🔮 Ambient Mode:** Optionally turn your entire notebook into an LLM chat interface.
+*   **✂️ Snippets:** Inject reusable code or text snippets into your prompts on the fly.
+*   **💾 History & Session Management:** Automatically track conversations, save/load sessions to Markdown, and manage context.
+*   **⚙️ Flexible Configuration:** Customize models, parameters (like `temperature`), and behavior via commands or environment variables.
+*   **🧩 Adapter System:** Supports different LLM backends (currently Direct OpenAI-compatible API access, with LangChain integration).
+*   **🏷️ Model Mapping:** Use short aliases (like `g4o`) for full model names (`gpt-4o`).
+*   **📊 Status & Cost Tracking:** Get immediate feedback on prompt execution time, token usage, and estimated cost.
 
-* ✨ **Intuitive Spellcasting:** Use the `%%llm` cell magic. Write your prompt, run the cell, and *poof* – the LLM's response appears!
-* 📜 **Arcane History Scrolls:** CellMage remembers your conversation. Even better, it detects when you re-run a cell and cleverly avoids duplicating history. Like turning back time, but less paradoxical!
-* 🔮 **Persona Grimoires:** Define different LLM "personalities" (system prompts + configs) in simple Markdown files. Need a Python expert? A terse code generator? A rubber duck? Switch personas with a simple command!
-* 🌍 **Access Diverse Magical Fonts:** Connect to OpenAI, Anthropic, Azure, and other OpenAI-compatible APIs.
-* ⚡️ **Live Conjuring:** Watch the LLM weave its response character-by-character with built-in streaming support (the default!).
-* 🪄 **Ambient Enchantment (Optional):** Feeling lazy? Use `%llm_setup_forever` to automatically treat *any* standard cell you run as a prompt! (Use `%disable_llm_config_persistent` to turn it off).
-* 🧪 **Precise Incantations:** Override models, temperature, and other parameters on-the-fly for specific spells or configure instance-wide defaults. Use model aliases (like 'g4' for 'gpt-4') for quick access to your favorite models.
-* 📝 **Model Aliases:** Define short aliases for your frequently used models in a `cellmage_models.yml` file or manage them through magic commands.
-* GOTO **Re-usable Spell Snippets:** Inject content from local files (like code context or data samples) directly into the conversation history before casting your spell.
-* 💰 **Mana Tracking:** Get a handy status bar after each call showing duration and estimated cost (because even magic has its price!).
-* 📚 **Detailed Spell Logs:** Keep a record of your magical experiments with robust file logging.
+---
 
-## The Installation Incantation 🪄
+## 🚀 Installation
 
-Ready to wield this power? Open your terminal and chant the sacred words:
+**Requirements:** Python 3.8+
+
+Install Cellmage using pip:
 
 ```bash
-# Basic installation
 pip install cellmage
+```
 
-# For LangChain integration
+*(Optional)* To use the LangChain adapter, install with the extra dependencies:
+
+```bash
 pip install "cellmage[langchain]"
 ```
 
-## LLM Connection Options 🔌
+*(Optional)* For development or to get the latest code, install from source:
 
-CellMage provides a DirectLLMAdapter for connecting to LLM APIs:
+```bash
+git clone https://github.com/madpin/cellmage.git
+cd cellmage
+pip install -e .[dev] # Includes dev dependencies
+```
 
-**DirectLLMAdapter** (built-in with no additional dependencies): 
-- Connects directly to OpenAI-compatible APIs via standard HTTP requests
-- Supports standard OpenAI API functionality including streaming
-- Simple and reliable with minimal dependencies
+---
 
-## Summoning Your First Spell (Quick Start) ⚡️
+## ⚡ Quick Start: Your First Spell
 
-1.  **Load the Extension:** In a notebook cell, run:
+1.  **Load the Magic:** In a Jupyter or IPython cell, load the extension:
     ```python
     %load_ext cellmage
     ```
 
-2.  **Configure (Optional but Recommended):** Tell CellMage where to find its power source. Set your API key and base URL (if needed) using environment variables (`CELLMAGE_API_KEY`, `CELLMAGE_API_BASE`) or the setup magic:
+2.  **Configure API Key (One-time Setup):**
+    Cellmage needs your LLM provider's API key. It looks for it in this order:
+    *   `CELLMAGE_API_KEY` environment variable
+    *   `OPENAI_API_KEY` environment variable
+    *   You can also set it via `%llm_config --set-override api_key YOUR_KEY`, but environment variables (e.g., in a `.env` file) are recommended for security.
+    *   Similarly, set `CELLMAGE_API_BASE` or `OPENAI_API_BASE` if using a non-OpenAI endpoint.
+
+3.  **Cast Your First `%%llm` Spell:**
     ```python
-    # Example for a local OpenAI-compatible API server
-    %llm_setup --api_base http://localhost:1234/v1 --default_model local-model
+    %%llm -m gpt-4o-mini
+    Explain the concept of "duck typing" in Python using a simple analogy.
     ```
-    *Or for OpenAI:*
-    ```python
-    # Make sure CELLMAGE_API_KEY is set as an environment variable, or use:
-    # %llm_setup --api_key "sk-..." --default_model gpt-4o
-    ```
-    *(See "Connecting to Magical Fonts" below for more ways)*
+    *(This sends the text below `%%llm` as a prompt to the `gpt-4o-mini` model.)*
 
-3.  **Cast Your Spell!** In a new cell, use the `%%llm` magic:
-    ```python
-    %%llm
-    Explain the difference between a list and a tuple in Python like I'm five.
-    ```
-    Run the cell and behold the LLM's wisdom appearing below! ✨
-
-## Mastering the Arcane Arts (Core Concepts) 📖
-
-### Available Magic Commands
-
-CellMage provides the following IPython magic commands:
-
-* `%%llm` - Cell magic to send your prompt to the LLM
-* `%llm_config` - Line magic to configure session state and manage resources 
-* `%llm_config_persistent` - Enable ambient mode (process regular cells as LLM prompts)
-* `%disable_llm_config_persistent` - Disable ambient mode
-* `%%py` - Execute a cell as normal Python code when ambient mode is active
-
-For a comprehensive reference of all available magic commands and their arguments, see the [IPython Magic Commands documentation](docs/source/ipython_magic_commands.md).
-
-### The `%%llm` Cell Spell
-
-This is your bread-and-butter. Anything in a cell marked with `%%llm` at the top gets sent as a prompt to the currently configured LLM.
-
-```python
-%%llm --model gpt-4o --persona python_expert
-Write a python function that takes a list of numbers and returns the sum,
-but handle potential type errors gracefully.
-```
-
-Common arguments:
-* `-p`, `--persona`: Temporarily use a different personality for this spell
-* `-m`, `--model`: Temporarily use a different model for this spell
-* `-t`, `--temperature`: Set temperature for this call
-* `--max-tokens`: Set max_tokens for this call
-* `--no-stream`: Disable streaming output just for this cell
-* `--no-history`: Don't add this exchange to conversation history
-* `--param KEY VALUE`: Set any other LLM param ad-hoc (e.g., `--param top_p 0.9`)
-
-### Configuring Your Session (`%llm_config` & `%llm_config_persistent`)
-
-* `%llm_config`: Configure CellMage for the current session. Set defaults like your preferred model, API endpoints, persona folders, logging preferences, etc.
-    ```python
-    %llm_config --model gpt-4o --persona coding_assistant --auto_save True --status
-    ```
-* `%llm_config_persistent`: Does the same as `%llm_config`, *but also* enables the "Ambient Enchantment" mode, treating subsequent non-magic cells as prompts. Great for pure chat sessions! Use `%disable_llm_config_persistent` to deactivate.
-
-### Model Aliases
-
-CellMage supports defining short aliases for model names. You can:
-
-1. Create a `cellmage_models.yml` file in your project directory:
-```yaml
-# Model aliases
-g4: gpt-4
-g4t: gpt-4-turbo
-c2: claude-2
-```
-
-2. Manage aliases through magic commands:
-```python
-%llm_config --list-mappings  # Show current mappings
-%llm_config --add-mapping g4 gpt-4  # Add new mapping
-%llm_config --remove-mapping g4  # Remove mapping
-```
-
-Then use your aliases anywhere you'd use a model name:
-```python
-%llm_config --model g4  # Use GPT-4
-%%llm -m g4t  # Use GPT-4 Turbo for this cell
-```
-
-### Ambient Enchantment (Auto-Processing)
-
-Run `%llm_config_persistent`. Now, just type a prompt in a regular cell and run it! CellMage intercepts it and sends it to the LLM. Magic!
-
-To run actual Python code while in ambient mode, use the `%%py` cell magic:
-
-```python
-%%py
-# This will run as normal Python code, not as an LLM prompt
-x = 10
-print(f"The value is {x}")
-```
-
-Remember to use `%disable_llm_config_persistent` when you want normal cell execution back.
-
-### Spell Snippets
-
-Need to include the content of a file (like code context or data) in your prompt history *before* asking your question?
-
-```python
-# Add content of my_code.py as a system message before the next %%llm call
-%llm_setup --snippets my_code.py system
-
-# Or add multiple files with a specific role
-# %llm_setup --snippets file1.txt file2.json user
-```
-
-The snippet content will be added to the history for the *next* LLM call.
-
-### Multiple Persona and Snippet Folders
-
-CellMage supports using personas and snippets from multiple directories, making it easier to organize resources by project or purpose:
-
-1. **Environment Variables**: Set additional directories using comma-separated values:
-   ```bash
-   # Using environment variables
-   export CELLMAGE_PERSONAS_DIRS=project_A/personas,project_B/personas
-   export CELLMAGE_SNIPPETS_DIRS=project_A/snippets,project_B/snippets
-   ```
-
-2. **Auto-discovery**: CellMage automatically looks for personas and snippets in standard locations:
-   - Root `llm_personas` and `llm_snippets` directories
-   - `notebooks/llm_personas`, `notebooks/llm_snippets`
-   - `notebooks/examples` and `notebooks/tests` subdirectories
-
-3. **Custom Loaders**: For programmatic access to multiple directories:
-   ```python
-   from cellmage.resources.file_loader import MultiFileLoader
-   
-   # Create a loader with multiple directories
-   loader = MultiFileLoader(
-       personas_dirs=["llm_personas", "project_A/personas"], 
-       snippets_dirs=["llm_snippets", "project_A/snippets"]
-   )
-   
-   # See available resources
-   print(f"Available personas: {loader.list_personas()}")
-   print(f"Available snippets: {loader.list_snippets()}")
-   ```
-
-### Mana Tracking (Status Bar)
-
-After each successful call, a small status bar appears showing:
-✅ Success | ⏱️ Duration | 📥 Tokens In | 📤 Tokens Out | 🪙 Estimated Cost
-
-*(Cost estimation is basic and may vary wildly based on the model/provider)*
-
-## Advanced Spellcraft
-
-*(Add examples here later for things like programmatic use, complex overrides, etc.)*
-
-```python
-# Example: Accessing the underlying object (if needed)
-from cellmage import NotebookLLMMagics # Assuming this path
-mage_instance = %magics_object NotebookLLMMagics
-llm_helper = mage_instance.llm
-
-# Now you can use methods directly
-# llm_helper.set_override("temperature", 0.9)
-# response = llm_helper.chat("This uses the override", personality_name="creative")
-# llm_helper.remove_override("temperature")
-```
-
-## Join the Coven? (Contributing)
-
-Found a mischievous bug? Have an idea for a powerful new spell? Contributions are welcome! Please check the `CONTRIBUTING.md` file for guidelines.
-
-## The Fine Print (License)
-
-CellMage is distributed under the MIT License. See `LICENSE` file for details. May cause spontaneous bursts of productivity and/or delight. Not responsible for accidentally summoning sentient code.
+4.  **See the Magic Happen:** The LLM's response will appear below the cell, along with status info (time, tokens, cost). ✨
 
 ---
 
-**Happy Conjuring!** ✨
+## 📚 Core Concepts & Examples
+
+### 1. Magic Commands
+
+*   `%load_ext cellmage`: Loads the extension (usually run once per session).
+*   `%%llm`: Executes the entire cell content as a prompt to the configured LLM.
+    ```python
+    %%llm --temperature 0.8 --model gpt-4o
+    Write a short, futuristic story about a programmer in Dublin discovering sentient pão de queijo. Use a slightly humorous tone.
+    ```
+    *(Flags like `--temperature` or `--model` temporarily override settings for this specific call.)*
+
+*   `%llm_config`: Manages the session state, default model, personas, history, etc.
+    ```python
+    # See current status (active persona, model, overrides)
+    %llm_config --status
+
+    # Set the default model for subsequent %%llm calls
+    %llm_config --model gpt-4o
+
+    # List available personas
+    %llm_config --list-personas
+
+    # Activate the 'python_expert' persona
+    %llm_config --persona python_expert
+
+    # Clear the conversation history
+    %llm_config --clear-history
+    ```
+    *(Run `%llm_config --help` for all options!)*
+
+### 2. Personas (Your AI's Identities)
+
+Personas define the LLM's system prompt and default parameters.
+
+*   **Using a Persona:**
+    ```python
+    # Activate globally
+    %llm_config --persona data_scientist
+
+    # Use just for one cell
+    %%llm -p code_reviewer
+    Review this Python function for potential bugs and style issues:
+    ```
+    ```python
+    def calc(a,b): return a+b
+    ```
+
+*   **Creating Personas:**
+    Create Markdown files (e.g., `my_persona.md`) in an `llm_personas` directory in your notebook's working directory (or configure `CELLMAGE_PERSONAS_DIRS`).
+
+    **Example (`llm_personas/code_reviewer.md`):**
+    ```markdown
+    ---
+    name: Code Reviewer Bot
+    model: gpt-4o-mini # Default model for this persona
+    temperature: 0.3   # Default temperature
+    description: Reviews code for quality and correctness.
+    ---
+    You are a meticulous code reviewer. Analyze the provided code snippets.
+    Identify potential bugs, style inconsistencies (PEP 8), and suggest improvements
+    for clarity, efficiency, and robustness. Be constructive and provide clear examples.
+    ```
+
+### 3. Ambient Mode (The "Always-On" Charm)
+
+Make *every* standard cell an LLM prompt without typing `%%llm`.
+
+*   **Activate:**
+    ```python
+    # Activate ambient mode, optionally setting defaults
+    %llm_config_persistent --model gpt-4o-mini --persona helpful_assistant
+    ```
+    *(Now, just type your prompt in a cell and run it!)*
+
+*   **Execute Python Code While Ambient:** Use `%%py`:
+    ```python
+    %%py
+    # This runs as normal Python, not an LLM prompt
+    import pandas as pd
+    print(f"Pandas version: {pd.__version__}")
+    ```
+
+*   **Deactivate:**
+    ```python
+    %disable_llm_config_persistent
+    ```
+
+    > **⚠️ Warning:** Ambient mode might interfere with some IDE features like autocomplete in certain environments, as it intercepts cell execution. If you experience issues, disable ambient mode and use the explicit `%%llm` magic.
+
+### 4. Snippets (Reusable Context Blocks)
+
+Inject files as context (e.g., code definitions, instructions) into your prompts.
+
+*   **Creating Snippets:**
+    Save text/code into files (e.g., `my_context.py`) in an `llm_snippets` directory.
+
+*   **Using Snippets:**
+    ```python
+    # Add content of 'my_utils.py' as a user message before the main prompt
+    %llm_config --snippet my_utils.py
+
+    # Add 'system_instructions.md' as a system message
+    %llm_config --sys-snippet system_instructions.md
+
+    %%llm
+    Based on the utility functions and instructions provided, write a function that uses `calculate_metrics` from the utils.
+    ```
+    *(Snippets added via `%llm_config` persist until cleared or new snippets are added.)*
+    *You can also add snippets per-cell using `%%llm --snippet ...`.*
+
+### 5. Session Management (Saving Your Work)
+
+Cellmage automatically saves conversations if an `llm_conversations` directory exists. You can also manually save/load.
+
+```python
+# Save the current conversation (uses timestamp and first words if no name given)
+%llm_config --save "data_analysis_session"
+
+# Load a previously saved session
+%llm_config --load "data_analysis_session_20250428_...."
+
+# List saved sessions
+%llm_config --list-sessions
+```
+
+---
+
+## ⚙️ Configuration
+
+Cellmage is configured via:
+
+1.  **Environment Variables:** (Prefix `CELLMAGE_`) - e.g., `CELLMAGE_API_KEY`, `CELLMAGE_DEFAULT_MODEL`, `CELLMAGE_PERSONAS_DIRS`. Recommended for secrets.
+2.  **`.env` File:** Place a `.env` file in your working directory.
+3.  **Magic Commands:** `%llm_config` allows runtime changes.
+
+*(See `config.py` or documentation for all options.)*
+
+---
+
+## 🗺️ Roadmap & Contributing
+
+Cellmage is actively developed. Future ideas include:
+
+*   More LLM adapters (Anthropic, Gemini, local models).
+*   Better error handling and feedback.
+*   Visual configuration options.
+*   Deeper notebook state integration.
+
+Contributions, bug reports, and feature requests are welcome! Please check the `CONTRIBUTING.md` file and open an issue or PR on GitHub:
+
+➡️ [**GitHub Repository: madpin/cellmage**](https://github.com/madpin/cellmage)
+
+---
+
+## 🧑‍💻 About the Author
+
+Crafted with ❤️ and ☕ in Dublin, Ireland 🇮🇪 by **Thiago Pinto**.
+
+*   Staff Software Engineer @ Indeed
+*   Passionate about Data Intelligence, Python, Leadership, and Geek Culture (Matrix, One Piece, Asimov fan!)
+*   Lover of Dublin life, Sano Pizza 🍕, Pão de Queijo 🧀, and walks near St. Patrick's Cathedral.
+
+---
+
+## 📜 License
+
+Cellmage is released under the **MIT License**. See the `LICENSE` file for details.
