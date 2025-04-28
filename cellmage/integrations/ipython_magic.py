@@ -1,45 +1,67 @@
-# --- Imports ---
-import sys
-import uuid
-import time
-import logging
-import shlex # For safer parsing of magic line args
-from typing import Optional, Tuple, Dict, Any, List
+"""
+IPython magic commands for CellMage.
 
+This module provides magic commands for using CellMage in IPython/Jupyter notebooks.
+"""
+
+import logging
+import os
+import sys
+import time
+import uuid
+from typing import Any, Dict, Optional
+
+# IPython imports with fallback handling
 try:
     from IPython import get_ipython
-    from IPython.core.magic import Magics, line_magic, cell_magic, magics_class
-    from IPython.core.magic_arguments import (
-        argument, magic_arguments, parse_argstring, argument_group
-    )
-    from IPython.display import display, Markdown, HTML, update_display
+    from IPython.core.magic import Magics, cell_magic, line_magic, magics_class
+    from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
+
     _IPYTHON_AVAILABLE = True
 except ImportError:
     _IPYTHON_AVAILABLE = False
-    # Define dummy decorators if IPython is not installed, so the file can still be imported
-    # This allows checking functionality even without IPython (e.g., basic linting)
-    def magics_class(cls): return cls
-    def line_magic(func): return func
-    def cell_magic(func): return func
-    def magic_arguments(): return lambda func: func
-    def argument(*args, **kwargs): return lambda func: func
-    class Magics: pass # Dummy base class
 
-# --- Project Imports ---
-# Use absolute imports relative to the package root
+    # Define dummy decorators if IPython is not installed
+    def magics_class(cls):
+        return cls
+
+    def line_magic(func):
+        return func
+
+    def cell_magic(func):
+        return func
+
+    def magic_arguments():
+        return lambda func: func
+
+    def argument(*args, **kwargs):
+        return lambda func: func
+
+    class DummyMagics:
+        pass  # Dummy base class
+
+    Magics = DummyMagics  # Type alias for compatibility
+
+
+from ..ambient_mode import (
+    disable_ambient_mode,
+    enable_ambient_mode,
+    is_ambient_mode_enabled,
+)
+
+# Project imports
 from ..chat_manager import ChatManager
-from ..interfaces import ContextProvider, StreamCallbackHandler
-from ..exceptions import NotebookLLMError, ResourceNotFoundError, ConfigurationError, LLMInteractionError, PersistenceError
-from ..models import Message # For type hints if needed
+from ..context_providers.ipython_context_provider import get_ipython_context_provider
+from ..exceptions import PersistenceError, ResourceNotFoundError
+from ..models import Message
 
-# --- Logging ---
+# Logging setup
 logger = logging.getLogger(__name__)
 
 # --- Global Instance Management ---
-# Global instance (or factory-created) - needs careful management in IPython
-# A function to get/create the manager instance is generally safer.
 _chat_manager_instance: Optional[ChatManager] = None
 _initialization_error: Optional[Exception] = None
+
 
 def _init_default_manager() -> ChatManager:
     """Initializes the default ChatManager instance using default components."""
@@ -47,596 +69,1176 @@ def _init_default_manager() -> ChatManager:
     try:
         # Import necessary components dynamically only if needed
         from ..config import settings
-        from ..adapters.llm_client import LiteLLMAdapter
-        from ..resources.file_loader import FileLoader # Default file-based loaders
-        from ..storage.markdown_store import MarkdownStore # Default markdown store
+        from ..resources.file_loader import FileLoader
+        from ..storage.markdown_store import MarkdownStore
 
-        logger.info("Initializing default ChatManager components...")
+        # Determine which adapter to use
+        adapter_type = os.environ.get("CELLMAGE_ADAPTER", "direct").lower()
+
+        logger.info(f"Initializing default ChatManager with adapter type: {adapter_type}")
 
         # Create default dependencies
-        # Error handling for directory access/creation happens in components now
         loader = FileLoader(settings.personas_dir, settings.snippets_dir)
         store = MarkdownStore(settings.save_dir)
-        client = LiteLLMAdapter() # Relies on settings/env vars
-        context_provider = IPythonContextProvider() # Provide IPython context
+        context_provider = get_ipython_context_provider()
+
+        # Initialize the appropriate LLM client adapter
+        from ..interfaces import LLMClientInterface
+
+        llm_client: Optional[LLMClientInterface] = None
+
+        if adapter_type == "langchain":
+            try:
+                from ..adapters.langchain_client import LangChainAdapter
+
+                llm_client = LangChainAdapter(default_model=settings.default_model)
+                logger.info("Using LangChain adapter")
+            except ImportError:
+                # Fall back to Direct adapter if LangChain is not available
+                logger.warning(
+                    "LangChain adapter requested but not available. Falling back to Direct adapter."
+                )
+                from ..adapters.direct_client import DirectLLMAdapter
+
+                llm_client = DirectLLMAdapter(default_model=settings.default_model)
+        else:
+            # Default case: use Direct adapter
+            from ..adapters.direct_client import DirectLLMAdapter
+
+            llm_client = DirectLLMAdapter(default_model=settings.default_model)
+            logger.info("Using Direct adapter")
 
         manager = ChatManager(
             settings=settings,
-            llm_client=client,
+            llm_client=llm_client,
             persona_loader=loader,
             snippet_provider=loader,
             history_store=store,
-            context_provider=context_provider
-            # Initial persona/session ID could be loaded from config/env later
+            context_provider=context_provider,
         )
         logger.info("Default ChatManager initialized successfully.")
-        _initialization_error = None # Clear previous error on success
+        _initialization_error = None  # Clear previous error on success
         return manager
     except Exception as e:
-         logger.exception("FATAL: Failed to initialize default NotebookLLM ChatManager.")
-         _initialization_error = e # Store the error
-         # Re-raise a more user-friendly error for the magic command context
-         raise RuntimeError(f"NotebookLLM setup failed. Please check configuration and logs. Error: {e}") from e
+        logger.exception("FATAL: Failed to initialize default NotebookLLM ChatManager.")
+        _initialization_error = e  # Store the error
+        raise RuntimeError(
+            f"NotebookLLM setup failed. Please check configuration and logs. Error: {e}"
+        ) from e
+
 
 def get_chat_manager() -> ChatManager:
     """Gets or creates the singleton ChatManager instance."""
     global _chat_manager_instance
     if _chat_manager_instance is None:
         if _initialization_error:
-            # If initialization failed before, raise the stored error
-            raise RuntimeError(f"NotebookLLM previously failed to initialize: {_initialization_error}") from _initialization_error
+            raise RuntimeError(
+                f"NotebookLLM previously failed to initialize: {_initialization_error}"
+            ) from _initialization_error
         logger.debug("ChatManager instance not found, attempting initialization.")
-        _chat_manager_instance = _init_default_manager() # This might raise RuntimeError
+        _chat_manager_instance = _init_default_manager()
 
     return _chat_manager_instance
 
-# --- IPython Specific Implementations ---
 
-class IPythonContextProvider(ContextProvider):
-    """Provides execution context from the IPython environment."""
-    def get_current_context(self) -> Tuple[Optional[int], Optional[str]]:
-        """Returns (execution_count, cell_id) if available, else (None, None)."""
-        ipython = get_ipython()
-        if not ipython or not hasattr(ipython, 'kernel') or not ipython.kernel:
-            logger.debug("IPython environment or kernel not available for context.")
-            return None, None
+@magics_class
+class NotebookLLMMagics(Magics):
+    """IPython magic commands for interacting with CellMage."""
 
-        # Safer access to execution_count
-        exec_count = getattr(ipython, 'execution_count', None)
+    def __init__(self, shell):
+        if not _IPYTHON_AVAILABLE:
+            logger.warning("IPython not found. NotebookLLM magics are disabled.")
+            return
 
-        # Cell ID detection logic (refined)
-        cell_id: Optional[str] = None
+        super().__init__(shell)
         try:
-            # Access parent_header safely
-            parent_header = getattr(ipython.kernel.shell, 'parent_header', None)
-            if not parent_header or not isinstance(parent_header, dict):
-                 logger.debug("Could not retrieve parent_header for cell ID.")
-                 return exec_count, None
-
-            # Look in standard metadata locations first
-            metadata = parent_header.get("metadata", {})
-            if isinstance(metadata, dict):
-                # Prioritize known keys
-                potential_keys = ["cellId", "vscode_cell_id", "google_colab_cell_id"]
-                for key in potential_keys:
-                    cell_id = metadata.get(key)
-                    if isinstance(cell_id, str) and cell_id: break # Found one
-                else: # If loop finishes without break
-                    cell_id = None # Ensure cell_id is None if not found in standard keys
-
-                # Check nested metadata structures if not found yet
-                if not cell_id and isinstance(metadata.get("metadata"), dict): # General nested
-                    for key in potential_keys:
-                        cell_id = metadata["metadata"].get(key)
-                        if isinstance(cell_id, str) and cell_id: break
-                    else: cell_id = None
-
-                if not cell_id and isinstance(metadata.get("colab"), dict): # Colab specific nested
-                    cell_id = metadata["colab"].get("cell_id") # More specific key for Colab
-
-            # Fallback for VSCode specific format if still not found
-            # Check both header and metadata values for the prefix
-            if not cell_id:
-                 search_pools = [parent_header, metadata]
-                 for pool in search_pools:
-                      if not isinstance(pool, dict): continue
-                      for value in pool.values():
-                           if isinstance(value, str) and value.startswith("vscode-notebook-cell:"):
-                                cell_id = value
-                                break
-                      if cell_id: break
-
-            if cell_id:
-                 logger.debug(f"Detected Cell ID: ...{cell_id[-8:]}")
-            else:
-                 logger.debug("Could not detect Cell ID from metadata.")
-
+            get_chat_manager()
+            logger.info("NotebookLLMMagics initialized and ChatManager accessed successfully.")
         except Exception as e:
-            logger.warning(f"Error detecting Cell ID: {e}", exc_info=False)
-            cell_id = None # Ensure None on error
+            logger.error(f"Error initializing NotebookLLM during magic setup: {e}")
 
-        return exec_count, cell_id
+    def _get_manager(self) -> ChatManager:
+        """Helper to get the manager instance, with clear error handling."""
+        if not _IPYTHON_AVAILABLE:
+            raise RuntimeError("IPython not available")
 
-class IPythonStreamHandler(StreamCallbackHandler):
-    """Handles streaming output directly to IPython display, updating a single area."""
-    def __init__(self):
-        self._display_id = str(uuid.uuid4())
-        self._display_handle = None
-        self._buffer = ""
-        self._started = False
-        self._final_content_displayed = False
-        logger.debug(f"IPythonStreamHandler created with display_id: {self._display_id}")
-
-    def on_stream_start(self) -> None:
-        """Initializes the display area."""
-        self._buffer = ""
-        self._final_content_displayed = False
         try:
-            # Create an initial display area with a placeholder
-            self._display_handle = display(Markdown("```text\nAssistant (streaming)...\n```"), display_id=self._display_id, raw=True)
-            self._started = True
-            logger.debug(f"Stream display started (ID: {self._display_id}).")
+            return get_chat_manager()
         except Exception as e:
-             logger.exception(f"Failed to create initial display for stream (ID: {self._display_id}).")
-             self._started = False # Mark as not started if display fails
+            print("❌ NotebookLLM Error: Could not get Chat Manager.", file=sys.stderr)
+            print(f"   Reason: {e}", file=sys.stderr)
+            print(
+                "   Please check your configuration (.env file, API keys, directories) and restart the kernel.",
+                file=sys.stderr,
+            )
+            raise RuntimeError("NotebookLLM manager unavailable.") from e
 
-    def on_stream_chunk(self, chunk: str) -> None:
-        """Updates the display area with new content."""
-        if not self._started or not self._display_handle:
-            logger.warning("Stream chunk received but display not started or handle lost.")
-            return # Don't try to update if display setup failed
+    def process_cell_as_prompt(self, cell_content: str) -> None:
+        """Process a regular code cell as an LLM prompt in ambient mode."""
+        if not _IPYTHON_AVAILABLE:
+            return
 
-        self._buffer += chunk
-        # Update the display area with accumulated content, formatted as markdown code block
-        # Using raw=True to prevent potential markdown interpretation issues with partial code/text
-        # Escape triple backticks within the buffer to avoid breaking the markdown block
-        escaped_buffer = self._buffer.replace("```", "` ``")
+        start_time = time.time()
+        status_info = {"success": False, "duration": 0.0}
+        context_provider = get_ipython_context_provider()
+
         try:
-            update_display(Markdown(f"```text\n{escaped_buffer}\n```"), display_id=self._display_id, raw=True)
+            manager = self._get_manager()
         except Exception as e:
-             # Log error but don't stop stream processing
-             logger.warning(f"Failed to update display for stream chunk (ID: {self._display_id}): {e}")
+            print(f"Error getting ChatManager: {e}", file=sys.stderr)
+            return
 
-    def on_stream_end(self, full_response: str) -> None:
-        """Final update to the display area with the complete response."""
-        if not self._started or not self._display_handle:
-             # If display setup failed, print final response as fallback
-             logger.warning("Stream ended but display not started. Printing final response.")
-             print("\n--- Assistant Response (Stream End) ---")
-             print(full_response)
-             print("--------------------------------------")
-             self._final_content_displayed = True
-             return
+        prompt = cell_content.strip()
+        if not prompt:
+            logger.debug("Skipping empty prompt in ambient mode.")
+            return
 
-        # Final update with proper markdown formatting (not just text block)
+        logger.debug(f"Processing cell as prompt in ambient mode: '{prompt[:50]}...'")
+
         try:
-            update_display(Markdown(f"**Assistant:**\n{full_response}"), display_id=self._display_id, raw=True)
-            self._final_content_displayed = True
-            logger.debug(f"Stream display finished (ID: {self._display_id}).")
-        except Exception as e:
-             logger.exception(f"Failed to make final update to display for stream (ID: {self._display_id}). Printing fallback.")
-             print("\n--- Assistant Response (Stream End - Display Error) ---")
-             print(full_response)
-             print("-------------------------------------------------------")
-             self._final_content_displayed = True # Mark as displayed even if fallback used
+            # Call the ChatManager's chat method with default settings
+            result = manager.chat(
+                prompt=prompt,
+                persona_name=None,  # Use default persona
+                stream=True,  # Default to streaming output
+                add_to_history=True,
+                auto_rollback=True,
+            )
 
-        self._started = False # Reset state
-
-    def on_stream_error(self, error: Exception) -> None:
-        """Displays the error in the designated display area or prints it."""
-        logger.error(f"Streaming error occurred: {error}")
-        error_html = f"""
-        <div style="border: 1px solid red; color: red; background-color: #ffebee; padding: 10px; margin-top: 5px; border-radius: 4px;">
-        <strong>Streaming Error:</strong><br><pre style="white-space: pre-wrap; word-wrap: break-word;">{error}</pre>
-        </div>
-        """
-        if self._started and self._display_handle and not self._final_content_displayed:
-            # Update the display area to show the error
-            try:
-                update_display(HTML(error_html), display_id=self._display_id, raw=True)
-                self._final_content_displayed = True # Error message replaces content
-            except Exception as e:
-                 logger.exception(f"Failed to update display with stream error (ID: {self._display_id}). Printing fallback.")
-                 print(f"\nStreaming Error: {error}")
-                 self._final_content_displayed = True
-        elif not self._final_content_displayed:
-            # Fallback to printing the error if display wasn't set up or already finalized
-            print(f"\nStreaming Error: {error}")
-            # Display the formatted HTML error as a fallback if possible
-            try:
-                 display(HTML(error_html), raw=True)
-                 self._final_content_displayed = True
-            except Exception:
-                 pass # Ignore if display fails here too
-
-        self._started = False # Reset state
-
-# --- Magic Class ---
-
-if _IPYTHON_AVAILABLE: # Only define the class if IPython is installed
-    @magics_class
-    class NotebookLLMMagics(Magics):
-        """IPython Magics for interacting with the NotebookLLM ChatManager."""
-
-        def __init__(self, shell):
-            super().__init__(shell)
-            # Attempt to initialize the manager early so setup errors are noticed sooner.
-            # However, actual usage should call _get_manager() to handle errors gracefully.
-            try:
-                 get_chat_manager()
-                 logger.info("NotebookLLMMagics initialized and ChatManager accessed successfully.")
-            except Exception as e:
-                 logger.error(f"Error initializing NotebookLLM during magic setup: {e}")
-                 # Don't prevent magics from loading, but commands will likely fail.
-                 # The error is stored in _initialization_error.
-
-        def _get_manager(self) -> ChatManager:
-            """Helper to get the manager instance, raising clearly if initialization failed."""
-            try:
-                # This will raise RuntimeError if _initialization_error is set
-                return get_chat_manager()
-            except Exception as e:
-                # Provide a user-friendly error message in the notebook
-                print(f"❌ NotebookLLM Error: Could not get Chat Manager.", file=sys.stderr)
-                print(f"   Reason: {e}", file=sys.stderr)
-                print(f"   Please check your configuration (.env file, API keys, directories) and restart the kernel.", file=sys.stderr)
-                raise RuntimeError("NotebookLLM manager unavailable.") from e # Stop magic execution
-
-        def _display_status(self, status_info: Dict[str, Any]):
-            """Displays a status bar after execution using provided info."""
-            duration = status_info.get("duration", 0.0)
-            success = status_info.get("success", False)
-            tokens_in = status_info.get("tokens_in") # Might be None
-            tokens_out = status_info.get("tokens_out") # Might be None
-            cost_str = status_info.get("cost_str") # Might be None
-            model_used = status_info.get("model_used")
-
-            status_parts = []
-            if success:
-                status_parts.append(f"✅ Success!")
-            else:
-                status_parts.append(f"⚠️ Failed!")
-
-            status_parts.append(f"({duration:.2f}s)")
-
-            if model_used:
-                 status_parts.append(f"Model: {model_used}")
-
-            token_parts = []
-            if tokens_in is not None: token_parts.append(f"In: {tokens_in} tk")
-            if tokens_out is not None: token_parts.append(f"Out: {tokens_out} tk")
-            if token_parts: status_parts.append(", ".join(token_parts))
-
-            if cost_str: status_parts.append(f"Est. Cost: {cost_str}")
-
-            status_text = " | ".join(status_parts)
-
-            if success:
-                bg_color, border_color, text_color = "#e8f5e9", "#a5d6a7", "#1b5e20" # Green tones
-            else:
-                bg_color, border_color, text_color = "#ffebee", "#ef9a9a", "#c62828" # Red tones
-
-            status_html = f"""
-            <div style="background-color: {bg_color}; border: 1px solid {border_color}; color: {text_color};
-                        padding: 5px 8px; margin-top: 8px; border-radius: 4px; font-family: sans-serif; font-size: 0.85em; line-height: 1.4;">
-                {status_text}
-            </div>
-            """
-            try:
-                display(HTML(status_html))
-            except Exception as e:
-                 logger.warning(f"Failed to display status HTML: {e}")
-                 print(f"Status: {status_text}") # Fallback to plain text
-
-        # --- %llm_config Magic ---
-        @magic_arguments()
-        @argument('-p', '--persona', type=str, help="Select and activate a persona by name.")
-        @argument('--show-persona', action='store_true', help="Show the currently active persona details.")
-        @argument('--list-personas', action='store_true', help="List available persona names.")
-        @argument('--set-override', nargs=2, metavar=('KEY', 'VALUE'), help="Set a temporary LLM param override (e.g., --set-override temperature 0.5).")
-        @argument('--remove-override', type=str, metavar='KEY', help="Remove a specific override key.")
-        @argument('--clear-overrides', action='store_true', help="Clear all temporary LLM param overrides.")
-        @argument('--show-overrides', action='store_true', help="Show the currently active overrides.")
-        @argument('--clear-history', action='store_true', help="Clear the current chat history (keeps system prompt).")
-        @argument('--save', type=str, nargs='?', const=True, metavar='FILENAME', help="Save session. If no name, uses current session ID. '.md' added automatically.")
-        @argument('--load', type=str, metavar='SESSION_ID', help="Load session from specified identifier (filename without .md).")
-        @argument('--list-sessions', action='store_true', help="List saved session identifiers.")
-        @argument('--list-snippets', action='store_true', help="List available snippet names.")
-        @argument('--show-history', action='store_true', help="Display the current message history.")
-        @argument('--status', action='store_true', help="Show current status (persona, overrides, history length).")
-        @line_magic('llm_config')
-        def configure_llm(self, line):
-            """Configure the LLM session state and manage resources."""
-            try:
-                args = parse_argstring(self.configure_llm, line)
-                manager = self._get_manager()
-            except Exception as e:
-                 # Error already printed by _get_manager or parse_argstring
-                 return # Stop processing
-
-            action_taken = False # Track if any action was performed
-
-            # --- List Resources ---
-            if args.list_personas:
-                action_taken = True
+            # If result is successful, mark as success
+            if result:
+                status_info["success"] = True
                 try:
-                    personas = manager.list_personas()
-                    print("Available Personas:", ", ".join(f"'{p}'" for p in personas) if personas else "None")
+                    history = manager.history_manager.get_history()
+                    if len(history) >= 2:
+                        # Convert Any | None values to appropriate types that won't cause type errors
+                        tokens_in = history[-2].metadata.get("tokens_in", 0)
+                        status_info["tokens_in"] = (
+                            float(tokens_in) if tokens_in is not None else 0.0
+                        )
+
+                        tokens_out = history[-1].metadata.get("tokens_out", 0)
+                        status_info["tokens_out"] = (
+                            float(tokens_out) if tokens_out is not None else 0.0
+                        )
+
+                        status_info["cost_str"] = history[-1].metadata.get("cost_str", "")
+                        status_info["model_used"] = history[-1].metadata.get("model_used", "")
                 except Exception as e:
-                    print(f"❌ Error listing personas: {e}")
+                    logger.warning(
+                        f"Error retrieving status info from history in ambient mode: {e}"
+                    )
+
+        except Exception as e:
+            print(f"❌ LLM Error (Ambient Mode): {e}", file=sys.stderr)
+            logger.error(f"Error during LLM call in ambient mode: {e}")
+        finally:
+            status_info["duration"] = time.time() - start_time
+            # Display status bar
+            context_provider.display_status(status_info)
+
+    def _prepare_runtime_params(self, args) -> Dict[str, Any]:
+        """Extract runtime parameters from args and convert to dictionary.
+
+        This builds a dictionary of parameters that can be passed to the LLM client.
+        """
+        runtime_params = {}
+
+        # Handle simple parameters
+        if hasattr(args, "temperature") and args.temperature is not None:
+            runtime_params["temperature"] = args.temperature
+
+        if hasattr(args, "max_tokens") and args.max_tokens is not None:
+            runtime_params["max_tokens"] = args.max_tokens
+
+        # Handle arbitrary parameters from --param
+        if hasattr(args, "param") and args.param:
+            for key, value in args.param:
+                # Try to convert string values to appropriate types
+                try:
+                    # First try to convert to int or float if it looks numeric
+                    if "." in value:
+                        parsed_value = float(value)
+                    else:
+                        try:
+                            parsed_value = int(value)
+                        except ValueError:
+                            parsed_value = value
+                except ValueError:
+                    parsed_value = value
+
+                runtime_params[key] = parsed_value
+
+        return runtime_params
+
+    # --- Implementation of persona handling ---
+    def _handle_persona_commands(self, args, manager: ChatManager) -> bool:
+        """Handle persona-related arguments."""
+        action_taken = False
+
+        if args.list_personas:
+            action_taken = True
+            try:
+                personas = manager.list_personas()
+                print(
+                    "Available Personas:",
+                    ", ".join(f"'{p}'" for p in personas) if personas else "None",
+                )
+            except Exception as e:
+                print(f"❌ Error listing personas: {e}")
+
+        if args.show_persona:
+            action_taken = True
+            try:
+                active_persona = manager.get_active_persona()
+                if active_persona:
+                    print(f"Active Persona: '{active_persona.name}'")
+                    print(
+                        f"  System Prompt: {active_persona.system_message[:100]}{'...' if len(active_persona.system_message) > 100 else ''}"
+                    )
+                    print(f"  LLM Params: {active_persona.config}")
+                else:
+                    print("Active Persona: None")
+                    print("  To set a persona, use: %llm_config --persona <name>")
+                    print("  To list available personas, use: %llm_config --list-personas")
+            except Exception as e:
+                print(f"❌ Error retrieving active persona: {e}")
+                print("  Try listing available personas with: %llm_config --list-personas")
+
+        if args.persona:
+            action_taken = True
+            try:
+                manager.set_default_persona(args.persona)
+                print(f"✅ Persona activated: '{args.persona}'")
+            except ResourceNotFoundError:
+                print(f"❌ Error: Persona '{args.persona}' not found.")
+            except Exception as e:
+                print(f"❌ Error setting persona '{args.persona}': {e}")
+
+        return action_taken
+
+    # --- Implementation of snippet handling ---
+    def _handle_snippet_commands(self, args, manager: ChatManager) -> bool:
+        """Handle snippet-related arguments."""
+        action_taken = False
+
+        try:
+            if hasattr(args, "sys_snippet") and args.sys_snippet:
+                action_taken = True
+                for name in args.sys_snippet:
+                    # Handle quoted paths by removing quotes
+                    if (name.startswith('"') and name.endswith('"')) or (
+                        name.startswith("'") and name.endswith("'")
+                    ):
+                        name = name[1:-1]
+
+                    if manager.add_snippet(name, role="system"):
+                        print(f"✅ Added system snippet: '{name}'")
+                    else:
+                        print(f"⚠️ Warning: Could not add system snippet '{name}'.")
+
+            if hasattr(args, "snippet") and args.snippet:
+                action_taken = True
+                for name in args.snippet:
+                    # Handle quoted paths by removing quotes
+                    if (name.startswith('"') and name.endswith('"')) or (
+                        name.startswith("'") and name.endswith("'")
+                    ):
+                        name = name[1:-1]
+
+                    if manager.add_snippet(name, role="user"):
+                        print(f"✅ Added user snippet: '{name}'")
+                    else:
+                        print(f"⚠️ Warning: Could not add user snippet '{name}'.")
 
             if args.list_snippets:
                 action_taken = True
                 try:
                     snippets = manager.list_snippets()
-                    print("Available Snippets:", ", ".join(f"'{s}'" for s in snippets) if snippets else "None")
+                    print(
+                        "Available Snippets:",
+                        ", ".join(f"'{s}'" for s in snippets) if snippets else "None",
+                    )
                 except Exception as e:
                     print(f"❌ Error listing snippets: {e}")
+        except Exception as e:
+            print(f"❌ Error processing snippets: {e}")
 
-            if args.list_sessions:
-                action_taken = True
-                try:
+        return action_taken
+
+    # --- Implementation of override handling ---
+    def _handle_override_commands(self, args, manager: ChatManager) -> bool:
+        """Handle override-related arguments."""
+        action_taken = False
+
+        if args.set_override:
+            action_taken = True
+            key, value = args.set_override
+            # Attempt basic type conversion (optional, could pass strings directly)
+            try:
+                # Try float, int, then string
+                parsed_value = float(value) if "." in value else int(value)
+            except ValueError:
+                parsed_value = value  # Keep as string if conversion fails
+            manager.set_override(key, parsed_value)
+            print(f"✅ Override set: {key} = {parsed_value} ({type(parsed_value).__name__})")
+
+        if args.remove_override:
+            action_taken = True
+            key = args.remove_override
+            manager.remove_override(key)
+            print(f"✅ Override removed: {key}")
+
+        if args.clear_overrides:
+            action_taken = True
+            manager.clear_overrides()
+            print("✅ All overrides cleared.")
+
+        if args.show_overrides:
+            action_taken = True
+            overrides = manager.get_overrides()
+            print("Active Overrides:", overrides if overrides else "None")
+
+        return action_taken
+
+    # --- Implementation of history handling ---
+    def _handle_history_commands(self, args, manager: ChatManager) -> bool:
+        """Handle history-related arguments."""
+        action_taken = False
+
+        if args.clear_history:
+            action_taken = True
+            manager.clear_history()
+            print("✅ Chat history cleared.")
+
+        if args.show_history:
+            action_taken = True
+            history = manager.get_history()
+
+            # Calculate total tokens for all messages
+            total_tokens_in = 0
+            total_tokens_out = 0
+            total_tokens = 0
+
+            # Calculate cumulative token counts
+            for msg in history:
+                if msg.metadata:
+                    total_tokens_in += msg.metadata.get("tokens_in", 0)
+                    total_tokens_out += msg.metadata.get("tokens_out", 0)
+                    msg_total = msg.metadata.get("total_tokens", 0)
+                    if msg_total > 0:
+                        total_tokens += msg_total
+
+            # If no total_tokens were found, calculate from in+out
+            if total_tokens == 0:
+                total_tokens = total_tokens_in + total_tokens_out
+
+            # Print history header with token counts
+            print(f"--- History ({len(history)} messages) ---")
+            print(
+                f"Total tokens: {total_tokens} (Input: {total_tokens_in}, Output: {total_tokens_out})"
+            )
+
+            if not history:
+                print("(empty)")
+            else:
+                for i, msg in enumerate(history):
+                    tokens_in = msg.metadata.get("tokens_in", 0) if msg.metadata else 0
+                    tokens_out = msg.metadata.get("tokens_out", 0) if msg.metadata else 0
+                    model_used = msg.metadata.get("model_used", "") if msg.metadata else ""
+
+                    # Display token info based on role
+                    token_info = ""
+                    if msg.role == "user":
+                        token_info = f"(Tokens: {tokens_in})"
+                    elif msg.role == "assistant":
+                        token_info = f"(Tokens: {tokens_out})"
+
+                    print(
+                        f"[{i}] {msg.role.upper()} {token_info}: {msg.content[:150]}{'...' if len(msg.content) > 150 else ''}"
+                    )
+
+                    # Show more metadata details
+                    meta_items = []
+                    if msg.id:
+                        meta_items.append(f"ID: ...{msg.id[-6:]}")
+                    if msg.cell_id:
+                        meta_items.append(f"Cell: {msg.cell_id[-8:]}")
+                    if msg.execution_count:
+                        meta_items.append(f"Exec: {msg.execution_count}")
+                    if model_used:
+                        meta_items.append(f"Model: {model_used}")
+
+                    print(f"    ({', '.join(meta_items)})")
+            print("--------------------------")
+
+        return action_taken
+
+    # --- Implementation of persistence handling ---
+    def _handle_persistence_commands(self, args, manager: ChatManager) -> bool:
+        """Handle persistence-related arguments."""
+        action_taken = False
+
+        if args.list_sessions:
+            action_taken = True
+            try:
+                # Check if list_saved_sessions or list_conversations method exists
+                if hasattr(manager, "list_saved_sessions"):
                     sessions = manager.list_saved_sessions()
-                    print("Saved Sessions:", ", ".join(f"'{s}'" for s in sessions) if sessions else "None")
-                except Exception as e:
-                    print(f"❌ Error listing saved sessions: {e}")
+                elif hasattr(manager, "list_conversations"):
+                    sessions = manager.list_conversations()
+                else:
+                    # Fallback to checking if the history_manager has the method
+                    if hasattr(manager, "history_manager") and hasattr(
+                        manager.history_manager, "list_saved_conversations"
+                    ):
+                        sessions = manager.history_manager.list_saved_conversations()
+                    else:
+                        raise AttributeError(
+                            "No list_saved_sessions or list_conversations method found"
+                        )
 
-            # --- Manage Persona ---
-            if args.persona:
-                action_taken = True
-                try:
-                    manager.select_persona(args.persona)
-                    print(f"✅ Persona activated: '{args.persona}'")
-                except ResourceNotFoundError:
-                    print(f"❌ Error: Persona '{args.persona}' not found.")
-                except Exception as e:
-                     print(f"❌ Error setting persona '{args.persona}': {e}")
+                print(
+                    "Saved Sessions:", ", ".join(f"'{s}'" for s in sessions) if sessions else "None"
+                )
+            except Exception as e:
+                print(f"❌ Error listing saved sessions: {e}")
 
-            # --- Manage Overrides ---
-            if args.set_override:
-                action_taken = True
-                key, value = args.set_override
-                # Attempt basic type conversion (optional, could pass strings directly)
-                try:
-                     # Try float, int, then string
-                     parsed_value = float(value) if '.' in value else int(value)
-                except ValueError:
-                     parsed_value = value # Keep as string if conversion fails
-                manager.set_override(key, parsed_value)
-                print(f"✅ Override set: {key} = {parsed_value} ({type(parsed_value).__name__})")
+        # Handle auto-save configuration
+        if hasattr(args, "auto_save") and args.auto_save:
+            action_taken = True
+            try:
+                manager.settings.auto_save = True
+                print(
+                    f"✅ Auto-save enabled. Conversations will be saved to: {os.path.abspath(manager.settings.conversations_dir)}"
+                )
+            except Exception as e:
+                print(f"❌ Error enabling auto-save: {e}")
 
-            if args.remove_override:
-                 action_taken = True
-                 key = args.remove_override
-                 manager.remove_override(key)
-                 print(f"✅ Override removed: {key}")
+        if hasattr(args, "no_auto_save") and args.no_auto_save:
+            action_taken = True
+            try:
+                manager.settings.auto_save = False
+                print("✅ Auto-save disabled.")
+            except Exception as e:
+                print(f"❌ Error disabling auto-save: {e}")
 
-            if args.clear_overrides:
-                action_taken = True
-                manager.clear_overrides()
-                print("✅ All overrides cleared.")
-
-            # --- Manage History ---
-            if args.clear_history:
-                action_taken = True
-                manager.clear_history()
-                print("✅ Chat history cleared.")
-
-            # --- Manage Persistence ---
-            if args.load:
-                action_taken = True
-                try:
+        if args.load:
+            action_taken = True
+            try:
+                # Check if load_conversation method exists (it might be named differently than load_session)
+                if hasattr(manager, "load_session"):
                     manager.load_session(args.load)
-                    print(f"✅ Session loaded from '{args.load}'.")
-                except ResourceNotFoundError:
-                    print(f"❌ Error: Session '{args.load}' not found.")
-                except PersistenceError as e:
-                     print(f"❌ Error loading session '{args.load}': {e}")
-                except Exception as e:
-                     print(f"❌ Unexpected error loading session '{args.load}': {e}")
+                elif hasattr(manager, "load_conversation"):
+                    manager.load_conversation(args.load)
+                else:
+                    raise AttributeError("No load_session or load_conversation method found")
 
-            # Save needs to be after load/clear etc.
-            if args.save:
-                action_taken = True
-                try:
-                    filename = args.save if isinstance(args.save, str) else None
+                print(f"✅ Session loaded from '{args.load}'.")
+            except ResourceNotFoundError:
+                print(f"❌ Error: Session '{args.load}' not found.")
+            except PersistenceError as e:
+                print(f"❌ Error loading session '{args.load}': {e}")
+            except Exception as e:
+                print(f"❌ Unexpected error loading session '{args.load}': {e}")
+
+        # Save needs to be after load/clear etc.
+        if args.save:
+            action_taken = True
+            try:
+                from pathlib import Path
+
+                filename = args.save if isinstance(args.save, str) else None
+                # Check if save_conversation method exists (it might be named differently than save_session)
+                if hasattr(manager, "save_session"):
                     save_path = manager.save_session(identifier=filename)
-                    print(f"✅ Session saved to '{Path(save_path).name}'.") # Show only filename
-                except PersistenceError as e:
-                     print(f"❌ Error saving session: {e}")
-                except Exception as e:
-                     print(f"❌ Unexpected error saving session: {e}")
+                elif hasattr(manager, "save_conversation"):
+                    save_path = manager.save_conversation(filename)
+                else:
+                    raise AttributeError("No save_session or save_conversation method found")
 
-            # --- Show Status/Info ---
-            if args.show_persona:
-                 action_taken = True
-                 active_persona = manager.get_active_persona()
-                 if active_persona:
-                      print(f"Active Persona: '{active_persona.name}'")
-                      print(f"  System Prompt: {active_persona.system_prompt[:100]}{'...' if len(active_persona.system_prompt)>100 else ''}")
-                      print(f"  LLM Params: {active_persona.llm_params}")
-                 else:
-                      print("Active Persona: None")
+                print(f"✅ Session saved to '{Path(save_path).name}'.")  # Show only filename
+            except PersistenceError as e:
+                print(f"❌ Error saving session: {e}")
+            except Exception as e:
+                print(f"❌ Unexpected error saving session: {e}")
 
-            if args.show_overrides:
-                 action_taken = True
-                 overrides = manager.get_overrides()
-                 print("Active Overrides:", overrides if overrides else "None")
+        return action_taken
 
-            if args.show_history:
-                 action_taken = True
-                 history = manager.get_history()
-                 print(f"--- History ({len(history)} messages) ---")
-                 if not history:
-                      print("(empty)")
-                 else:
-                      for i, msg in enumerate(history):
-                           print(f"[{i}] {msg.role.upper()}: {msg.content[:150]}{'...' if len(msg.content)>150 else ''}")
-                           print(f"    (ID: ...{msg.id[-6:]}, Cell: {msg.cell_id[-8:] if msg.cell_id else 'N/A'}, Exec: {msg.execution_count})")
-                 print("--------------------------")
+    # --- Implementation of model setting ---
+    def _handle_model_setting(self, args, manager: ChatManager) -> bool:
+        """Handle model setting and mapping configuration."""
+        action_taken = False
 
-            # Default action or if explicitly requested: show status
-            if args.status or not action_taken:
-                 active_persona = manager.get_active_persona()
-                 overrides = manager.get_overrides()
-                 history = manager.get_history()
-                 print("--- NotebookLLM Status ---")
-                 print(f"Session ID: {manager._session_id}") # Access internal for status
-                 print(f"Active Persona: '{active_persona.name}'" if active_persona else "None")
-                 print(f"Active Overrides: {overrides if overrides else 'None'}")
-                 print(f"History Length: {len(history)} messages")
-                 print("--------------------------")
+        if hasattr(args, "model") and args.model:
+            action_taken = True
+            if manager.llm_client is not None:
+                manager.llm_client.set_override("model", args.model)
+                logger.info(f"Setting default model to: {args.model}")
+                print(f"✅ Default model set to: {args.model}")
+            else:
+                print("⚠️ Could not set model: LLM client not found or doesn't support overrides")
 
-        # --- %%llm Cell Magic ---
-        @magic_arguments()
-        # Runtime arguments overriding session state for this call only
-        @argument('-p', '--persona', type=str, help="Use specific persona for THIS call only.")
-        @argument('-m', '--model', type=str, help="Use specific model for THIS call only.")
-        @argument('-t', '--temperature', type=float, help="Set temperature for THIS call.")
-        @argument('--max-tokens', type=int, dest='max_tokens', help="Set max_tokens for THIS call.")
-        # Behavior control arguments
-        @argument('--no-history', action='store_false', dest='add_to_history', help="Do not add this exchange to history.")
-        @argument('--no-stream', action='store_false', dest='stream', help="Do not stream output (wait for full response).")
-        @argument('--no-rollback', action='store_false', dest='auto_rollback', help="Disable auto-rollback check for this cell run.")
-        # Snippet arguments
-        @argument('--snippet', type=str, action='append', help="Add user snippet content before sending prompt. Can be used multiple times.")
-        @argument('--sys-snippet', type=str, action='append', help="Add system snippet content before sending prompt. Can be used multiple times.")
-        # Add other common LLM params as needed (e.g., top_p, frequency_penalty)
-        @argument('--param', nargs=2, metavar=('KEY', 'VALUE'), action='append', help="Set any other LLM param ad-hoc (e.g., --param top_p 0.9).")
-        @cell_magic('llm')
-        async def execute_llm(self, line, cell):
-            """Send the cell content as a prompt to the LLM, applying arguments."""
-            start_time = time.time()
-            status_info = {"success": False, "duration": 0.0} # Initialize status dict
+        if hasattr(args, "list_mappings") and args.list_mappings:
+            action_taken = True
+            if (
+                manager.llm_client is not None
+                and hasattr(manager.llm_client, "model_mapper")
+                and manager.llm_client.model_mapper is not None
+            ):
+                mappings = manager.llm_client.model_mapper.get_mappings()
+                if mappings:
+                    print("\nCurrent model mappings:")
+                    for alias, full_name in sorted(mappings.items()):
+                        print(f"  {alias:<10} -> {full_name}")
+                else:
+                    print("\nNo model mappings configured")
+            else:
+                print("⚠️ Model mapping not available")
+
+        if hasattr(args, "add_mapping") and args.add_mapping:
+            action_taken = True
+            if manager.llm_client is not None and hasattr(manager.llm_client, "model_mapper"):
+                alias, full_name = args.add_mapping
+                manager.llm_client.model_mapper.add_mapping(alias, full_name)
+                print(f"✅ Added mapping: {alias} -> {full_name}")
+            else:
+                print("⚠️ Model mapping not available")
+
+        if hasattr(args, "remove_mapping") and args.remove_mapping:
+            action_taken = True
+            if hasattr(manager.llm_client, "model_mapper"):
+                if manager.llm_client.model_mapper.remove_mapping(args.remove_mapping):
+                    print(f"✅ Removed mapping for: {args.remove_mapping}")
+                else:
+                    print(f"⚠️ No mapping found for: {args.remove_mapping}")
+            else:
+                print("⚠️ Model mapping not available")
+
+        return action_taken
+
+    # --- Implementation of adapter switching ---
+    def _handle_adapter_switch(self, args, manager: ChatManager) -> bool:
+        """Handle adapter switching."""
+        action_taken = False
+
+        if hasattr(args, "adapter") and args.adapter:
+            action_taken = True
+            adapter_type = args.adapter.lower()
 
             try:
-                args = parse_argstring(self.execute_llm, line)
-                manager = self._get_manager()
-            except Exception as e:
-                 status_info["duration"] = time.time() - start_time
-                 self._display_status(status_info)
-                 return # Stop processing
+                # Import necessary components dynamically
+                from ..config import settings
 
-            prompt = cell.strip()
-            if not prompt:
-                print("⚠️ LLM prompt is empty, skipping.")
+                # Initialize the appropriate LLM client adapter
+                if adapter_type == "langchain":
+                    try:
+                        from ..adapters.langchain_client import LangChainAdapter
+                        from ..interfaces import LLMClientInterface
+
+                        # Create new adapter instance with current settings from existing client
+                        current_api_key = None
+                        current_api_base = None
+                        current_model = settings.default_model
+
+                        if manager.llm_client:
+                            if hasattr(manager.llm_client, "get_overrides"):
+                                overrides = manager.llm_client.get_overrides()
+                                current_api_key = overrides.get("api_key")
+                                current_api_base = overrides.get("api_base")
+                                current_model = overrides.get("model", current_model)
+
+                        # Create the new adapter
+                        new_client: LLMClientInterface = LangChainAdapter(
+                            api_key=current_api_key,
+                            api_base=current_api_base,
+                            default_model=current_model,
+                        )
+
+                        # Set the new adapter
+                        manager.llm_client = new_client
+
+                        # Update env var for persistence between sessions
+                        os.environ["CELLMAGE_ADAPTER"] = "langchain"
+
+                        print("✅ Switched to LangChain adapter")
+                        logger.info("Switched to LangChain adapter")
+
+                    except ImportError:
+                        print(
+                            "❌ LangChain adapter not available. Make sure langchain is installed."
+                        )
+                        logger.error("LangChain adapter requested but not available")
+
+                elif adapter_type == "direct":
+                    from ..adapters.direct_client import DirectLLMAdapter
+
+                    # Create new adapter instance with current settings from existing client
+                    current_api_key = None
+                    current_api_base = None
+                    current_model = settings.default_model
+
+                    if manager.llm_client:
+                        if hasattr(manager.llm_client, "get_overrides"):
+                            overrides = manager.llm_client.get_overrides()
+                            current_api_key = overrides.get("api_key")
+                            current_api_base = overrides.get("api_base")
+                            current_model = overrides.get("model", current_model)
+
+                    # Create the new adapter
+                    new_client = DirectLLMAdapter(
+                        api_key=current_api_key,
+                        api_base=current_api_base,
+                        default_model=current_model,
+                    )
+
+                    # Set the new adapter
+                    manager.llm_client = new_client
+
+                    # Update env var for persistence between sessions
+                    os.environ["CELLMAGE_ADAPTER"] = "direct"
+
+                    print("✅ Switched to Direct adapter")
+                    logger.info("Switched to Direct adapter")
+
+                else:
+                    print(f"❌ Unknown adapter type: {adapter_type}")
+                    logger.error(f"Unknown adapter type requested: {adapter_type}")
+
+            except Exception as e:
+                print(f"❌ Error switching adapter: {e}")
+                logger.exception(f"Error switching to adapter {adapter_type}: {e}")
+
+        return action_taken
+
+    # --- Implementation of status display ---
+    def _show_status(self, manager: ChatManager) -> None:
+        """Show current status information."""
+        active_persona = manager.get_active_persona()
+        overrides = manager.get_overrides()
+        history = manager.get_history()
+        print("--- NotebookLLM Status ---")
+        print(f"Session ID: {manager._session_id}")  # Access internal for status
+        print(f"Active Persona: '{active_persona.name}'" if active_persona else "None")
+        print(f"Active Overrides: {overrides if overrides else 'None'}")
+        print(f"History Length: {len(history)} messages")
+        print("--------------------------")
+
+    @magic_arguments()
+    @argument("-p", "--persona", type=str, help="Select and activate a persona by name.")
+    @argument(
+        "--show-persona", action="store_true", help="Show the currently active persona details."
+    )
+    @argument("--list-personas", action="store_true", help="List available persona names.")
+    @argument("--list-mappings", action="store_true", help="List current model name mappings")
+    @argument(
+        "--add-mapping",
+        nargs=2,
+        metavar=("ALIAS", "FULL_NAME"),
+        help="Add a model name mapping (e.g., --add-mapping g4 gpt-4)",
+    )
+    @argument(
+        "--remove-mapping",
+        type=str,
+        help="Remove a model name mapping",
+    )
+    @argument(
+        "--set-override",
+        nargs=2,
+        metavar=("KEY", "VALUE"),
+        help="Set a temporary LLM param override (e.g., --set-override temperature 0.5).",
+    )
+    @argument("--remove-override", type=str, metavar="KEY", help="Remove a specific override key.")
+    @argument(
+        "--clear-overrides", action="store_true", help="Clear all temporary LLM param overrides."
+    )
+    @argument("--show-overrides", action="store_true", help="Show the currently active overrides.")
+    @argument(
+        "--clear-history",
+        action="store_true",
+        help="Clear the current chat history (keeps system prompt).",
+    )
+    @argument("--show-history", action="store_true", help="Display the current message history.")
+    @argument(
+        "--save",
+        type=str,
+        nargs="?",
+        const=True,
+        metavar="FILENAME",
+        help="Save session. If no name, uses current session ID. '.md' added automatically.",
+    )
+    @argument(
+        "--load",
+        type=str,
+        metavar="SESSION_ID",
+        help="Load session from specified identifier (filename without .md).",
+    )
+    @argument("--list-sessions", action="store_true", help="List saved session identifiers.")
+    @argument(
+        "--auto-save",
+        action="store_true",
+        help="Enable automatic saving of conversations to the conversations directory.",
+    )
+    @argument(
+        "--no-auto-save", action="store_true", help="Disable automatic saving of conversations."
+    )
+    @argument("--list-snippets", action="store_true", help="List available snippet names.")
+    @argument(
+        "--snippet",
+        type=str,
+        action="append",
+        help="Add user snippet content before sending prompt. Can be used multiple times.",
+    )
+    @argument(
+        "--sys-snippet",
+        type=str,
+        action="append",
+        help="Add system snippet content before sending prompt. Can be used multiple times.",
+    )
+    @argument(
+        "--status",
+        action="store_true",
+        help="Show current status (persona, overrides, history length).",
+    )
+    @argument("--model", type=str, help="Set the default model for the LLM client.")
+    @argument(
+        "--adapter",
+        type=str,
+        choices=["direct", "langchain"],
+        help="Switch to a different LLM adapter implementation.",
+    )
+    @line_magic("llm_config")
+    def configure_llm(self, line):
+        """Configure the LLM session state and manage resources."""
+        try:
+            args = parse_argstring(self.configure_llm, line)
+            manager = self._get_manager()
+        except Exception as e:
+            print(f"Error parsing arguments: {e}")
+            return  # Stop processing
+
+        # Track if any action was performed
+        action_taken = False
+
+        # Handle different types of commands
+        action_taken |= self._handle_model_setting(args, manager)
+        action_taken |= self._handle_snippet_commands(args, manager)
+        action_taken |= self._handle_persona_commands(args, manager)
+        action_taken |= self._handle_override_commands(args, manager)
+        action_taken |= self._handle_history_commands(args, manager)
+        action_taken |= self._handle_persistence_commands(args, manager)
+        action_taken |= self._handle_adapter_switch(args, manager)
+
+        # Default action or if explicitly requested: show status
+        if args.status or not action_taken:
+            self._show_status(manager)
+
+    @magic_arguments()
+    @argument("-p", "--persona", type=str, help="Select and activate a persona by name.")
+    @argument(
+        "--show-persona", action="store_true", help="Show the currently active persona details."
+    )
+    @argument("--list-personas", action="store_true", help="List available persona names.")
+    @argument(
+        "--set-override",
+        nargs=2,
+        metavar=("KEY", "VALUE"),
+        help="Set a temporary LLM param override (e.g., --set-override temperature 0.5).",
+    )
+    @argument("--remove-override", type=str, metavar="KEY", help="Remove a specific override key.")
+    @argument(
+        "--clear-overrides", action="store_true", help="Clear all temporary LLM param overrides."
+    )
+    @argument("--show-overrides", action="store_true", help="Show the currently active overrides.")
+    @argument(
+        "--clear-history",
+        action="store_true",
+        help="Clear the current chat history (keeps system prompt).",
+    )
+    @argument("--show-history", action="store_true", help="Display the current message history.")
+    @argument(
+        "--save",
+        type=str,
+        nargs="?",
+        const=True,
+        metavar="FILENAME",
+        help="Save session. If no name, uses current session ID. '.md' added automatically.",
+    )
+    @argument(
+        "--load",
+        type=str,
+        metavar="SESSION_ID",
+        help="Load session from specified identifier (filename without .md).",
+    )
+    @argument("--list-sessions", action="store_true", help="List saved session identifiers.")
+    @argument("--list-snippets", action="store_true", help="List available snippet names.")
+    @argument(
+        "--snippet",
+        type=str,
+        action="append",
+        help="Add user snippet content before sending prompt. Can be used multiple times.",
+    )
+    @argument(
+        "--sys-snippet",
+        type=str,
+        action="append",
+        help="Add system snippet content before sending prompt. Can be used multiple times.",
+    )
+    @argument(
+        "--status",
+        action="store_true",
+        help="Show current status (persona, overrides, history length).",
+    )
+    @argument("--model", type=str, help="Set the default model for the LLM client.")
+    @line_magic("llm_config_persistent")
+    def configure_llm_persistent(self, line):
+        """
+        Configure the LLM session state and activate ambient mode.
+
+        This magic command has the same functionality as %llm_config but also
+        enables 'ambient mode', which processes all regular code cells as LLM prompts.
+        Use %disable_llm_config_persistent to turn off ambient mode.
+        """
+        # First, apply all the regular llm_config settings
+        args = parse_argstring(self.configure_llm_persistent, line)
+
+        try:
+            manager = self._get_manager()
+        except Exception as e:
+            print(f"Error getting manager: {e}")
+            return  # Stop processing
+
+        # Track if any action was performed
+        action_taken = False
+
+        # Handle different types of commands
+        action_taken |= self._handle_model_setting(args, manager)
+        action_taken |= self._handle_snippet_commands(args, manager)
+        action_taken |= self._handle_persona_commands(args, manager)
+        action_taken |= self._handle_override_commands(args, manager)
+        action_taken |= self._handle_history_commands(args, manager)
+        action_taken |= self._handle_persistence_commands(args, manager)
+
+        # Default action or if explicitly requested: show status
+        if args.status or not action_taken:
+            self._show_status(manager)
+
+        # Then enable ambient mode
+        if not _IPYTHON_AVAILABLE:
+            print("❌ IPython not available. Cannot enable ambient mode.", file=sys.stderr)
+            return
+
+        ip = get_ipython()
+        if not ip:
+            print("❌ IPython shell not found. Cannot enable ambient mode.", file=sys.stderr)
+            return
+
+        if not is_ambient_mode_enabled():
+            enable_ambient_mode(ip)
+            print(
+                "✅ Ambient mode ENABLED. All cells will now be processed as LLM prompts unless they start with % or !."
+            )
+            print("   Run %disable_llm_config_persistent to disable ambient mode.")
+        else:
+            print("ℹ️ Ambient mode is already active.")
+
+    @line_magic("disable_llm_config_persistent")
+    def disable_llm_config_persistent(self, line):
+        """Deactivate ambient mode (stops processing regular code cells as LLM prompts)."""
+        if not _IPYTHON_AVAILABLE:
+            print("❌ IPython not available.", file=sys.stderr)
+            return None
+
+        ip = get_ipython()
+        if not ip:
+            print("❌ IPython shell not found.", file=sys.stderr)
+            return None
+
+        if is_ambient_mode_enabled():
+            disable_ambient_mode(ip)
+            print("❌ Ambient mode DISABLED. Regular cells will now be executed normally.")
+        else:
+            print("ℹ️ Ambient mode was not active.")
+
+        return None
+
+    @magic_arguments()
+    @argument("-p", "--persona", type=str, help="Use specific persona for THIS call only.")
+    @argument("-m", "--model", type=str, help="Use specific model for THIS call only.")
+    @argument("-t", "--temperature", type=float, help="Set temperature for THIS call.")
+    @argument("--max-tokens", type=int, dest="max_tokens", help="Set max_tokens for THIS call.")
+    @argument(
+        "--no-history",
+        action="store_false",
+        dest="add_to_history",
+        help="Do not add this exchange to history.",
+    )
+    @argument(
+        "--no-stream",
+        action="store_false",
+        dest="stream",
+        help="Do not stream output (wait for full response).",
+    )
+    @argument(
+        "--no-rollback",
+        action="store_false",
+        dest="auto_rollback",
+        help="Disable auto-rollback check for this cell run.",
+    )
+    @argument(
+        "--param",
+        nargs=2,
+        metavar=("KEY", "VALUE"),
+        action="append",
+        help="Set any other LLM param ad-hoc (e.g., --param top_p 0.9).",
+    )
+    @argument("--list-snippets", action="store_true", help="List available snippet names.")
+    @argument(
+        "--snippet",
+        type=str,
+        action="append",
+        help="Add user snippet content before sending prompt. Can be used multiple times.",
+    )
+    @argument(
+        "--sys-snippet",
+        type=str,
+        action="append",
+        help="Add system snippet content before sending prompt. Can be used multiple times.",
+    )
+    @cell_magic("llm")
+    def execute_llm(self, line, cell):
+        """Send the cell content as a prompt to the LLM, applying arguments."""
+        if not _IPYTHON_AVAILABLE:
+            return
+
+        start_time = time.time()
+        status_info = {"success": False, "duration": 0.0}
+        context_provider = get_ipython_context_provider()
+
+        try:
+            args = parse_argstring(self.execute_llm, line)
+            manager = self._get_manager()
+        except Exception as e:
+            print(f"Error parsing arguments: {e}")
+            status_info["duration"] = time.time() - start_time
+            context_provider.display_status(status_info)
+            return
+
+        # Check if the persona exists if one was specified
+        temp_persona = None
+        if args.persona and manager.persona_loader is not None:
+            temp_persona = manager.persona_loader.get_persona(args.persona)
+            if not temp_persona:
+                print(f"❌ Error: Persona '{args.persona}' not found.")
+                print("  To list available personas, use: %llm_config --list-personas")
                 status_info["duration"] = time.time() - start_time
-                self._display_status(status_info)
+                context_provider.display_status(status_info)
                 return
 
-            # Handle snippets first - add them to history before the user prompt
-            try:
-                if args.sys_snippet:
-                    for name in args.sys_snippet:
-                        if not manager.add_snippet(name, role='system'):
-                            print(f"⚠️ Warning: Could not add system snippet '{name}'.")
-                if args.snippet:
-                    for name in args.snippet:
-                         if not manager.add_snippet(name, role='user'):
-                              print(f"⚠️ Warning: Could not add user snippet '{name}'.")
-            except SnippetError as e:
-                 print(f"❌ Error adding snippet: {e}")
-                 status_info["duration"] = time.time() - start_time
-                 self._display_status(status_info)
-                 return # Stop if snippet addition fails critically
-            except Exception as e:
-                 print(f"❌ Unexpected error processing snippets: {e}")
-                 status_info["duration"] = time.time() - start_time
-                 self._display_status(status_info)
-                 return
+            # If using an external persona (starts with / or .), ensure its system message is added
+            # and it's the first system message
+            if (
+                args.persona.startswith("/") or args.persona.startswith(".")
+            ) and temp_persona.system_message:
+                logger.info(f"Adding system message from external persona: {args.persona}")
 
-            # Prepare runtime params and stream handler
-            runtime_params = {}
-            if args.model: runtime_params['model'] = args.model
-            if args.temperature is not None: runtime_params['temperature'] = args.temperature
-            if args.max_tokens is not None: runtime_params['max_tokens'] = args.max_tokens
-            if args.param:
-                 for key, value in args.param:
-                      # Attempt type conversion for ad-hoc params
-                      try:
-                           parsed_value = float(value) if '.' in value else int(value)
-                      except ValueError:
-                           parsed_value = value # Keep as string
-                      runtime_params[key] = parsed_value
+                # Get current history
+                current_history = manager.history_manager.get_history()
 
-            stream_handler = IPythonStreamHandler() if args.stream else None
-            assistant_message: Optional[Message] = None
+                # Extract system and non-system messages
+                system_messages = [m for m in current_history if m.role == "system"]
+                non_system_messages = [m for m in current_history if m.role != "system"]
 
-            try:
-                assistant_message = await manager.send_message(
-                    prompt=prompt,
-                    persona_name=args.persona, # Temporary persona if specified
-                    stream_handler=stream_handler,
-                    add_to_history=args.add_to_history,
-                    auto_rollback=args.auto_rollback,
-                    **runtime_params
+                # Clear the history
+                manager.history_manager.clear_history(keep_system=False)
+
+                # Add persona system message first
+                manager.history_manager.add_message(
+                    Message(
+                        role="system", content=temp_persona.system_message, id=str(uuid.uuid4())
+                    )
                 )
+
+                # Re-add all existing system messages (if any)
+                for msg in system_messages:
+                    manager.history_manager.add_message(msg)
+
+                # Re-add all non-system messages
+                for msg in non_system_messages:
+                    manager.history_manager.add_message(msg)
+
+        # Rest of the method remains the same
+        prompt = cell.strip()
+        if not prompt:
+            print("⚠️ LLM prompt is empty, skipping.")
+            status_info["duration"] = time.time() - start_time
+            context_provider.display_status(status_info)
+            return
+
+        # Handle snippets
+        try:
+            self._handle_snippet_commands(args, manager)
+        except Exception as e:
+            print(f"❌ Unexpected error processing snippets: {e}")
+            status_info["duration"] = time.time() - start_time
+            context_provider.display_status(status_info)
+            return
+
+        # Prepare runtime params
+        runtime_params = self._prepare_runtime_params(args)
+
+        # Handle model override
+        original_model = None
+        if args.model:
+            # Directly set model override in the LLM client to ensure highest priority
+            if (
+                hasattr(manager, "llm_client")
+                and manager.llm_client is not None
+                and hasattr(manager.llm_client, "set_override")
+            ):
+                # Temporarily set model override for this call
+                original_model = manager.llm_client.get_overrides().get("model")
+                manager.llm_client.set_override("model", args.model)
+                logger.debug(f"Temporarily set model override to: {args.model}")
+            else:
+                # Fallback if direct override not possible
+                runtime_params["model"] = args.model
+
+        # Debug logging
+        logger.debug(f"Sending message with prompt: '{prompt[:50]}...'")
+        logger.debug(f"Runtime params: {runtime_params}")
+
+        try:
+            # Call the ChatManager's chat method
+            result = manager.chat(
+                prompt=prompt,
+                persona_name=args.persona,
+                stream=args.stream,
+                add_to_history=args.add_to_history,
+                auto_rollback=args.auto_rollback,
+                **runtime_params,
+            )
+
+            # If we temporarily overrode the model, restore the original value
+            if (
+                args.model
+                and hasattr(manager, "llm_client")
+                and hasattr(manager.llm_client, "set_override")
+            ):
+                if original_model is not None:
+                    manager.llm_client.set_override("model", original_model)
+                    logger.debug(f"Restored original model override: {original_model}")
+                else:
+                    manager.llm_client.remove_override("model")
+                    logger.debug("Removed temporary model override")
+
+            # If result is successful, mark as success and collect status info
+            if result:
                 status_info["success"] = True
+                try:
+                    history = manager.history_manager.get_history()
+                    if len(history) >= 2:
+                        # Convert Any | None values to appropriate types that won't cause type errors
+                        tokens_in = history[-2].metadata.get("tokens_in", 0)
+                        status_info["tokens_in"] = (
+                            float(tokens_in) if tokens_in is not None else 0.0
+                        )
 
-                # --- TODO: Extract token counts and cost ---
-                # This requires ChatManager to store/return this info from the LLM response
-                # Placeholder values:
-                tokens_in = assistant_message.metadata.get("token_usage", {}).get("prompt_tokens") if assistant_message else None
-                tokens_out = assistant_message.metadata.get("token_usage", {}).get("completion_tokens") if assistant_message else None
-                status_info["tokens_in"] = tokens_in
-                status_info["tokens_out"] = tokens_out
-                status_info["model_used"] = assistant_message.metadata.get("model_used") if assistant_message else runtime_params.get('model') or manager.get_active_persona().llm_params.get('model') # Best guess
-                # Cost calculation needs model costs (complex) - Placeholder
-                if tokens_in is not None and tokens_out is not None:
-                     cost_milli_cents = tokens_in * 0.005 + tokens_out * 0.015 # Example rates
-                     status_info["cost_str"] = f"~${cost_milli_cents / 1000:.4f}"
+                        tokens_out = history[-1].metadata.get("tokens_out", 0)
+                        status_info["tokens_out"] = (
+                            float(tokens_out) if tokens_out is not None else 0.0
+                        )
 
-            except NotebookLLMError as e:
-                print(f"❌ LLM Error: {e}") # Display user-friendly errors
-            except Exception as e:
-                print(f"❌ An unexpected error occurred: {e}")
-                logger.exception("Unexpected error during %%llm execution.") # Log traceback
-            finally:
-                status_info["duration"] = time.time() - start_time
-                self._display_status(status_info) # Display status bar
+                        status_info["cost_str"] = history[-1].metadata.get("cost_str", "")
+                        status_info["model_used"] = history[-1].metadata.get("model_used", "")
+                except Exception as e:
+                    logger.warning(f"Error retrieving status info from history: {e}")
 
-            # If not streaming and successful, display the result cleanly
-            if not stream_handler and assistant_message and status_info["success"]:
-                display(Markdown(f"**Assistant:**\n{assistant_message.content}"))
+        except Exception as e:
+            print(f"❌ LLM Error: {e}")
+            logger.error(f"Error during LLM call: {e}")
 
-        # --- TODO: Implement Auto-Magic Transformer ---
-        # This requires defining _auto_magic_transformer and registering/unregistering it
-        # with ip.input_transformers_cleanup. It's more complex. Need `llm_setup_forever` etc.
+            # Make sure to restore model override even on error
+            if (
+                args.model
+                and hasattr(manager, "llm_client")
+                and hasattr(manager.llm_client, "set_override")
+            ):
+                if original_model is not None:
+                    manager.llm_client.set_override("model", original_model)
+                else:
+                    manager.llm_client.remove_override("model")
+                logger.debug("Restored model override after error")
+        finally:
+            status_info["duration"] = time.time() - start_time
+            # Always display status bar
+            context_provider.display_status(status_info)
 
-else:
-    # If IPython is not available, define a placeholder class
-    class NotebookLLMMagics:
-        def __init__(self, shell=None):
-            logger.warning("IPython not found. NotebookLLM magics are disabled.")
-        # Add dummy methods if needed to prevent attribute errors elsewhere
-        def configure_llm(self, line): pass
-        async def execute_llm(self, line, cell): pass
+        return None
+
+    @cell_magic("py")
+    def execute_python(self, line, cell):
+        """Execute the cell as normal Python code, bypassing ambient mode.
+
+        This magic is useful when ambient mode is enabled but you want to
+        execute a specific cell as regular Python code without LLM processing.
+
+        Variables defined in this cell will be available in other cells.
+
+        Usage:
+        %%py
+        # This will run as normal Python code
+        x = 10
+        print(f"The value is {x}")
+        """
+        if not _IPYTHON_AVAILABLE:
+            print("❌ IPython not available. Cannot execute cell.", file=sys.stderr)
+            return
+
+        try:
+            # Get the shell from self.shell (provided by the Magics base class)
+            shell = self.shell
+
+            # Execute the cell as normal Python code in the user's namespace
+            logger.info("Executing cell as normal Python code via %%py magic")
+
+            # Run the cell in the user's namespace
+            result = shell.run_cell(cell)
+
+            # Handle execution errors
+            if result.error_before_exec or result.error_in_exec:
+                if result.error_in_exec:
+                    print(f"❌ Error during execution: {result.error_in_exec}", file=sys.stderr)
+                else:
+                    print(f"❌ Error before execution: {result.error_before_exec}", file=sys.stderr)
+
+        except Exception as e:
+            print(f"❌ Error executing Python cell: {e}", file=sys.stderr)
+            logger.error(f"Error during %%py execution: {e}")
+
+        return None
+
 
 # --- Extension Loading ---
-
 def load_ipython_extension(ipython):
     """Registers the magics with the IPython runtime."""
     if not _IPYTHON_AVAILABLE:
         print("IPython is not available. Cannot load NotebookLLM magics.", file=sys.stderr)
         return
     try:
-        ipython.register_magics(NotebookLLMMagics)
+        magic_class = NotebookLLMMagics(ipython)
+        ipython.register_magics(magic_class)
         print("✅ NotebookLLM Magics loaded. Use %llm_config and %%llm.")
-        # Optionally display initial status
-        # get_chat_manager().status() # Needs a status method or call configure_llm("")
+        print(
+            "   For ambient mode, try %llm_config_persistent to process all cells as LLM prompts."
+        )
     except Exception as e:
-         logger.exception("Failed to register NotebookLLM magics.")
-         print(f"❌ Failed to load NotebookLLM Magics: {e}", file=sys.stderr)
+        logger.exception("Failed to register NotebookLLM magics.")
+        print(f"❌ Failed to load NotebookLLM Magics: {e}", file=sys.stderr)
+
 
 def unload_ipython_extension(ipython):
     """Unregisters the magics (optional but good practice)."""
     if not _IPYTHON_AVAILABLE:
         return
-    # Magics are typically not explicitly unloaded, but possible if needed.
-    # Check if NotebookLLMMagics is registered before trying to unregister
-    # if NotebookLLMMagics in ipython.magics_manager.registry:
-    #     ipython.magics_manager.unregister(NotebookLLMMagics)
-    #     print("NotebookLLM Magics unloaded.")
-    # For simplicity, often omitted. Kernel restart achieves the same.
     logger.info("NotebookLLM extension unload requested (typically no action needed).")
-

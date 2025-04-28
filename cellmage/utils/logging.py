@@ -1,64 +1,93 @@
 import logging
-import sys
-from ..config import settings # Import settings to get log level
+import os
+from typing import Optional
 
-_initialized = False
+from ..config import settings  # Import settings to get log level from environment
 
-def setup_logging():
-    """Configures logging for the application based on settings."""
-    global _initialized
-    if _initialized:
-        return
 
+def setup_logging(
+    log_file: Optional[str] = None, debug: bool = False, console_level: Optional[int] = None
+) -> logging.Logger:
+    """
+    Set up logging for the cellmage library.
+
+    Args:
+        log_file: Path to the log file
+        debug: Whether to enable debug mode (more verbose logging)
+        console_level: Optional specific level for console logging
+
+    Returns:
+        Root logger configured with handlers
+    """
+    # Use log_file from settings if not provided
+    if log_file is None:
+        log_file = settings.log_file
+
+    # Set up root logger
+    logger = logging.getLogger("cellmage")
+    logger.handlers = []  # Clear existing handlers to prevent duplicates
+
+    # Get log level from settings - convert string to logging level
     log_level_str = settings.log_level.upper()
-    log_level = getattr(logging, log_level_str, logging.INFO)
+    configured_level = getattr(
+        logging, log_level_str, logging.INFO
+    )  # Default to INFO for file logs
 
-    # Basic configuration - modify formatter and handlers as needed
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
+    # Get console log level from settings - convert string to logging level
+    console_level_str = settings.console_log_level.upper()
+    configured_console_level = getattr(
+        logging, console_level_str, logging.WARNING
+    )  # Default to WARNING for console
 
-    # Configure root logger or specific package logger
-    # Configuring root logger can affect other libraries, be careful
-    # logger = logging.getLogger("notebook_llm") # Get package-specific logger
-    logger = logging.getLogger() # Get root logger
-    logger.setLevel(log_level)
+    # Determine log levels, respecting both debug flag and configured level
+    file_level = logging.DEBUG if debug else configured_level
+    if console_level is None:
+        console_level = logging.DEBUG if debug else configured_console_level
 
-    # Remove existing handlers to avoid duplicates if called multiple times (though _initialized prevents this)
-    # for handler in logger.handlers[:]:
-    #     logger.removeHandler(handler)
+    logger.setLevel(min(file_level, console_level))  # Set to the more verbose of the two
 
-    # Add a handler (e.g., StreamHandler to stderr/stdout)
-    # Avoid adding handlers if they already exist from a parent logger setup
-    if not logger.hasHandlers():
-        handler = logging.StreamHandler(sys.stderr) # Log to stderr by default
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        logger.info(f"Root logger configured with level {log_level_str}.")
-    else:
-         logger.info(f"Logger already has handlers. Ensuring level is {log_level_str}.")
+    # Create formatter
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
-    # Propagate settings to libraries like LiteLLM if desired
+    # File Handler
     try:
-         import litellm
-         # LiteLLM verbose maps roughly to DEBUG
-         litellm.set_verbose = (log_level <= logging.DEBUG)
-         logger.debug(f"Set litellm.set_verbose to {litellm.set_verbose}")
-    except ImportError:
-         pass # LiteLLM not installed
+        # Ensure log directory exists
+        log_dir = os.path.dirname(log_file)
+        if log_dir and not os.path.exists(log_dir):
+            os.makedirs(log_dir, exist_ok=True)
+
+        fh = logging.FileHandler(log_file, encoding="utf-8")
+        fh.setLevel(
+            logging.INFO if not debug else logging.DEBUG
+        )  # Always INFO or DEBUG if debug=True
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
     except Exception as e:
-         logger.warning(f"Could not configure LiteLLM logging: {e}")
+        print(f"CRITICAL: Failed to create file logger at {log_file}: {e}")
 
-    _initialized = True
+        # Set up a basic console handler as a fallback
+        fallback = logging.StreamHandler()
+        fallback.setLevel(logging.WARNING)  # Change fallback to WARNING
+        fallback.setFormatter(formatter)
+        logger.addHandler(fallback)
 
-def get_logger(name: str) -> logging.Logger:
-    """Gets a logger instance, ensuring setup_logging has been called."""
-    if not _initialized:
-        setup_logging()
-    return logging.getLogger(name)
+        # Log the error
+        logger.error(f"File logging failed. Using console fallback. Error: {e}")
 
-# Call setup automatically when the module is imported?
-# Or rely on explicit call from __init__.py or application entry point.
-# Calling it here ensures logging is set up whenever get_logger is first called.
-# setup_logging() # Optional: uncomment to auto-setup on import
+    # Console Handler
+    ch = logging.StreamHandler()
+    if console_level is not None:
+        ch.setLevel(console_level)
+    else:
+        ch.setLevel(logging.WARNING)  # Changed default from INFO to WARNING
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
 
+    logger.propagate = False  # Prevent duplicate logging by parent loggers
+
+    # Log startup message (at INFO level so it will be suppressed if level is WARNING+)
+    logger.info("Cellmage logging initialized")
+    if debug:
+        logger.debug("Debug logging enabled")
+
+    return logger

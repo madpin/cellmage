@@ -1,543 +1,813 @@
 import logging
-from typing import List, Optional, Dict, Any, Callable, Tuple, AsyncGenerator
-from datetime import datetime
+import os
+import time
 import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from .config import Settings
-from .models import Message, PersonaConfig, ConversationMetadata
-from .exceptions import (
-    ResourceNotFoundError, ConfigurationError, LLMInteractionError,
-    HistoryManagementError, PersistenceError, SnippetError
-)
-from .interfaces import (
-    LLMClientInterface, PersonaLoader, SnippetProvider, HistoryStore,
-    ContextProvider, StreamCallbackHandler
-)
+from .exceptions import ConfigurationError, ResourceNotFoundError
 from .history_manager import HistoryManager
-from .utils.logging import get_logger # Assuming a get_logger function exists
+from .interfaces import (
+    ContextProvider,
+    HistoryStore,
+    LLMClientInterface,
+    PersonaLoader,
+    SnippetProvider,
+)
+from .model_mapping import ModelMapper
+from .models import Message, PersonaConfig
+
 
 class ChatManager:
-    """Orchestrates LLM chat sessions, managing state, configuration, and interactions."""
+    """
+    Main class for managing LLM interactions.
+
+    Coordinates between:
+    - LLM client for sending requests
+    - Persona loader for personality configurations
+    - Snippet provider for loading snippets
+    - History manager for tracking conversation
+    - Context provider for environment context
+    """
 
     def __init__(
         self,
-        settings: Settings,
-        llm_client: LLMClientInterface,
-        persona_loader: PersonaLoader,
-        snippet_provider: SnippetProvider,
-        history_store: HistoryStore,
+        settings: Optional[Settings] = None,
+        llm_client: Optional[LLMClientInterface] = None,
+        persona_loader: Optional[PersonaLoader] = None,
+        snippet_provider: Optional[SnippetProvider] = None,
+        history_store: Optional[HistoryStore] = None,
         context_provider: Optional[ContextProvider] = None,
-        initial_persona_name: Optional[str] = None,
-        session_id: Optional[str] = None, # For loading existing sessions
     ):
         """
-        Initializes the ChatManager.
+        Initialize the chat manager.
 
         Args:
-            settings: Application settings object.
-            llm_client: Client for interacting with the LLM API.
-            persona_loader: Loader for personality configurations.
-            snippet_provider: Provider for text snippets.
-            history_store: Storage handler for saving/loading history.
-            context_provider: (Optional) Provider for environment context (e.g., cell ID).
-            initial_persona_name: (Optional) Name of the persona to load initially.
-            session_id: (Optional) ID of an existing session to load or use for saving.
+            settings: Application settings
+            llm_client: Client for LLM interactions
+            persona_loader: Loader for persona configurations
+            snippet_provider: Provider for snippets
+            history_store: Store for conversation history
+            context_provider: Provider for execution context
         """
-        self.settings = settings
-        self._llm_client = llm_client
-        self._persona_loader = persona_loader
-        self._snippet_provider = snippet_provider
-        self._history_store = history_store
-        self._context_provider = context_provider
-        self.logger = get_logger(f"{__name__}.{self.__class__.__name__}")
+        # Set up logging
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Initializing ChatManager")
 
-        self._history_manager = HistoryManager()
+        # Set up components
+        self.settings = settings or Settings()
+        self.llm_client = llm_client
+        self.persona_loader = persona_loader
+        self.snippet_provider = snippet_provider
+
+        # Initialize model mapper
+        self.model_mapper = ModelMapper()
+
+        # Load model mappings if configured
+        if self.settings.model_mappings_file:
+            self.model_mapper.load_mappings(self.settings.model_mappings_file)
+        elif self.settings.auto_find_mappings and context_provider:
+            # Try to get notebook directory from context provider
+            exec_context = context_provider.get_execution_context()
+            if exec_context and len(exec_context) > 1 and exec_context[1]:
+                notebook_dir = os.path.dirname(exec_context[1])
+                mapping_file = ModelMapper.find_mapping_file(notebook_dir)
+                if mapping_file:
+                    self.model_mapper.load_mappings(mapping_file)
+
+        # Store creation timestamp for auto-save filename
+        self.creation_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Set up history manager
+        self.history_manager = HistoryManager(
+            history_store=history_store, context_provider=context_provider
+        )
+        self.context_provider = context_provider
+
+        # Set up session
+        self._session_id = str(uuid.uuid4())
         self._active_persona: Optional[PersonaConfig] = None
-        self._instance_overrides: Dict[str, Any] = {} # For model, temp etc.
-        self._session_id = session_id or self._generate_session_id() # Unique ID for this session
 
-        self.logger.info(f"ChatManager initialized. Session ID: {self._session_id}")
-
-        if session_id:
+        # Initialize with default persona if specified
+        if self.settings.default_persona and self.persona_loader:
             try:
-                self.load_session(session_id) # Attempt to load history if ID provided
-            except ResourceNotFoundError:
-                 self.logger.warning(f"Session ID '{session_id}' provided, but no existing history found. Starting new session.")
-            except PersistenceError as e:
-                 self.logger.error(f"Failed to load session '{session_id}': {e}. Starting new session.")
+                self.set_default_persona(self.settings.default_persona)
+            except Exception as e:
+                self.logger.warning(f"Failed to set default persona: {e}")
 
-        if initial_persona_name:
+        # Initialize with default model if specified
+        if self.settings.default_model and self.llm_client:
             try:
-                self.select_persona(initial_persona_name)
-            except ResourceNotFoundError:
-                 self.logger.error(f"Initial persona '{initial_persona_name}' not found.")
-                 # Continue without a persona, or raise? For now, continue.
-        elif not self._active_persona and not self._history_manager.get_history(): # Ensure persona if history empty
-             self.logger.info("No initial persona selected for new session.")
+                self.llm_client.set_override("model", self.settings.default_model)
+            except Exception as e:
+                self.logger.warning(f"Failed to set default model: {e}")
 
-    # --- Persona Management ---
-    def select_persona(self, name: str) -> None:
-        """Loads and activates a persona by name."""
-        self.logger.debug(f"Attempting to select persona: {name}")
-        try:
-            new_persona = self._persona_loader.load(name)
-            self._active_persona = new_persona
-            self.logger.info(f"Activated persona: {name}")
-            self._apply_persona_to_history()
-        except ResourceNotFoundError as e:
-            self.logger.error(f"Failed to select persona: {e}")
-            raise # Re-raise for caller to handle
-        except Exception as e:
-             self.logger.exception(f"An unexpected error occurred while selecting persona '{name}'.")
-             raise ConfigurationError(f"Failed to load persona '{name}': {e}") from e
+        self.logger.info("ChatManager initialized")
 
-    def get_active_persona(self) -> Optional[PersonaConfig]:
-        """Returns the currently active persona configuration."""
-        return self._active_persona
-
-    def list_personas(self) -> List[str]:
-        """Lists the names of available personas."""
-        try:
-            return self._persona_loader.list_available()
-        except Exception as e:
-             self.logger.exception("Failed to list available personas.")
-             return []
-
-    def _apply_persona_to_history(self):
-        """Adds or updates the system message in history based on the active persona."""
-        if not self._active_persona or not self._active_persona.system_prompt:
-            self.logger.debug("No active persona or system prompt to apply to history.")
-            return
-
-        history = self._history_manager.get_history()
-        system_prompt_content = self._active_persona.system_prompt
-
-        if history and history[0].role == 'system':
-            # Replace existing system prompt if it's different
-            if history[0].content != system_prompt_content:
-                 # Create a new message to ensure immutability if Message is frozen
-                 new_system_message = Message(role='system', content=system_prompt_content)
-                 history[0] = new_system_message
-                 self._history_manager.set_history(history) # Update history manager
-                 self.logger.debug("Updated system prompt in history.")
-            else:
-                 self.logger.debug("System prompt in history already matches active persona.")
-        elif not history:
-            # Add system prompt if history is empty
-            sys_msg = Message(role='system', content=system_prompt_content)
-            # Use history manager's method to add the message
-            self._history_manager.add_message(sys_msg)
-            self.logger.debug("Added system prompt to history.")
-        else:
-             # History exists but doesn't start with a system message. Insert one?
-             # Design Decision: For now, only add/update if history is empty or starts with system.
-             self.logger.debug("History exists but doesn't start with a system message. Not adding persona prompt.")
-
-    # --- Overrides ---
-    def set_override(self, key: str, value: Any) -> None:
-        """Sets a temporary override for LLM parameters (e.g., 'model', 'temperature')."""
-        self.logger.debug(f"Setting instance override: {key}={value}")
-        self._instance_overrides[key] = value
-
-    def remove_override(self, key: str) -> None:
-        """Removes a specific override."""
-        if key in self._instance_overrides:
-            self.logger.debug(f"Removing instance override: {key}")
-            del self._instance_overrides[key]
-
-    def clear_overrides(self) -> None:
-        """Clears all instance-level overrides."""
-        self.logger.debug("Clearing all instance overrides.")
-        self._instance_overrides = {}
-
-    def get_overrides(self) -> Dict[str, Any]:
-        """Returns the current instance overrides."""
-        return self._instance_overrides.copy()
-
-    # --- Snippets ---
-    def add_snippet(self, name: str, role: Literal['user', 'assistant', 'system'] = 'user') -> bool:
-        """Adds content from a snippet to the history."""
-        self.logger.debug(f"Attempting to add snippet '{name}' as role '{role}'.")
-        try:
-            content = self._snippet_provider.get(name)
-            exec_count, cell_id = self._get_current_context()
-            msg = Message(
-                role=role,
-                content=content,
-                execution_count=exec_count,
-                cell_id=cell_id, # Associate with the current cell run
-                metadata={"source": f"snippet:{name}"}
-            )
-            self._history_manager.add_message(msg)
-            self.logger.info(f"Added snippet '{name}' as role '{role}'")
-            return True
-        except ResourceNotFoundError as e:
-            self.logger.error(f"Failed to add snippet: {e}")
-            # Optionally raise SnippetError here instead of returning False
-            raise SnippetError(f"Snippet '{name}' not found.") from e
-        except Exception as e:
-             self.logger.exception(f"An unexpected error occurred while adding snippet '{name}'.")
-             raise SnippetError(f"Failed to process snippet '{name}': {e}") from e
-
-    def list_snippets(self) -> List[str]:
-         """Lists the names of available snippets."""
-         try:
-            return self._snippet_provider.list_available()
-         except Exception as e:
-              self.logger.exception("Failed to list available snippets.")
-              return []
-
-    # --- Core Interaction ---
-    async def send_message(
-        self,
-        prompt: str,
-        *, # Force keyword arguments after prompt
-        persona_name: Optional[str] = None, # Option to use a specific persona for this call only
-        stream_handler: Optional[StreamCallbackHandler] = None,
-        add_to_history: bool = True,
-        auto_rollback: bool = True, # Automatically rollback on cell rerun?
-        **runtime_llm_params: Any # e.g., temperature, max_tokens passed directly for this call
-    ) -> Optional[Message]: # Returns the assistant's message object, or None if streaming handled entirely by callbacks
+    def update_settings(self, settings: Dict[str, Any]) -> None:
         """
-        Handles sending a user prompt, managing history, and interacting with the LLM.
+        Update the settings.
 
         Args:
-            prompt: The user's input text.
-            persona_name: Temporarily use this persona instead of the active one.
-            stream_handler: An object handling streaming callbacks. If None, non-streaming mode.
-            add_to_history: Whether to add the user prompt and assistant response to history.
-            auto_rollback: If True, check context provider for cell rerun and rollback history.
-            **runtime_llm_params: Ad-hoc LLM parameters for this specific call.
+            settings: Dictionary of settings to update
+        """
+        if self.settings:
+            self.settings.update(**settings)
+            self.logger.info("Settings updated")
 
-        Returns:
-            The assistant's Message object if not streaming or if handler doesn't fully consume it.
-            None if streaming and handled by the callback handler.
+    def set_default_persona(self, name: str) -> None:
+        """
+        Set the default persona.
+
+        Args:
+            name: Name of the persona
 
         Raises:
-            ConfigurationError: If no model is specified.
-            LLMInteractionError: If the API call fails.
-            HistoryManagementError: If history cannot be managed correctly.
-            SnippetError: If adding a snippet fails.
+            ResourceNotFoundError: If the persona doesn't exist
         """
-        exec_count, cell_id = self._get_current_context()
-        self.logger.info(f"Processing send_message request (Exec: {exec_count}, Cell: {cell_id[-8:] if cell_id else 'N/A'}).")
+        if not self.persona_loader:
+            raise ConfigurationError("No persona loader configured")
 
-        # 1. Handle Auto-Rollback
-        if auto_rollback and cell_id:
-            try:
-                rolled_back = self._history_manager.rollback_to_cell(cell_id)
-                if rolled_back:
-                    self.logger.info(f"Cell rerun detected (ID: ...{cell_id[-8:]}). History rolled back.")
-            except Exception as e:
-                 # Log rollback failure but attempt to continue
-                 self.logger.exception(f"Error during auto-rollback for cell_id '{cell_id[-8:]}'. Proceeding cautiously.")
-                 # Re-raise if rollback is critical? For now, log and continue.
-                 # raise HistoryManagementError(f"Rollback failed for cell {cell_id}") from e
+        persona = self.persona_loader.get_persona(name)
+        if not persona:
+            raise ResourceNotFoundError(f"Persona '{name}' not found")
 
-        # 2. Prepare User Message
-        user_message = Message(role='user', content=prompt, execution_count=exec_count, cell_id=cell_id)
-        if add_to_history:
-            try:
-                self._history_manager.add_message(user_message) # Add user message before LLM call
-            except Exception as e:
-                 self.logger.exception("Failed to add user message to history.")
-                 raise HistoryManagementError("Failed to add user message.") from e
+        self._active_persona = persona
 
-        # 3. Determine Effective Configuration
-        target_persona = self._active_persona
-        if persona_name:
-            self.logger.debug(f"Attempting to use temporary persona '{persona_name}' for this call.")
-            try:
-                target_persona = self._persona_loader.load(persona_name)
-            except ResourceNotFoundError:
-                self.logger.warning(f"Temporary persona '{persona_name}' not found, using active session persona if available.")
-                # Fall back to active persona (which might be None)
-            except Exception as e:
-                 self.logger.exception(f"Failed loading temporary persona '{persona_name}', using active session persona.")
+        # Always add the persona's system message if it has one
+        if persona.system_message:
+            # Get current history
+            current_history = self.history_manager.get_history()
 
-        llm_config = self._resolve_llm_config(target_persona, runtime_llm_params)
-        model_name = llm_config.pop('model', None) # Pop model, it's passed separately
-        if not model_name:
-             # Try getting model from overrides if not in resolved config (e.g., from persona)
-             model_name = self._instance_overrides.get('model', self.settings.default_model_name)
+            # Extract system and non-system messages
+            system_messages = [m for m in current_history if m.role == "system"]
+            non_system_messages = [m for m in current_history if m.role != "system"]
 
-        if not model_name:
-            # If still no model, revert history if added, then raise error
-            if add_to_history: self._history_manager.revert_last_turn()
-            raise ConfigurationError("No LLM model specified via persona, overrides, runtime params, or default settings.")
+            # If there are existing system messages, we'll need to reorder
+            if system_messages:
+                # Clear the history
+                self.history_manager.clear_history(keep_system=False)
 
-        # 4. Prepare messages for LLM
-        try:
-            history_for_llm = [msg.to_llm_format() for msg in self._history_manager.get_history()]
-        except Exception as e:
-             self.logger.exception("Failed to format history for LLM.")
-             if add_to_history: self._history_manager.revert_last_turn()
-             raise HistoryManagementError("Failed to format history.") from e
-
-        # 5. Call LLM Client
-        self.logger.info(f"Sending {len(history_for_llm)} messages to model '{model_name}' (stream={stream_handler is not None}). Params: {llm_config}")
-        assistant_response_content = None
-        llm_metadata = {} # To store metadata from the response if available
-
-        try:
-            response_or_generator = await self._llm_client.chat_completion(
-                messages=history_for_llm,
-                model=model_name,
-                stream=(stream_handler is not None),
-                **llm_config
-            )
-            # --- TODO: Extract token counts and other metadata from response_or_generator ---
-            # This depends heavily on the structure returned by the LLMClientInterface implementation (LiteLLM)
-            # Example placeholder:
-            # if not stream_handler and hasattr(response_or_generator, 'usage'):
-            #     llm_metadata['token_usage'] = response_or_generator.usage.dict() # Example structure
-
-        except LLMInteractionError as e:
-            self.logger.error(f"LLM interaction failed: {e.original_exception or e}")
-            if add_to_history: self._history_manager.revert_last_turn() # Remove the user message
-            raise # Re-raise the specific error
-        except Exception as e:
-             self.logger.exception("Unexpected error during LLM client call.")
-             if add_to_history: self._history_manager.revert_last_turn()
-             raise LLMInteractionError(f"Unexpected LLM client error: {e}", original_exception=e) from e
-
-        # 6. Process Response (Streaming or Non-Streaming)
-        assistant_message: Optional[Message] = None
-        stream_error_occurred = False
-
-        if stream_handler:
-            try:
-                stream_handler.on_stream_start()
-                full_response = ""
-                async for chunk in response_or_generator: # Assuming LiteLLM async generator yields delta content
-                    # --- TODO: Adapt based on actual structure yielded by LiteLLM's stream ---
-                    # Example assuming chunk is similar to OpenAI's streaming chunk
-                    try:
-                        delta_content = chunk.choices[0].delta.content or ""
-                        if delta_content:
-                            full_response += delta_content
-                            stream_handler.on_stream_chunk(delta_content)
-                        # Check for finish reason, token counts in final chunk?
-                        # if chunk.choices[0].finish_reason:
-                        #     llm_metadata['finish_reason'] = chunk.choices[0].finish_reason
-                        # if hasattr(chunk, 'usage'): # Usage might appear in the last chunk
-                        #     llm_metadata['token_usage'] = chunk.usage.dict()
-                    except (AttributeError, IndexError, TypeError) as chunk_error:
-                         self.logger.warning(f"Could not parse stream chunk: {chunk_error}. Chunk: {chunk}")
-                         # Decide whether to continue or raise
-
-                assistant_response_content = full_response
-                stream_handler.on_stream_end(full_response)
-                self.logger.info(f"Streaming finished. Full response length: {len(full_response)}")
-
-            except Exception as e:
-                stream_error_occurred = True
-                err = LLMInteractionError(f"Error processing LLM stream: {e}", original_exception=e)
-                self.logger.exception("Error during stream processing.")
-                try:
-                     stream_handler.on_stream_error(err)
-                except Exception as handler_err:
-                     self.logger.error(f"Stream handler's on_stream_error failed: {handler_err}")
-
-                # Decide if partial history should be kept or user message reverted
-                if add_to_history:
-                     self.logger.warning("Reverting user message due to stream processing error.")
-                     self._history_manager.revert_last_turn()
-                raise err from e # Propagate error
-
-        else: # Non-streaming
-            try:
-                # --- TODO: Adapt based on actual structure of non-streaming response from LiteLLM ---
-                # Example assuming OpenAI-like structure
-                assistant_response_content = response_or_generator.choices[0].message.content
-                # if hasattr(response_or_generator, 'usage'):
-                #     llm_metadata['token_usage'] = response_or_generator.usage.dict()
-                # llm_metadata['finish_reason'] = response_or_generator.choices[0].finish_reason
-                self.logger.info(f"Received non-streaming response. Length: {len(assistant_response_content)}")
-            except (AttributeError, IndexError, TypeError) as e:
-                 err = LLMInteractionError(f"Unexpected LLM response format: {response_or_generator}", original_exception=e)
-                 self.logger.error(f"Failed to parse non-streaming response: {err}")
-                 if add_to_history: self._history_manager.revert_last_turn()
-                 raise err from e
-
-        # 7. Finalize History (if applicable and no stream error)
-        if add_to_history and assistant_response_content is not None and not stream_error_occurred:
-            try:
-                final_metadata = {"model_used": model_name}
-                # final_metadata.update(llm_metadata) # Add token counts etc. if extracted
-
-                assistant_message = Message(
-                    role='assistant',
-                    content=assistant_response_content,
-                    execution_count=exec_count, # Associate with same cell run
-                    cell_id=cell_id,
-                    metadata=final_metadata
+                # Add persona system message first
+                self.history_manager.add_message(
+                    Message(role="system", content=persona.system_message, id=str(uuid.uuid4()))
                 )
-                self._history_manager.add_message(assistant_message)
-                self.logger.debug(f"Assistant response added to history (ID: {assistant_message.id}).")
-            except Exception as e:
-                 self.logger.exception("Failed to add assistant message to history.")
-                 # Don't raise here, as the core interaction succeeded, but log failure.
-                 # Consider if this state requires specific handling.
 
-        # Return the message object unless streaming handled everything
-        return assistant_message if not stream_handler else None
+                # Re-add all existing system messages
+                for msg in system_messages:
+                    self.history_manager.add_message(msg)
 
-    def _resolve_llm_config(self, persona: Optional[PersonaConfig], runtime_params: Dict[str, Any]) -> Dict[str, Any]:
-        """Merges config from persona, instance overrides, and runtime params."""
-        config: Dict[str, Any] = {}
-        # Order of precedence: Runtime > Instance Overrides > Persona > Defaults (handled in client)
-        if persona and persona.llm_params:
-            config.update(persona.llm_params)
-            self.logger.debug(f"Applied persona params: {persona.llm_params}")
-        if self._instance_overrides:
-             config.update(self._instance_overrides)
-             self.logger.debug(f"Applied instance overrides: {self._instance_overrides}")
-        if runtime_params:
-             config.update(runtime_params)
-             self.logger.debug(f"Applied runtime params: {runtime_params}")
+                # Re-add all non-system messages
+                for msg in non_system_messages:
+                    self.history_manager.add_message(msg)
+            else:
+                # No existing system messages, just add the persona's system message
+                self.history_manager.add_message(
+                    Message(role="system", content=persona.system_message, id=str(uuid.uuid4()))
+                )
 
-        # Log effective config (mask secrets if necessary, though API key is handled separately)
-        self.logger.debug(f"Resolved LLM config for call: {config}")
-        return config
-
-    def _get_current_context(self) -> Tuple[Optional[int], Optional[str]]:
-        """Gets context identifiers using the injected provider."""
-        if self._context_provider:
-            try:
-                return self._context_provider.get_current_context()
-            except Exception as e:
-                self.logger.warning(f"Context provider failed: {e}", exc_info=False) # Keep log concise
-        return None, None
-
-    # --- History Access & Manipulation ---
-    def get_history(self) -> List[Message]:
-        """Gets a copy of the current conversation history."""
-        return self._history_manager.get_history()
-
-    def clear_history(self) -> None:
-        """Clears the current session's history and reapplies persona system prompt."""
-        self._history_manager.clear()
-        self._apply_persona_to_history() # Re-add system prompt if needed
-        self.logger.info("History cleared and persona prompt reapplied (if applicable).")
-
-    def revert_last_turn(self) -> None:
-        """Removes the last user/assistant turn from history."""
-        # Uses HistoryManager's implementation
-        self._history_manager.revert_last_turn()
-        # Logged within HistoryManager
-
-    # --- Session Persistence ---
-    def save_session(self, identifier: Optional[str] = None) -> str:
-        """Saves the current session history using the HistoryStore."""
-        save_id = identifier or self._session_id
-        self.logger.info(f"Attempting to save session with ID: {save_id}")
-        current_history = self._history_manager.get_history()
-        metadata = ConversationMetadata(
-            session_id=save_id,
-            saved_at=datetime.utcnow(),
-            persona_name=self._active_persona.name if self._active_persona else None,
-            message_count=len(current_history),
-            initial_settings={ # Save relevant initial config at time of save
-                 'default_model_name': self.settings.default_model_name,
-                 'active_persona_name': self._active_persona.name if self._active_persona else None,
-                 'instance_overrides': self._instance_overrides.copy() # Save overrides active at save time
+        # Set client overrides if specified in persona config
+        if self.llm_client and persona.config:
+            # Define which fields are valid API parameters that should be passed to the LLM
+            valid_llm_params = {
+                "model",
+                "temperature",
+                "top_p",
+                "n",
+                "stream",
+                "max_tokens",
+                "presence_penalty",
+                "frequency_penalty",
+                "logit_bias",
+                "stop",
             }
-            # custom_tags could be added via another method later
+
+            for key, value in persona.config.items():
+                # Only set override if it's a valid LLM API parameter
+                if key in valid_llm_params:
+                    self.llm_client.set_override(key, value)
+                elif key != "system_message":  # Skip system_message as it's handled separately
+                    self.logger.debug(f"Skipping non-API parameter from persona config: {key}")
+
+        self.logger.info(f"Default persona set to '{name}'")
+
+    def add_snippet(self, name: str, role: str = "system") -> bool:
+        """
+        Add a snippet as a message to the conversation.
+
+        Args:
+            name: Name of the snippet
+            role: Role for the snippet message ("system", "user", or "assistant")
+
+        Returns:
+            True if the snippet was added, False otherwise
+        """
+        if not self.snippet_provider:
+            self.logger.warning("No snippet provider configured")
+            return False
+
+        # Validate role
+        valid_roles = {"system", "user", "assistant"}
+        if role not in valid_roles:
+            self.logger.error(f"Invalid role '{role}' for snippet. Valid roles are: {valid_roles}")
+            return False
+
+        # Load snippet
+        snippet_content = self.snippet_provider.get_snippet(name)
+        if not snippet_content:
+            self.logger.warning(f"Snippet '{name}' not found")
+            return False
+
+        # Add to history
+        self.history_manager.add_message(
+            Message(role=role, content=snippet_content, id=str(uuid.uuid4()), is_snippet=True)
         )
-        try:
-            save_path = self._history_store.save(current_history, metadata)
-            self._session_id = save_id # Update session ID if saved under a new name/ID
-            self.logger.info(f"Session '{save_id}' saved successfully: {save_path}")
-            return save_path
-        except Exception as e:
-            self.logger.exception(f"Failed to save session '{save_id}'.")
-            raise PersistenceError(f"Failed to save session '{save_id}': {e}") from e
 
-    def load_session(self, identifier: str) -> None:
-        """Loads a session history using the HistoryStore."""
-        self.logger.info(f"Attempting to load session with ID: {identifier}")
-        try:
-            messages, metadata = self._history_store.load(identifier)
-            self._history_manager.set_history(messages)
-            self._session_id = identifier # Update manager's session ID
-            self.logger.info(f"Session '{identifier}' loaded successfully with {len(messages)} messages.")
+        self.logger.info(f"Added snippet '{name}' as {role} message")
+        return True
 
-            # Attempt to restore persona based on saved metadata
-            if metadata.persona_name:
-                 self.logger.debug(f"Attempting to restore persona '{metadata.persona_name}' from loaded session.")
-                 try:
-                     self.select_persona(metadata.persona_name)
-                 except ResourceNotFoundError:
-                      self.logger.warning(f"Persona '{metadata.persona_name}' from loaded session not found. Current persona remains unchanged.")
-                 except Exception as e:
-                      self.logger.error(f"Error restoring persona '{metadata.persona_name}' from loaded session: {e}")
+    def chat(
+        self,
+        prompt: str,
+        persona_name: Optional[str] = None,
+        model: Optional[str] = None,
+        stream: bool = True,
+        add_to_history: bool = True,
+        auto_rollback: bool = True,
+        execution_context: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ) -> Optional[str]:
+        """
+        Send a message to the LLM.
+
+        Args:
+            prompt: The user's message
+            persona_name: Optional persona name to use for this call
+            model: Optional model name to use for this call
+            stream: Whether to stream the response
+            add_to_history: Whether to add the messages to history
+            auto_rollback: Whether to automatically rollback on cell re-execution
+            execution_context: Optional execution context information
+            **kwargs: Additional parameters to pass to the LLM client
+
+        Returns:
+            Assistant's response or None on error
+        """
+        # Start timing the call for performance tracking
+        start_time = time.time()
+
+        # Get execution context
+        exec_count, cell_id = None, None
+        if execution_context is not None:
+            exec_count = execution_context.get("execution_count")
+            cell_id = execution_context.get("cell_id")
+        elif self.context_provider:
+            exec_count, cell_id = self.context_provider.get_execution_context()
+
+        # Log execution context
+        if exec_count is not None:
+            self.logger.debug(f"Execution count: {exec_count}")
+        if cell_id is not None:
+            self.logger.debug(f"Cell ID: {cell_id}")
+
+        # Check for auto rollback
+        if auto_rollback and cell_id is not None:
+            self.history_manager.perform_rollback(cell_id)
+
+        try:
+            # If persona_name is provided, try to load and set it temporarily
+            temp_persona = None
+            if persona_name:
+                if self.persona_loader:
+                    temp_persona = self.persona_loader.get_persona(persona_name)
+                    if not temp_persona:
+                        self.logger.warning(
+                            f"Persona '{persona_name}' not found, using active persona instead."
+                        )
+                    else:
+                        self.logger.info(f"Using persona '{persona_name}' for this request")
+                else:
+                    self.logger.warning(
+                        "No persona loader configured, ignoring persona_name parameter."
+                    )
+
+            # Get all message history
+            history_messages = self.history_manager.get_history() if self.history_manager else []
+
+            # Extract any system messages from history
+            system_messages = [m for m in history_messages if m.role == "system"]
+            non_system_messages = [m for m in history_messages if m.role != "system"]
+
+            # Prepare the messages list with system message(s) first, then other messages
+            messages = []
+
+            # If we have system messages in history, add them first
+            if system_messages:
+                messages.extend(system_messages)
+            # If no system messages in history but we have an active persona, add its system message
+            elif temp_persona and temp_persona.system_message:
+                # Use the temp persona's system message if provided
+                system_message = Message(
+                    role="system", content=temp_persona.system_message, id=str(uuid.uuid4())
+                )
+                messages.append(system_message)
+                self.logger.debug("Added system message from temporary persona")
+            elif self._active_persona and self._active_persona.system_message:
+                system_message = Message(
+                    role="system", content=self._active_persona.system_message, id=str(uuid.uuid4())
+                )
+                messages.append(system_message)
+                self.logger.debug("Added system message from active persona")
+
+            # Now add all non-system messages
+            messages.extend(non_system_messages)
+
+            # Setup stream handler if streaming is enabled
+            stream_callback = None
+            if stream and self.context_provider:
+                # Create a simple stream handler that uses context_provider to display updates
+                display_handle = self.context_provider.display_stream_start()
+
+                def stream_handler(chunk: str) -> None:
+                    """Handle streaming chunks by updating display"""
+                    if display_handle is not None and self.context_provider is not None:
+                        self.context_provider.update_stream(display_handle, chunk)
+                    else:
+                        # Fallback to print if display handle isn't available
+                        print(chunk, end="", flush=True)
+
+                stream_callback = stream_handler
+
+            # Add the new user message
+            user_message = Message(
+                role="user",
+                content=prompt,
+                id=str(uuid.uuid4()),
+                execution_count=exec_count,
+                cell_id=cell_id,
+            )
+
+            # Add to messages we'll send to the LLM
+            messages.append(user_message)
+
+            # Deduplicate messages before sending to the LLM
+            messages = self._deduplicate_messages(messages)
+
+            # Figure out model to use with more robust fallbacks
+            model_name = model
+
+            # If model not specified directly, try to get it from the temp persona if available
+            if (
+                model_name is None
+                and temp_persona
+                and temp_persona.config
+                and "model" in temp_persona.config
+            ):
+                model_name = temp_persona.config.get("model")
+                self.logger.debug(f"Using model from temporary persona: {model_name}")
+
+            # If still no model, try to get it from the active persona if available
+            if (
+                model_name is None
+                and self._active_persona
+                and self._active_persona.config
+                and "model" in self._active_persona.config
+            ):
+                model_name = self._active_persona.config.get("model")
+                self.logger.debug(f"Using model from active persona: {model_name}")
+
+            # If still no model, check if LLM client has a model override set
+            if (
+                model_name is None
+                and self.llm_client is not None
+                and hasattr(self.llm_client, "_instance_overrides")
+                and "model" in self.llm_client._instance_overrides
+            ):
+                model_name = self.llm_client._instance_overrides.get("model")
+                self.logger.debug(f"Using model from LLM client override: {model_name}")
+
+            # Final fallback to the default model from settings
+            if model_name is None:
+                model_name = self.settings.default_model
+                self.logger.debug(f"Using default model from settings: {model_name}")
+
+            # Ensure we have a model specified at this point
+            if model_name is None:
+                raise ConfigurationError(
+                    "No model specified and no default model available in settings."
+                )
+
+            # Prepare LLM parameters
+            llm_params = {}
+
+            # Always set the model explicitly
+            llm_params["model"] = model_name
+
+            # Apply parameter overrides from temp persona if available
+            if temp_persona and temp_persona.config:
+                valid_llm_params = {
+                    "temperature",
+                    "top_p",
+                    "n",
+                    "stream",
+                    "max_tokens",
+                    "presence_penalty",
+                    "frequency_penalty",
+                    "logit_bias",
+                    "stop",
+                }
+                for key, value in temp_persona.config.items():
+                    if key in valid_llm_params:
+                        llm_params[key] = value
+
+            # FIX: Handle the 'overrides' parameter correctly
+            # If there's an 'overrides' dictionary in kwargs, unpack its contents into llm_params
+            if "overrides" in kwargs:
+                if isinstance(kwargs["overrides"], dict):
+                    self.logger.debug(f"Applying parameter overrides: {kwargs['overrides']}")
+                    llm_params.update(kwargs["overrides"])
+                else:
+                    self.logger.warning(
+                        f"Ignoring non-dictionary 'overrides': {kwargs['overrides']}"
+                    )
+                # Remove 'overrides' from kwargs to prevent it from being sent as a parameter
+                del kwargs["overrides"]
+
+            # Add any remaining kwargs to llm_params
+            llm_params.update(kwargs)
+
+            # Call LLM client
+            self.logger.info(
+                f"Sending message to LLM with {len(messages)} messages in context using model: {model_name}"
+            )
+            if self.llm_client is None:
+                raise ConfigurationError("LLM client is not configured")
+
+            assistant_response_content = self.llm_client.chat(
+                messages=messages, stream=stream, stream_callback=stream_callback, **llm_params
+            )
+
+            # Get token usage data from the LLM client
+            token_usage = {}
+            if hasattr(self.llm_client, "get_last_token_usage"):
+                token_usage = self.llm_client.get_last_token_usage()
+                tokens_in = token_usage.get("prompt_tokens", 0)
+                tokens_out = token_usage.get("completion_tokens", 0)
+                total_tokens = token_usage.get("total_tokens", 0)
+                self.logger.debug(
+                    f"Token usage from API: {tokens_in} (prompt) + "
+                    f"{tokens_out} (completion) = {total_tokens} (total)"
+                )
             else:
-                 # If no persona saved, maybe clear the current one? Or keep it?
-                 # Design decision: Keep current manager state unless explicitly loaded.
-                 self.logger.debug("No persona name found in loaded session metadata.")
+                # Fallback to estimation if token usage isn't available from the client
+                input_text = "\n".join([m.content for m in messages])
+                # Rough estimate: 1 token ≈ 4 chars for English text
+                tokens_in = max(1, len(input_text) // 4)
 
-            # Restore overrides? Design decision: Overrides are typically transient.
-            # Loading overrides might be confusing. Log if they existed.
-            if metadata.initial_settings.get('instance_overrides'):
-                 self.logger.info(f"Loaded session had overrides at save time: {metadata.initial_settings['instance_overrides']}. They are NOT automatically reapplied.")
+                # Ensure assistant_response_content is treated as a string for length calculation
+                response_content_str = (
+                    str(assistant_response_content)
+                    if assistant_response_content is not None
+                    else ""
+                )
+                tokens_out = max(1, len(response_content_str) // 4)
+                total_tokens = tokens_in + tokens_out
+                self.logger.debug(
+                    f"Estimated token usage: {tokens_in} (prompt) + "
+                    f"{tokens_out} (completion) = {total_tokens} (total)"
+                )
 
-        except ResourceNotFoundError as e:
-             self.logger.error(f"Failed to load session: {e}")
-             raise # Re-raise specific error
-        except Exception as e:
-            self.logger.exception(f"Failed to load session '{identifier}'.")
-            raise PersistenceError(f"Failed to load session '{identifier}': {e}") from e
-
-    def list_saved_sessions(self) -> List[str]:
-         """Lists identifiers of saved sessions available via the HistoryStore."""
-         try:
-            if hasattr(self._history_store, 'list_saved'):
-                 return self._history_store.list_saved()
+            # Calculate cost - simplified model for now
+            if model_name and "gpt-4" in model_name.lower():
+                # Approximate GPT-4 rates
+                cost_input = tokens_in * 0.03 / 1000  # $0.03 per 1K tokens
+                cost_output = tokens_out * 0.06 / 1000  # $0.06 per 1K tokens
             else:
-                 self.logger.warning("The configured HistoryStore does not support listing saved sessions.")
-                 return []
-         except Exception as e:
-              self.logger.exception("Failed to list saved sessions.")
-              return []
+                # Generic/default rates
+                cost_input = tokens_in * 0.01 / 1000  # $0.01 per 1K tokens
+                cost_output = tokens_out * 0.02 / 1000  # $0.02 per 1K tokens
 
-    def _generate_session_id(self) -> str:
-        """Generates a unique ID for a new session."""
-        # Simple timestamp-based ID for default file saving
-        return f"chat_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+            cost_dollars = cost_input + cost_output
+            # Convert to millicents (1/100,000 of a dollar) for consistent display
+            cost_mili_cents = int(cost_dollars * 100000)
 
-    # --- Optional Features ---
-    def export_history_to_df(self) -> Any: # Return type Any to avoid hard pandas dependency
-        """Exports history to a Pandas DataFrame (requires pandas)."""
-        self.logger.debug("Attempting to export history to DataFrame.")
-        try:
-            import pandas as pd
-            history_dicts = [msg.model_dump() for msg in self._history_manager.get_history()]
-            df = pd.DataFrame(history_dicts)
-            self.logger.info(f"History exported to DataFrame with {len(df)} rows.")
-            return df
-        except ImportError:
-            self.logger.error("Pandas library is required for DataFrame export.")
-            raise ImportError("Please install pandas to use this feature: `pip install 'cellmage[pandas]'` or `poetry install --extras pandas`") from None
+            # Format cost as a string for display
+            cost_str = f"${cost_dollars:.6f}"
+
+            # Get the actual model used from the LLM client
+            actual_model_used = None
+            if hasattr(self.llm_client, "get_last_model_used"):
+                actual_model_used = self.llm_client.get_last_model_used()
+            elif (
+                hasattr(self.llm_client, "_instance_overrides")
+                and "model" in self.llm_client._instance_overrides
+            ):
+                actual_model_used = self.llm_client._instance_overrides.get("model")
+
+            # If we're adding to history, add both user and assistant messages
+            if add_to_history and assistant_response_content:
+                # Add user message to history WITH token count information
+                user_message.metadata = {
+                    "tokens_in": tokens_in,
+                    "model_used": actual_model_used or model_name,
+                }
+
+                if self.history_manager:
+                    self.history_manager.add_message(user_message)
+
+                # Create and add assistant message
+                assistant_message = Message(
+                    role="assistant",
+                    content=assistant_response_content,
+                    id=str(uuid.uuid4()),
+                    metadata={
+                        "tokens_in": tokens_in,
+                        "tokens_out": tokens_out,
+                        "total_tokens": total_tokens,
+                        "cost_str": cost_str,
+                        "cost_mili_cents": cost_mili_cents,
+                        "model_used": actual_model_used or model_name,
+                    },
+                )
+
+                if self.history_manager:
+                    self.history_manager.add_message(assistant_message)
+
+                # Auto-save the conversation if enabled in settings
+                if self.settings.auto_save and self.history_manager:
+                    try:
+                        # Use the autosave_file setting with the fixed creation timestamp
+                        autosave_filename = (
+                            f"{self.settings.autosave_file}_{self.creation_datetime}"
+                        )
+                        saved_path = self.history_manager.save_conversation(autosave_filename)
+                        if saved_path:
+                            self.logger.info(f"Auto-saved conversation to {saved_path}")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to auto-save conversation: {e}")
+
+            # Display status bar if context provider is available
+            duration = time.time() - start_time
+            if self.context_provider is not None and not stream:
+                self.context_provider.display_status(
+                    {
+                        "success": True,
+                        "duration": duration,
+                        "tokens_in": tokens_in,
+                        "tokens_out": tokens_out,
+                        "total_tokens": total_tokens,
+                        "cost_str": cost_str,
+                        "cost_mili_cents": cost_mili_cents,
+                        "model": actual_model_used or model_name,
+                    }
+                )
+
+            return assistant_response_content
+
         except Exception as e:
-            self.logger.exception("Failed to export history to DataFrame.")
+            duration = time.time() - start_time
+            self.logger.error(f"Error during chat: {e}")
+
+            # Show error in status bar
+            if self.context_provider is not None:
+                self.context_provider.display_status(
+                    {
+                        "success": False,
+                        "duration": duration,
+                        "tokens_in": None,
+                        "tokens_out": None,
+                        "total_tokens": None,
+                        "cost_str": None,
+                        "cost_mili_cents": None,
+                        "model": None,
+                    }
+                )
+
+            # Re-raise to let caller handle
             raise
 
-    async def discover_models(self) -> List[Dict[str, Any]]:
-         """Discovers available models via the LLM client."""
-         self.logger.debug("Attempting to discover available models.")
-         try:
-             if hasattr(self._llm_client, 'get_available_models'):
-                  models = await self._llm_client.get_available_models()
-                  self.logger.info(f"Discovered {len(models)} potential models.")
-                  return models
-             else:
-                  self.logger.warning("The configured LLM client does not support model discovery.")
-                  return []
-         except LLMInteractionError as e:
-              self.logger.error(f"Model discovery failed via LLM client: {e}")
-              return []
-         except Exception as e:
-              self.logger.exception("Unexpected error during model discovery.")
-              return []
+    def list_personas(self) -> List[str]:
+        """
+        List available personas.
 
+        Returns:
+            List of persona names
+        """
+        if not self.persona_loader:
+            self.logger.warning("No persona loader configured")
+            return []
+
+        return self.persona_loader.list_personas()
+
+    def list_snippets(self) -> List[str]:
+        """
+        List available snippets.
+
+        Returns:
+            List of snippet names
+        """
+        if not self.snippet_provider:
+            self.logger.warning("No snippet provider configured")
+            return []
+
+        return self.snippet_provider.list_snippets()
+
+    def save_conversation(self, filename: Optional[str] = None) -> Optional[str]:
+        """
+        Save the current conversation to a file.
+
+        Args:
+            filename: Base filename to use for saving
+
+        Returns:
+            Path to the saved file or None if failed
+        """
+        if filename:
+            # Add the creation timestamp to the filename to ensure consistency
+            filename_with_date = f"{filename}_{self.creation_datetime}"
+            return self.history_manager.save_conversation(filename_with_date)
+        else:
+            # If no filename provided, let the history manager handle it
+            return self.history_manager.save_conversation(None)
+
+    def load_conversation(self, filepath: str) -> bool:
+        """
+        Load a conversation from a file.
+
+        Args:
+            filepath: Path to the file to load
+
+        Returns:
+            True if successful, False otherwise
+        """
+        return self.history_manager.load_conversation(filepath)
+
+    def get_history(self) -> List[Message]:
+        """
+        Get the current conversation history.
+
+        Returns:
+            List of messages in the conversation
+        """
+        return self.history_manager.get_history()
+
+    def clear_history(self, keep_system: bool = True) -> None:
+        """
+        Clear the conversation history.
+
+        Args:
+            keep_system: Whether to keep system messages
+        """
+        self.history_manager.clear_history(keep_system=keep_system)
+
+    def set_override(self, key: str, value: Any) -> None:
+        """
+        Set an override parameter for the LLM.
+
+        Args:
+            key: Parameter name
+            value: Parameter value
+        """
+        if not self.llm_client:
+            self.logger.warning("No LLM client configured")
+            return
+
+        self.llm_client.set_override(key, value)
+
+    def remove_override(self, key: str) -> None:
+        """
+        Remove an override parameter.
+
+        Args:
+            key: Parameter name to remove
+        """
+        if not self.llm_client:
+            self.logger.warning("No LLM client configured")
+            return
+
+        self.llm_client.remove_override(key)
+
+    def clear_overrides(self) -> None:
+        """Clear all override parameters."""
+        if not self.llm_client:
+            self.logger.warning("No LLM client configured")
+            return
+
+        self.llm_client.clear_overrides()
+
+    def _mask_sensitive_value(self, key: str, value: Any) -> Any:
+        """
+        Mask sensitive values like API keys for display purposes.
+
+        Args:
+            key: The parameter name
+            value: The parameter value
+
+        Returns:
+            Masked value if sensitive, original value otherwise
+        """
+        sensitive_keys = ["api_key", "secret", "password", "token"]
+
+        if any(sensitive_part in key.lower() for sensitive_part in sensitive_keys) and isinstance(
+            value, str
+        ):
+            if len(value) > 8:
+                return value[:4] + "..." + value[-2:]
+            else:
+                return "***"  # For very short values
+        return value
+
+    def get_overrides(self) -> Dict[str, Any]:
+        """
+        Get the current LLM parameter overrides.
+
+        Returns:
+            A dictionary of current override parameters with sensitive values masked
+        """
+        if not self.llm_client:
+            self.logger.warning("No LLM client configured")
+            return {}
+
+        # Access the internal _instance_overrides attribute of the LLM client
+        if self.llm_client is not None and hasattr(self.llm_client, "_instance_overrides"):
+            raw_overrides = self.llm_client._instance_overrides.copy()
+            # Mask sensitive values
+            masked_overrides = {
+                k: self._mask_sensitive_value(k, v) for k, v in raw_overrides.items()
+            }
+            return masked_overrides
+        else:
+            self.logger.warning("LLM client does not have _instance_overrides attribute")
+            return {}
+
+    def get_available_models(self) -> List[Dict[str, Any]]:
+        """
+        Get a list of available models from the LLM service.
+
+        Returns:
+            List of model info dictionaries
+        """
+        if not self.llm_client:
+            self.logger.warning("No LLM client configured")
+            return []
+
+        return self.llm_client.get_available_models()
+
+    def get_active_persona(self) -> Optional[PersonaConfig]:
+        """
+        Get the currently active persona configuration.
+
+        Returns:
+            The active persona config or None if no persona is active
+        """
+        return self._active_persona
+
+    def get_model_info(self, model_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get information about a specific model.
+
+        Args:
+            model_name: Name of the model
+
+        Returns:
+            Model information dictionary or None if not found
+        """
+        if not self.llm_client:
+            self.logger.warning("No LLM client configured")
+            return None
+
+        return self.llm_client.get_model_info(model_name)
+
+    def _deduplicate_messages(self, messages: List[Message]) -> List[Message]:
+        """
+        Deduplicate messages to avoid sending duplicates to the LLM.
+
+        Args:
+            messages: List of messages to deduplicate
+
+        Returns:
+            Deduplicated list of messages
+        """
+        if not messages:
+            return []
+
+        # Track seen message contents by role to prevent duplicates
+        seen = {}
+        deduplicated = []
+
+        for msg in messages:
+            # Create a unique key based on role and content
+            key = f"{msg.role}:{msg.content}"
+
+            # If we haven't seen this message before, add it
+            if key not in seen:
+                seen[key] = True
+                deduplicated.append(msg)
+            else:
+                self.logger.debug(f"Skipping duplicate message with role '{msg.role}'")
+
+        if len(deduplicated) < len(messages):
+            self.logger.info(f"Removed {len(messages) - len(deduplicated)} duplicate messages")
+
+        return deduplicated

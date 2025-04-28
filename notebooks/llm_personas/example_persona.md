@@ -1,6 +1,6 @@
 # Example Persona
 ---
-model: your-default-model-here
+model: gpt-4.1-nano
 temperature: 0.7
 ---
 

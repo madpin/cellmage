@@ -1,64 +1,149 @@
-from typing import List, Dict, Any
 import logging
+from typing import Any, Dict, List, Optional
 
 from ..interfaces import PersonaLoader, SnippetProvider
 from ..models import PersonaConfig
-from ..exceptions import ResourceNotFoundError
 
-logger = logging.getLogger(__name__)
 
 class MemoryLoader(PersonaLoader, SnippetProvider):
-    """In-memory implementation for loading Personas and Snippets, useful for testing."""
+    """
+    In-memory implementation of persona and snippet loading.
 
-    def __init__(
-        self,
-        personas: Dict[str, PersonaConfig] | None = None,
-        snippets: Dict[str, str] | None = None
-    ):
+    This class stores and provides personas and snippets from memory,
+    allowing for programmatic creation and modification at runtime.
+    """
+
+    def __init__(self):
+        """Initialize the memory loader with empty collections."""
+        self.logger = logging.getLogger(__name__)
+        self.personas: Dict[str, PersonaConfig] = {}
+        self.snippets: Dict[str, str] = {}
+        self.logger.debug("MemoryLoader initialized with empty collections")
+
+    # --- PersonaLoader implementation ---
+    def list_personas(self) -> List[str]:
         """
-        Initializes the MemoryLoader with predefined personas and snippets.
+        List available personas.
+
+        Returns:
+            List of persona names
+        """
+        return sorted(list(self.personas.keys()))
+
+    def get_persona(self, name: str) -> Optional[PersonaConfig]:
+        """
+        Get a persona by name.
 
         Args:
-            personas: A dictionary mapping persona names to PersonaConfig objects.
-            snippets: A dictionary mapping snippet names to their string content.
+            name: Name of the persona to retrieve
+
+        Returns:
+            Persona configuration or None if not found
         """
-        self._personas = personas or {}
-        self._snippets = snippets or {}
-        logger.info(f"MemoryLoader initialized with {len(self._personas)} personas and {len(self._snippets)} snippets.")
+        # Case insensitive search
+        name_lower = name.lower()
+        for persona_name, persona in self.personas.items():
+            if persona_name.lower() == name_lower:
+                return persona
 
-    # --- PersonaLoader Implementation ---
+        self.logger.warning(f"Persona '{name}' not found")
+        return None
 
-    def load(self, name: str) -> PersonaConfig:
-        """Loads a persona from the internal dictionary."""
-        logger.debug(f"Attempting to load persona '{name}' from memory.")
-        if name not in self._personas:
-            raise ResourceNotFoundError("persona", name)
-        return self._personas[name]
+    def add_persona(
+        self, name: str, system_message: str, config: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """
+        Add a persona to the in-memory collection.
 
-    def list_available(self) -> List[str]:
-        """Lists available persona names from the internal dictionary."""
-        return sorted(list(self._personas.keys()))
+        Args:
+            name: Name of the persona
+            system_message: System message for the persona
+            config: Optional configuration for the persona
+        """
+        # Fix: use 'name' parameter instead of 'original_name' which doesn't exist
+        self.personas[name] = PersonaConfig(
+            name=name,  # Correctly passing the name parameter
+            system_message=system_message,
+            config=config or {},
+        )
+        self.logger.info(f"Added persona '{name}' to memory")
 
-    # --- SnippetProvider Implementation ---
+    def remove_persona(self, name: str) -> bool:
+        """
+        Remove a persona from the in-memory collection.
 
-    def get(self, name: str) -> str:
-        """Gets the content of a snippet from the internal dictionary."""
-        logger.debug(f"Attempting to load snippet '{name}' from memory.")
-        if name not in self._snippets:
-            raise ResourceNotFoundError("snippet", name)
-        return self._snippets[name]
+        Args:
+            name: Name of the persona to remove
 
-    def list_available(self) -> List[str]:
-        """Lists available snippet names from the internal dictionary."""
-        return sorted(list(self._snippets.keys()))
+        Returns:
+            True if the persona was removed, False if not found
+        """
+        name_lower = name.lower()
+        for persona_name in list(self.personas.keys()):
+            if persona_name.lower() == name_lower:
+                del self.personas[persona_name]
+                self.logger.info(f"Removed persona '{persona_name}' from memory")
+                return True
 
-    # --- Helper methods for testing ---
-    def add_persona(self, persona: PersonaConfig):
-        """Adds or updates a persona in memory."""
-        self._personas[persona.name] = persona
-        logger.debug(f"Added/Updated persona '{persona.name}' in memory.")
+        self.logger.warning(f"Cannot remove: Persona '{name}' not found")
+        return False
 
-    def add_snippet(self, name: str, content: str):
-        """Adds or updates a snippet in memory."""
-        self._snippets[name] = content
-        logger.debug(f"Added/Updated snippet '{name}' in memory.")
+    # --- SnippetProvider implementation ---
+    def list_snippets(self) -> List[str]:
+        """
+        List available snippets.
+
+        Returns:
+            List of snippet names
+        """
+        return sorted(list(self.snippets.keys()))
+
+    def get_snippet(self, name: str) -> Optional[str]:
+        """
+        Get a snippet by name.
+
+        Args:
+            name: Name of the snippet to retrieve
+
+        Returns:
+            Snippet content or None if not found
+        """
+        # Case insensitive search
+        name_lower = name.lower()
+        for snippet_name, content in self.snippets.items():
+            if snippet_name.lower() == name_lower:
+                return content
+
+        self.logger.warning(f"Snippet '{name}' not found")
+        return None
+
+    def add_snippet(self, name: str, content: str) -> None:
+        """
+        Add a snippet to the in-memory collection.
+
+        Args:
+            name: Name of the snippet
+            content: Content of the snippet
+        """
+        self.snippets[name] = content
+        self.logger.info(f"Added snippet '{name}' to memory")
+
+    def remove_snippet(self, name: str) -> bool:
+        """
+        Remove a snippet from the in-memory collection.
+
+        Args:
+            name: Name of the snippet to remove
+
+        Returns:
+            True if the snippet was removed, False if not found
+        """
+        name_lower = name.lower()
+        for snippet_name in list(self.snippets.keys()):
+            if snippet_name.lower() == name_lower:
+                del self.snippets[snippet_name]
+                self.logger.info(f"Removed snippet '{snippet_name}' from memory")
+                return True
+
+        self.logger.warning(f"Cannot remove: Snippet '{name}' not found")
+        return False

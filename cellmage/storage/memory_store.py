@@ -1,56 +1,134 @@
-from typing import List, Dict, Any, Tuple
+import copy
 import logging
+import uuid
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
+from ..exceptions import PersistenceError
 from ..interfaces import HistoryStore
-from ..models import Message, ConversationMetadata
-from ..exceptions import PersistenceError, ResourceNotFoundError
+from ..models import ConversationMetadata, Message
 
-logger = logging.getLogger(__name__)
 
 class MemoryStore(HistoryStore):
-    """In-memory implementation for storing/retrieving conversation history, useful for testing."""
+    """
+    In-memory implementation of the HistoryStore interface.
 
-    _store: Dict[str, Tuple[List[Message], ConversationMetadata]]
+    This class stores conversations in memory, allowing for fast access
+    but without persistence across program restarts.
+    """
 
     def __init__(self):
-        """Initializes the in-memory store."""
-        self._store = {}
-        logger.info("MemoryStore initialized.")
+        """Initialize the memory store."""
+        self.logger = logging.getLogger(__name__)
+        self.conversations: Dict[str, Tuple[List[Message], ConversationMetadata]] = {}
+        self.logger.debug("MemoryStore initialized")
 
-    def save(self, messages: List[Message], metadata: ConversationMetadata) -> str:
-        """Saves the history and metadata to the internal dictionary."""
-        identifier = metadata.session_id
-        logger.debug(f"Attempting to save session '{identifier}' to memory.")
-        # Store copies to avoid external modification issues
-        self._store[identifier] = (
-            [msg.model_copy(deep=True) for msg in messages],
-            metadata.model_copy(deep=True)
-        )
-        logger.info(f"Successfully saved session '{identifier}' to memory.")
-        return identifier # Return the identifier used
+    def save_conversation(
+        self,
+        messages: List[Message],
+        metadata: ConversationMetadata,
+        filename: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Save a conversation to memory.
 
-    def load(self, identifier: str) -> Tuple[List[Message], ConversationMetadata]:
-        """Loads history and metadata from the internal dictionary."""
-        logger.debug(f"Attempting to load session '{identifier}' from memory.")
-        if identifier not in self._store:
-            raise ResourceNotFoundError("history", identifier)
+        Args:
+            messages: List of messages in the conversation
+            metadata: Metadata about the conversation
+            filename: Optional identifier for the conversation
 
-        # Return copies to prevent modification of the stored data
-        messages, metadata = self._store[identifier]
-        logger.info(f"Successfully loaded session '{identifier}' from memory.")
-        return [msg.model_copy(deep=True) for msg in messages], metadata.model_copy(deep=True)
+        Returns:
+            Identifier for the saved conversation
+        """
+        if not messages:
+            self.logger.warning("Cannot save empty conversation")
+            return None
 
-    def list_saved(self) -> List[str]:
-        """Lists identifiers (keys) of saved histories in the store."""
-        return sorted(list(self._store.keys()))
+        # Use provided filename or generate a unique ID
+        identifier = filename or str(uuid.uuid4())
 
-    # --- Helper methods for testing ---
-    def clear_store(self):
-        """Clears all data from the memory store."""
-        self._store = {}
-        logger.info("Memory store cleared.")
+        # Create deep copies to avoid external modification
+        message_copies = copy.deepcopy(messages)
+        metadata_copy = copy.deepcopy(metadata)
 
-    def get_store_content(self) -> Dict[str, Tuple[List[Message], ConversationMetadata]]:
-         """Returns the raw content of the store (primarily for debugging/testing)."""
-         return self._store
+        # Update saved timestamp
+        metadata_copy.saved_at = datetime.now()
+
+        # Store the conversation
+        self.conversations[identifier] = (message_copies, metadata_copy)
+
+        self.logger.info(f"Saved conversation to memory with ID: {identifier}")
+        return identifier
+
+    def load_conversation(self, filepath: str) -> Tuple[List[Message], ConversationMetadata]:
+        """
+        Load a conversation from memory.
+
+        Args:
+            filepath: Identifier for the conversation
+
+        Returns:
+            Tuple of (messages, metadata)
+
+        Raises:
+            PersistenceError: If the conversation is not found
+        """
+        if filepath not in self.conversations:
+            self.logger.error(f"Conversation '{filepath}' not found")
+            raise PersistenceError(f"Conversation '{filepath}' not found")
+
+        # Return deep copies to avoid external modification
+        messages, metadata = self.conversations[filepath]
+        return copy.deepcopy(messages), copy.deepcopy(metadata)
+
+    def list_saved_conversations(self) -> List[Dict[str, Any]]:
+        """
+        List available saved conversations.
+
+        Returns:
+            List of conversation metadata dicts with identifiers
+        """
+        result = []
+        for identifier, (_, metadata) in self.conversations.items():
+            # Create a dict representation of the metadata
+            meta_dict = {
+                "identifier": identifier,
+                "saved_at": metadata.saved_at.isoformat(),
+                "total_messages": metadata.total_messages,
+                "turns": metadata.turns,
+                "default_model_name": metadata.default_model_name,
+                "default_personality_name": metadata.default_personality_name,
+            }
+            result.append(meta_dict)
+
+        return result
+
+    def delete_conversation(self, identifier: str) -> bool:
+        """
+        Delete a conversation from memory.
+
+        Args:
+            identifier: Identifier for the conversation
+
+        Returns:
+            True if deleted, False if not found
+        """
+        if identifier in self.conversations:
+            del self.conversations[identifier]
+            self.logger.info(f"Deleted conversation: {identifier}")
+            return True
+        else:
+            self.logger.warning(f"Cannot delete: Conversation '{identifier}' not found")
+            return False
+
+    def clear_all(self) -> int:
+        """
+        Clear all conversations from memory.
+
+        Returns:
+            Number of conversations deleted
+        """
+        count = len(self.conversations)
+        self.conversations.clear()
+        self.logger.info(f"Cleared all {count} conversations from memory")
+        return count

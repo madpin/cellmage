@@ -15,15 +15,16 @@ CellMage is your personal LLM wizard, living right inside your Jupyter or IPytho
 
 ## What Sorcery is This? (Core Features)
 
-CellMage isn't *actual* magic (it's just some rather clever Python using `litellm`!), but it feels pretty close:
+CellMage isn't *actual* magic, but it feels pretty close:
 
 * ✨ **Intuitive Spellcasting:** Use the `%%llm` cell magic. Write your prompt, run the cell, and *poof* – the LLM's response appears!
 * 📜 **Arcane History Scrolls:** CellMage remembers your conversation. Even better, it detects when you re-run a cell and cleverly avoids duplicating history. Like turning back time, but less paradoxical!
 * 🔮 **Persona Grimoires:** Define different LLM "personalities" (system prompts + configs) in simple Markdown files. Need a Python expert? A terse code generator? A rubber duck? Switch personas with a simple command!
-* 🌍 **Access Diverse Magical Fonts:** Powered by the versatile `litellm`, CellMage can connect to OpenAI, Anthropic, Azure, Cohere, Hugging Face, local models via Ollama/LM Studio, and many more! If `litellm` supports it, CellMage can likely conjure with it.
+* 🌍 **Access Diverse Magical Fonts:** Connect to OpenAI, Anthropic, Azure, and other OpenAI-compatible APIs.
 * ⚡️ **Live Conjuring:** Watch the LLM weave its response character-by-character with built-in streaming support (the default!).
-* 🪄 **Ambient Enchantment (Optional):** Feeling lazy? Use `%llm_setup_forever` to automatically treat *any* standard cell you run as a prompt! (Use `%disable_llm_setup_forever` to turn it off).
-* 🧪 **Precise Incantations:** Override models, temperature, and other parameters on-the-fly for specific spells or configure instance-wide defaults.
+* 🪄 **Ambient Enchantment (Optional):** Feeling lazy? Use `%llm_setup_forever` to automatically treat *any* standard cell you run as a prompt! (Use `%disable_llm_config_persistent` to turn it off).
+* 🧪 **Precise Incantations:** Override models, temperature, and other parameters on-the-fly for specific spells or configure instance-wide defaults. Use model aliases (like 'g4' for 'gpt-4') for quick access to your favorite models.
+* 📝 **Model Aliases:** Define short aliases for your frequently used models in a `cellmage_models.yml` file or manage them through magic commands.
 * GOTO **Re-usable Spell Snippets:** Inject content from local files (like code context or data samples) directly into the conversation history before casting your spell.
 * 💰 **Mana Tracking:** Get a handy status bar after each call showing duration and estimated cost (because even magic has its price!).
 * 📚 **Detailed Spell Logs:** Keep a record of your magical experiments with robust file logging.
@@ -33,10 +34,21 @@ CellMage isn't *actual* magic (it's just some rather clever Python using `litell
 Ready to wield this power? Open your terminal and chant the sacred words:
 
 ```bash
+# Basic installation
 pip install cellmage
+
+# For LangChain integration
+pip install "cellmage[langchain]"
 ```
 
-*(Replace `cellmage` with the actual package name if different)*
+## LLM Connection Options 🔌
+
+CellMage provides a DirectLLMAdapter for connecting to LLM APIs:
+
+**DirectLLMAdapter** (built-in with no additional dependencies): 
+- Connects directly to OpenAI-compatible APIs via standard HTTP requests
+- Supports standard OpenAI API functionality including streaming
+- Simple and reliable with minimal dependencies
 
 ## Summoning Your First Spell (Quick Start) ⚡️
 
@@ -45,14 +57,14 @@ pip install cellmage
     %load_ext cellmage
     ```
 
-2.  **Configure (Optional but Recommended):** Tell CellMage where to find its power source. Set your API key and base URL (if needed) using environment variables (`NBLLM_API_KEY`, `NBLLM_API_BASE`) or the setup magic:
+2.  **Configure (Optional but Recommended):** Tell CellMage where to find its power source. Set your API key and base URL (if needed) using environment variables (`CELLMAGE_API_KEY`, `CELLMAGE_API_BASE`) or the setup magic:
     ```python
-    # Example for a local Ollama setup (no key needed typically)
-    %llm_setup --api_base http://localhost:11434 --default_model ollama/llama3
+    # Example for a local OpenAI-compatible API server
+    %llm_setup --api_base http://localhost:1234/v1 --default_model local-model
     ```
     *Or for OpenAI:*
     ```python
-    # Make sure OPENAI_API_KEY is set as an environment variable, or use:
+    # Make sure CELLMAGE_API_KEY is set as an environment variable, or use:
     # %llm_setup --api_key "sk-..." --default_model gpt-4o
     ```
     *(See "Connecting to Magical Fonts" below for more ways)*
@@ -66,69 +78,84 @@ pip install cellmage
 
 ## Mastering the Arcane Arts (Core Concepts) 📖
 
+### Available Magic Commands
+
+CellMage provides the following IPython magic commands:
+
+* `%%llm` - Cell magic to send your prompt to the LLM
+* `%llm_config` - Line magic to configure session state and manage resources 
+* `%llm_config_persistent` - Enable ambient mode (process regular cells as LLM prompts)
+* `%disable_llm_config_persistent` - Disable ambient mode
+* `%%py` - Execute a cell as normal Python code when ambient mode is active
+
+For a comprehensive reference of all available magic commands and their arguments, see the [IPython Magic Commands documentation](docs/source/ipython_magic_commands.md).
+
 ### The `%%llm` Cell Spell
 
 This is your bread-and-butter. Anything in a cell marked with `%%llm` at the top gets sent as a prompt to the currently configured LLM.
 
 ```python
-%%llm --model ollama/codellama --persona python_expert
+%%llm --model gpt-4o --persona python_expert
 Write a python function that takes a list of numbers and returns the sum,
 but handle potential type errors gracefully.
 ```
 
-* `--model`: Temporarily use a different model for this spell.
-* `--persona`: Temporarily use a different personality for this spell.
-* `--nostream`: Disable streaming output just for this cell.
-* `--debug`: Get verbose logging output for this specific call.
+Common arguments:
+* `-p`, `--persona`: Temporarily use a different personality for this spell
+* `-m`, `--model`: Temporarily use a different model for this spell
+* `-t`, `--temperature`: Set temperature for this call
+* `--max-tokens`: Set max_tokens for this call
+* `--no-stream`: Disable streaming output just for this cell
+* `--no-history`: Don't add this exchange to conversation history
+* `--param KEY VALUE`: Set any other LLM param ad-hoc (e.g., `--param top_p 0.9`)
 
-### Configuring Your Wand (`%llm_setup` & `%llm_setup_forever`)
+### Configuring Your Session (`%llm_config` & `%llm_config_persistent`)
 
-* `%llm_setup`: Configure CellMage for the current session. Set defaults like your preferred model, API endpoints, persona folders, logging preferences, etc.
+* `%llm_config`: Configure CellMage for the current session. Set defaults like your preferred model, API endpoints, persona folders, logging preferences, etc.
     ```python
-    %llm_setup --default_model gpt-4o --persona coding_assistant --auto_save True --debug True
+    %llm_config --model gpt-4o --persona coding_assistant --auto_save True --status
     ```
-* `%llm_setup_forever`: Does the same as `%llm_setup`, *but also* enables the "Ambient Enchantment" mode, treating subsequent non-magic cells as prompts. Great for pure chat sessions! Use `%disable_llm_setup_forever` to deactivate.
+* `%llm_config_persistent`: Does the same as `%llm_config`, *but also* enables the "Ambient Enchantment" mode, treating subsequent non-magic cells as prompts. Great for pure chat sessions! Use `%disable_llm_config_persistent` to deactivate.
 
-### The Grimoire of Personas
+### Model Aliases
 
-Create `.md` files in a designated folder (default: `llm_personas`). The file content is the system prompt. Add YAML frontmatter for specific configs (like model, temperature):
+CellMage supports defining short aliases for model names. You can:
 
-```markdown
----
-model: gpt-3.5-turbo
-temperature: 0.2
----
-You are a helpful Python programming assistant. You provide clear, concise code examples and explanations. You prefer Pythonic solutions.
+1. Create a `cellmage_models.yml` file in your project directory:
+```yaml
+# Model aliases
+g4: gpt-4
+g4t: gpt-4-turbo
+c2: claude-2
 ```
 
-Save as `python_expert.md`, then use `%llm_setup --persona python_expert` or `%%llm --persona python_expert`.
+2. Manage aliases through magic commands:
+```python
+%llm_config --list-mappings  # Show current mappings
+%llm_config --add-mapping g4 gpt-4  # Add new mapping
+%llm_config --remove-mapping g4  # Remove mapping
+```
 
-### Connecting to Magical Fonts (API Config)
-
-CellMage needs to know how to reach your LLM. Set credentials via:
-
-1.  **Environment Variables (Recommended):**
-    * `NBLLM_API_KEY`: Your API key.
-    * `NBLLM_API_BASE`: The base URL for the API (e.g., `http://localhost:11434` for local Ollama, or your Azure endpoint). `litellm` often infers this for major providers if not set.
-2.  **`%llm_setup` / `%llm_setup_forever`:** Use the `--api_key` and `--api_base` arguments.
-3.  **Instance Overrides (Advanced):** Use `llm.set_override("api_key", "...")` if you access the underlying `NotebookLLMv6` object directly.
-
-### Peeking into the Scrolls (History & Rollback)
-
-CellMage automatically keeps track of your conversation.
-
-* `llm.show_history()`: Display the recent conversation turns.
-* `llm.get_history_df()`: Get the history as a Pandas DataFrame (if Pandas is installed).
-* `llm.revert_last()`: Manually undo the last user/assistant turn.
-* **Automatic Rollback:** If CellMage detects you've re-run a cell where you previously called `%%llm`, it magically removes the *previous* result from history before running the new one. No more cluttered history from experimentation!
-
-### Live Conjuring (Streaming)
-
-Streaming is enabled by default. You'll see the response appear token by token. Use `%%llm --nostream` or `%llm_setup --auto_display False` (which implies no streaming display) to disable it if needed.
+Then use your aliases anywhere you'd use a model name:
+```python
+%llm_config --model g4  # Use GPT-4
+%%llm -m g4t  # Use GPT-4 Turbo for this cell
+```
 
 ### Ambient Enchantment (Auto-Processing)
 
-Run `%llm_setup_forever`. Now, just type a prompt in a regular cell and run it! CellMage intercepts it and sends it to the LLM. Magic! Remember to `%disable_llm_setup_forever` when you want normal cell execution back.
+Run `%llm_config_persistent`. Now, just type a prompt in a regular cell and run it! CellMage intercepts it and sends it to the LLM. Magic!
+
+To run actual Python code while in ambient mode, use the `%%py` cell magic:
+
+```python
+%%py
+# This will run as normal Python code, not as an LLM prompt
+x = 10
+print(f"The value is {x}")
+```
+
+Remember to use `%disable_llm_config_persistent` when you want normal cell execution back.
 
 ### Spell Snippets
 
@@ -143,6 +170,37 @@ Need to include the content of a file (like code context or data) in your prompt
 ```
 
 The snippet content will be added to the history for the *next* LLM call.
+
+### Multiple Persona and Snippet Folders
+
+CellMage supports using personas and snippets from multiple directories, making it easier to organize resources by project or purpose:
+
+1. **Environment Variables**: Set additional directories using comma-separated values:
+   ```bash
+   # Using environment variables
+   export CELLMAGE_PERSONAS_DIRS=project_A/personas,project_B/personas
+   export CELLMAGE_SNIPPETS_DIRS=project_A/snippets,project_B/snippets
+   ```
+
+2. **Auto-discovery**: CellMage automatically looks for personas and snippets in standard locations:
+   - Root `llm_personas` and `llm_snippets` directories
+   - `notebooks/llm_personas`, `notebooks/llm_snippets`
+   - `notebooks/examples` and `notebooks/tests` subdirectories
+
+3. **Custom Loaders**: For programmatic access to multiple directories:
+   ```python
+   from cellmage.resources.file_loader import MultiFileLoader
+   
+   # Create a loader with multiple directories
+   loader = MultiFileLoader(
+       personas_dirs=["llm_personas", "project_A/personas"], 
+       snippets_dirs=["llm_snippets", "project_A/snippets"]
+   )
+   
+   # See available resources
+   print(f"Available personas: {loader.list_personas()}")
+   print(f"Available snippets: {loader.list_snippets()}")
+   ```
 
 ### Mana Tracking (Status Bar)
 

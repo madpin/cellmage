@@ -1,153 +1,322 @@
-import yaml
-from pathlib import Path
-from typing import List, Dict, Any, Tuple
 import logging
+import os
+import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
+if TYPE_CHECKING:
+    import yaml
+else:
+    import yaml  # type: ignore
+
+from ..exceptions import PersistenceError
 from ..interfaces import HistoryStore
-from ..models import Message, ConversationMetadata
-from ..exceptions import PersistenceError, ResourceNotFoundError
+from ..models import ConversationMetadata, Message
 
-logger = logging.getLogger(__name__)
-
-# Use the same parser as FileLoader for consistency
-from ..resources.file_loader import _parse_markdown_frontmatter, YAML_FRONT_MATTER_REGEX
 
 class MarkdownStore(HistoryStore):
-    """Saves and loads conversation history to/from Markdown files with YAML frontmatter."""
+    """
+    Stores conversation history as markdown files with YAML frontmatter.
+    """
 
-    DEFAULT_EXTENSION = ".md"
-
-    def __init__(self, base_dir: Path):
+    def __init__(self, save_dir: str = "llm_conversations"):
         """
-        Initializes the MarkdownStore.
+        Initialize the markdown store.
 
         Args:
-            base_dir: The directory where conversation files will be stored.
+            save_dir: Directory to save conversations
         """
-        self.base_dir = Path(base_dir)
-        if not self.base_dir.is_dir():
-            logger.warning(f"History storage directory not found: {self.base_dir}. Creating it.")
-            self.base_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"MarkdownStore initialized. Storage directory: '{self.base_dir}'")
+        self.save_dir = save_dir
+        self.logger = logging.getLogger(__name__)
 
-    def _get_path(self, identifier: str) -> Path:
-        """Constructs the full path for a given identifier."""
-        # Ensure identifier doesn't contain path traversal characters for security
-        safe_identifier = Path(identifier).name
-        if not safe_identifier.endswith(self.DEFAULT_EXTENSION):
-             safe_identifier += self.DEFAULT_EXTENSION
-        return self.base_dir / safe_identifier
+        # Ensure save directory exists
+        if self.save_dir:
+            try:
+                os.makedirs(self.save_dir, exist_ok=True)
+                self.logger.info(f"Save directory setup: {os.path.abspath(self.save_dir)}")
+            except OSError as e:
+                self.logger.error(f"Error creating save directory '{save_dir}': {e}")
 
-    def save(self, messages: List[Message], metadata: ConversationMetadata) -> str:
+    def save_conversation(
+        self,
+        messages: List[Message],
+        metadata: ConversationMetadata,
+        filename: Optional[str] = None,
+    ) -> Optional[str]:
         """
-        Saves the history and metadata to a markdown file.
-        Metadata is stored as YAML frontmatter.
-        Messages are appended, formatted as markdown blockquotes or similar.
+        Save a conversation to a markdown file.
+
+        Args:
+            messages: List of messages in the conversation
+            metadata: Metadata about the conversation
+            filename: Optional filename (without extension) to use
+
+        Returns:
+            Path to the saved file or None on failure
         """
-        identifier = metadata.session_id # Use session ID from metadata as filename base
-        file_path = self._get_path(identifier)
-        logger.debug(f"Attempting to save session '{identifier}' to {file_path}")
+        if not self.save_dir:
+            self.logger.error("Save failed: No save directory configured")
+            return None
+
+        if not messages:
+            self.logger.warning("Save skipped: No messages to save")
+            return None
+
+        # Generate filename if not provided
+        if not filename:
+            now = datetime.now().strftime("%Y%m%d_%H%M%S")
+            first_user_msg = next((m for m in messages if m.role == "user"), None)
+
+            if first_user_msg:
+                # Get first few words of first user message for filename
+                first_words = "_".join(first_user_msg.content.split()[:5])
+                safe_words = "".join(c if c.isalnum() or c in ["_"] else "" for c in first_words)
+                filename = f"chat_{now}_{safe_words if safe_words else 'conversation'}"
+            else:
+                filename = f"chat_{now}"
+        else:
+            # Only add timestamp if the filename doesn't already contain a date pattern (YYYYMMDD_HHMMSS)
+            if not any(part.isdigit() and len(part) == 8 for part in filename.split("_")):
+                now = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"{filename}_{now}"
+
+        # Ensure filename doesn't have extension
+        filename = os.path.splitext(filename)[0]
+        full_path = os.path.join(self.save_dir, f"{filename}.md")
+
+        # Calculate additional metadata that might be useful
+        total_messages = len(messages)
+        turns = len([m for m in messages if m.role == "user"])
+
+        # Format the current date for display
+        current_date = datetime.now().strftime("%B %d, %Y")
+
+        # Convert metadata to serializable dict using only fields that exist
+        metadata_dict = {
+            "session_id": str(metadata.session_id),
+            "saved_at": metadata.saved_at.isoformat(),
+            "total_messages": total_messages,  # Calculated, not from ConversationMetadata
+            "turns": turns,  # Calculated, not from ConversationMetadata
+        }
+
+        # Only add optional fields if they're present
+        if metadata.persona_name:
+            metadata_dict["persona_name"] = metadata.persona_name
+
+        if metadata.model_name:
+            metadata_dict["model_name"] = metadata.model_name
+
+        if metadata.total_tokens:
+            metadata_dict["total_tokens"] = metadata.total_tokens
+
+        # Prepare content parts
+        content_parts = []
+
+        # Add date header
+        content_parts.append(f"# Conversation on {current_date}\n\n")
+
+        # Group messages by role for better readability
+        current_role: Optional[str] = None
+        current_text: List[str] = []
+
+        for msg in messages:
+            if msg.role != current_role:
+                # Save previous role's content if we have any
+                if current_text:
+                    role_prefix = (
+                        "**You:**"
+                        if current_role == "user"
+                        else f"**{current_role or 'Unknown'}:**"
+                    )
+                    content_parts.append(f"{role_prefix}\n{''.join(current_text)}\n")
+                    current_text = []
+
+                # Only add separator after non-user roles
+                if current_role and current_role != "user":
+                    content_parts.append("---\n")
+
+                current_role = msg.role
+
+            current_text.append(f"{msg.content}\n")
+
+        # Add any remaining text
+        if current_text:
+            role_prefix = (
+                "**You:**" if current_role == "user" else f"**{current_role or 'Unknown'}:**"
+            )
+            content_parts.append(f"{role_prefix}\n{''.join(current_text)}\n")
+
+        # Add separator after final assistant/system message
+        if current_role and current_role != "user":
+            content_parts.append("---\n")
+
+        content = "".join(content_parts)
 
         try:
-            # Prepare frontmatter (serialize metadata)
-            # Exclude session_id as it's used for the filename
-            metadata_dict = metadata.model_dump(exclude={'session_id'}, mode='json') # Use 'json' mode for datetime serialization
-            frontmatter_yaml = yaml.dump(metadata_dict, default_flow_style=False, sort_keys=False)
+            # Write the file with YAML frontmatter and content
+            with open(full_path, "w", encoding="utf-8") as f:
+                f.write("---\n")
+                yaml.dump(metadata_dict, f, default_flow_style=False)
+                f.write("---\n\n")
+                f.write(content.strip())
 
-            # Prepare message content
-            message_content = "\n\n".join(self._format_message_as_markdown(msg) for msg in messages)
-
-            # Combine and write
-            full_content = f"---\n{frontmatter_yaml}---\n\n{message_content}\n"
-
-            file_path.write_text(full_content, encoding='utf-8')
-            logger.info(f"Successfully saved session '{identifier}' to {file_path}")
-            return str(file_path) # Return the actual path saved
-
-        except yaml.YAMLError as e:
-             logger.exception(f"Failed to serialize metadata to YAML for session '{identifier}'.")
-             raise PersistenceError(f"YAML serialization error saving '{identifier}': {e}") from e
-        except IOError as e:
-             logger.exception(f"Failed to write history file: {file_path}")
-             raise PersistenceError(f"File write error saving '{identifier}': {e}") from e
+            self.logger.info(f"Conversation saved to {os.path.abspath(full_path)}")
+            return full_path
         except Exception as e:
-             logger.exception(f"An unexpected error occurred while saving session '{identifier}'.")
-             raise PersistenceError(f"Unexpected error saving '{identifier}': {e}") from e
+            self.logger.error(f"Error saving conversation to {full_path}: {e}")
+            raise PersistenceError(f"Failed to save conversation: {e}")
 
-    def load(self, identifier: str) -> Tuple[List[Message], ConversationMetadata]:
+    def load_conversation(self, filepath: str) -> Tuple[List[Message], ConversationMetadata]:
         """
-        Loads history and metadata from a markdown file.
-        """
-        file_path = self._get_path(identifier)
-        logger.debug(f"Attempting to load session '{identifier}' from {file_path}")
+        Load a conversation from a markdown file.
 
-        if not file_path.is_file():
-            raise ResourceNotFoundError("history", identifier)
+        Args:
+            filepath: Path to the conversation file
+
+        Returns:
+            Tuple of (messages, metadata)
+        """
+        if not os.path.isfile(filepath):
+            self.logger.error(f"File not found: {filepath}")
+            raise PersistenceError(f"Conversation file not found: {filepath}")
 
         try:
-            full_content = file_path.read_text(encoding='utf-8')
+            with open(filepath, "r", encoding="utf-8") as f:
+                content = f.read()
 
-            # Parse frontmatter and main content
-            frontmatter_dict, message_section = _parse_markdown_frontmatter(full_content)
+            # Parse frontmatter and content
+            if not content.startswith("---"):
+                self.logger.error(f"Invalid conversation file format: {filepath}")
+                raise PersistenceError(
+                    f"Invalid conversation file format, missing frontmatter: {filepath}"
+                )
 
-            # --- TODO: Implement robust parsing of message_section back into Message objects ---
-            # This is the complex part. How were messages formatted in _format_message_as_markdown?
-            # Need a corresponding parser here.
-            # Placeholder: Assume simple parsing for now.
-            messages = self._parse_messages_from_markdown(message_section)
-            # --- End Placeholder ---
+            # Split on the second occurrence of '---'
+            parts = content[3:].split("---", 1)
+            if len(parts) < 2:
+                self.logger.error(f"Invalid conversation file format: {filepath}")
+                raise PersistenceError(
+                    f"Invalid conversation file format, incomplete frontmatter: {filepath}"
+                )
 
-            # Validate and deserialize metadata
-            # Add back session_id from the identifier used
-            frontmatter_dict['session_id'] = Path(identifier).stem # Use stem to remove suffix if present
-            metadata = ConversationMetadata.model_validate(frontmatter_dict)
+            # Parse frontmatter
+            yaml_part = parts[0].strip()
+            metadata_dict = yaml.safe_load(yaml_part) or {}
 
-            logger.info(f"Successfully loaded session '{identifier}' from {file_path}. Found {len(messages)} messages.")
+            # Create metadata object
+            metadata = ConversationMetadata(
+                session_id=uuid.UUID(metadata_dict.get("session_id", str(uuid.uuid4()))),
+                saved_at=datetime.fromisoformat(
+                    metadata_dict.get("saved_at", datetime.now().isoformat())
+                ),
+                persona_name=metadata_dict.get("persona_name"),
+                model_name=metadata_dict.get("model_name"),
+                total_tokens=metadata_dict.get("total_tokens"),
+            )
+
+            # Parse content into messages
+            messages = []
+            content_text = parts[1].strip()
+
+            # Simple parsing based on role markers
+            # More robust parsing might be needed for complex conversations
+            current_role: Optional[str] = None
+            current_content: List[str] = []
+
+            for line in content_text.split("\n"):
+                if line.startswith("**System:**"):
+                    if current_role and current_content:
+                        messages.append(
+                            Message(
+                                role=current_role,
+                                content="\n".join(current_content).strip(),
+                                id=str(uuid.uuid4()),
+                            )
+                        )
+                        current_content = []
+                    current_role = "system"
+                elif line.startswith("**You:**"):
+                    if current_role and current_content:
+                        messages.append(
+                            Message(
+                                role=current_role,
+                                content="\n".join(current_content).strip(),
+                                id=str(uuid.uuid4()),
+                            )
+                        )
+                        current_content = []
+                    current_role = "user"
+                elif line.startswith("**Assistant:**"):
+                    if current_role and current_content:
+                        messages.append(
+                            Message(
+                                role=current_role,
+                                content="\n".join(current_content).strip(),
+                                id=str(uuid.uuid4()),
+                            )
+                        )
+                        current_content = []
+                    current_role = "assistant"
+                elif line == "---":
+                    # Skip separator lines
+                    continue
+                else:
+                    # Add line to current content if we have a role
+                    if current_role:
+                        current_content.append(line)
+
+            # Add the final message
+            if current_role and current_content:
+                messages.append(
+                    Message(
+                        role=current_role,
+                        content="\n".join(current_content).strip(),
+                        id=str(uuid.uuid4()),
+                    )
+                )
+
+            self.logger.info(f"Loaded conversation from {filepath} with {len(messages)} messages")
             return messages, metadata
 
-        except FileNotFoundError: # Defensive
-             raise ResourceNotFoundError("history", identifier) from None
-        except yaml.YAMLError as e:
-             logger.exception(f"Failed to parse YAML frontmatter from file: {file_path}")
-             raise PersistenceError(f"YAML parsing error loading '{identifier}': {e}") from e
-        except Exception as e: # Catches Pydantic validation errors too
-            logger.exception(f"Failed to load or parse history file: {file_path}")
-            raise PersistenceError(f"Error loading history '{identifier}': {e}") from e
-
-    def list_saved(self) -> List[str]:
-        """Lists identifiers (filenames without extension) of saved histories."""
-        if not self.base_dir.exists():
-             logger.warning(f"Cannot list saved histories, directory does not exist: {self.base_dir}")
-             return []
-        try:
-            # Return the stem (filename without suffix)
-            return sorted([p.stem for p in self.base_dir.glob(f"*{self.DEFAULT_EXTENSION}") if p.is_file()])
         except Exception as e:
-             logger.exception(f"Failed to list files in history directory: {self.base_dir}")
-             return []
+            self.logger.error(f"Error loading conversation from {filepath}: {e}")
+            raise PersistenceError(f"Failed to load conversation: {e}")
 
-    def _format_message_as_markdown(self, message: Message) -> str:
-        """Formats a single Message object into a markdown string for saving."""
-        # Example format: Role as heading, metadata as details, content as blockquote
-        # --- TODO: Finalize a robust and parsable format ---
-        metadata_str = f"ID: {message.id} | Timestamp: {message.timestamp.isoformat()} | Cell: {message.cell_id or 'N/A'} | Exec: {message.execution_count or 'N/A'}"
-        if message.metadata:
-             metadata_str += f" | Meta: {message.metadata}"
+    def list_saved_conversations(self) -> List[Dict[str, Any]]:
+        """
+        List available saved conversations.
 
-        return f"### {message.role.capitalize()}\n`{metadata_str}`\n\n> {message.content.strip()}" # Simple blockquote example
+        Returns:
+            List of conversation metadata dicts with paths
+        """
+        if not self.save_dir or not os.path.isdir(self.save_dir):
+            self.logger.warning(f"Save directory not found: {self.save_dir}")
+            return []
 
-    def _parse_messages_from_markdown(self, markdown_content: str) -> List[Message]:
-        """Parses the message section of the markdown file back into Message objects."""
-        # --- TODO: Implement the parser corresponding to _format_message_as_markdown ---
-        # This needs to reliably split the content back into individual messages
-        # and extract role, content, and potentially reconstruct metadata.
-        # This is non-trivial if the content itself contains markdown similar to the separators.
-        # Using separators like '---' between messages might be more robust.
-        logger.warning("_parse_messages_from_markdown is not fully implemented. Returning empty list.")
-        messages: List[Message] = []
-        # Placeholder logic: Split by headings? Very fragile.
-        # parts = re.split(r'\n### (System|User|Assistant)\n', markdown_content)
-        # ... complex parsing logic needed ...
-        return messages
+        conversations = []
 
+        try:
+            for filename in os.listdir(self.save_dir):
+                if filename.lower().endswith(".md"):
+                    filepath = os.path.join(self.save_dir, filename)
+                    try:
+                        # Open the file and read just the frontmatter
+                        with open(filepath, "r", encoding="utf-8") as f:
+                            content = f.read()
+
+                        if content.startswith("---"):
+                            parts = content[3:].split("---", 1)
+                            if len(parts) >= 1:
+                                yaml_part = parts[0].strip()
+                                metadata = yaml.safe_load(yaml_part) or {}
+                                metadata["filepath"] = filepath
+                                metadata["filename"] = filename
+                                conversations.append(metadata)
+                    except Exception as e:
+                        self.logger.error(f"Error reading metadata from {filepath}: {e}")
+
+            self.logger.info(f"Found {len(conversations)} saved conversations")
+            return conversations
+        except Exception as e:
+            self.logger.error(f"Error listing conversations in {self.save_dir}: {e}")
+            return []
