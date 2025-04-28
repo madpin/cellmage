@@ -1,9 +1,8 @@
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import requests
 else:
