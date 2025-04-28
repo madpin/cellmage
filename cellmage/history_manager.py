@@ -1,9 +1,8 @@
 import logging
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional
 
-from .exceptions import HistoryManagementError
 from .interfaces import ContextProvider, HistoryStore
 from .models import ConversationMetadata, Message
 

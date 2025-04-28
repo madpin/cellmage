@@ -6,7 +6,6 @@ that works with IPython/Jupyter environments.
 """
 
 import logging
-import sys
 from typing import Any, Dict, Optional, Tuple
 
 # Set up logging
@@ -14,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 # Try to import IPython dependencies with fallbacks
 try:
-    from IPython import get_ipython
-    from IPython.display import HTML, Markdown, clear_output, display
+    from IPython import get_ipython # noqa: E402
+    from IPython.display import HTML, Markdown, clear_output, display # noqa: E402
 
     _IPYTHON_AVAILABLE = True
 except ImportError:
@@ -24,14 +23,14 @@ except ImportError:
 # Make ipywidgets optional
 _WIDGETS_AVAILABLE = False
 try:
-    import ipywidgets as widgets
+    import ipywidgets as widgets # noqa: E402
 
     _WIDGETS_AVAILABLE = True
 except ImportError:
     logger.debug("ipywidgets not available, falling back to simpler display methods")
 
 # Import from parent package
-from ..interfaces import ContextProvider
+from ..interfaces import ContextProvider # noqa: E402
 
 
 class IPythonContextProvider(ContextProvider):

@@ -16,9 +16,8 @@ os.environ["CELLMAGE_SKIP_DOTENV"] = "1"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from cellmage.chat_manager import ChatManager
-from cellmage.config import Settings
 from cellmage.history_manager import HistoryManager
-from cellmage.models import ConversationMetadata, Message, PersonaConfig
+from cellmage.models import ConversationMetadata, Message
 from cellmage.resources.memory_loader import MemoryLoader
 from cellmage.storage.memory_store import MemoryStore
 

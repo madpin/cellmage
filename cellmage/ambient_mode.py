@@ -6,8 +6,7 @@ the ability to treat regular code cells as LLM prompts automatically.
 """
 
 import logging
-import sys
-from typing import Any, List, Optional
+from typing import Any, List
 
 # Set up logging
 logger = logging.getLogger(__name__)

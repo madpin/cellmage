@@ -1,15 +1,11 @@
-import json
 import logging
 import os
 from typing import Any, Dict, List, Optional, Union
 
 from langchain_core.callbacks import StreamingStdOutCallbackHandler
-from langchain_core.callbacks.manager import CallbackManagerForLLMRun
 
 # Import from langchain-openai package for LangChain 0.3.24
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 from ..exceptions import ConfigurationError, LLMInteractionError
@@ -284,7 +280,7 @@ class LangChainAdapter(LLMClientInterface):
             if api_base:
                 chat_params["base_url"] = api_base
 
-            chat = ChatOpenAI(**chat_params)
+            _ = ChatOpenAI(**chat_params)
 
             # This is a simplified implementation as LangChain doesn't provide
             # a direct way to list models. We'd need to make a custom request.

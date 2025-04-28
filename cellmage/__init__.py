@@ -6,12 +6,12 @@ from .utils.logging import setup_logging
 setup_logging()
 
 # Import required Python libraries
-import logging
-import os
+import logging  # noqa: E402
+import os  # noqa: E402
 
 # Expose key classes and exceptions for easier import by users
-from .chat_manager import ChatManager
-from .exceptions import (
+from .chat_manager import ChatManager  # noqa: E402
+from .exceptions import ( # noqa: E402
     ConfigurationError,
     HistoryManagementError,
     LLMInteractionError,
@@ -22,7 +22,7 @@ from .exceptions import (
 )
 
 # Expose interfaces if they are intended for external implementation/type hinting
-from .interfaces import (
+from .interfaces import ( # noqa: E402
     ContextProvider,
     HistoryStore,
     LLMClientInterface,
@@ -32,7 +32,7 @@ from .interfaces import (
 )
 
 # Expose core models
-from .models import ConversationMetadata, Message, PersonaConfig
+from .models import ConversationMetadata, Message, PersonaConfig  # noqa: E402
 
 # Import IPython extension entry points
 try:
@@ -68,9 +68,7 @@ def get_default_manager():
 
                 adapter_class = DirectLLMAdapter
             except ImportError:
-                raise ConfigurationError(
-                    "DirectLLMAdapter is not available. Please check your installation."
-                )
+                raise ConfigurationError("DirectLLMAdapter is not available. Please check your installation.")
 
             from .resources.file_loader import MultiFileLoader
             from .storage.markdown_store import MarkdownStore
@@ -99,18 +97,12 @@ def get_default_manager():
                 # Add notebook-specific directories
                 for subdir_name in ["llm_personas", "personas"]:
                     notebooks_personas_dir = os.path.join(notebook_dir, subdir_name)
-                    if (
-                        os.path.isdir(notebooks_personas_dir)
-                        and notebooks_personas_dir not in persona_dirs
-                    ):
+                    if os.path.isdir(notebooks_personas_dir) and notebooks_personas_dir not in persona_dirs:
                         persona_dirs.append(notebooks_personas_dir)
 
                 for subdir_name in ["llm_snippets", "snippets"]:
                     notebooks_snippets_dir = os.path.join(notebook_dir, subdir_name)
-                    if (
-                        os.path.isdir(notebooks_snippets_dir)
-                        and notebooks_snippets_dir not in snippet_dirs
-                    ):
+                    if os.path.isdir(notebooks_snippets_dir) and notebooks_snippets_dir not in snippet_dirs:
                         snippet_dirs.append(notebooks_snippets_dir)
 
                 # Check subdirectories: examples, tests, tutorials
@@ -120,19 +112,13 @@ def get_default_manager():
                         # Check for persona directories
                         for subdir_name in ["llm_personas", "personas"]:
                             sub_personas_dir = os.path.join(sub_dir, subdir_name)
-                            if (
-                                os.path.isdir(sub_personas_dir)
-                                and sub_personas_dir not in persona_dirs
-                            ):
+                            if os.path.isdir(sub_personas_dir) and sub_personas_dir not in persona_dirs:
                                 persona_dirs.append(sub_personas_dir)
 
                         # Check for snippet directories
                         for subdir_name in ["llm_snippets", "snippets"]:
                             sub_snippets_dir = os.path.join(sub_dir, subdir_name)
-                            if (
-                                os.path.isdir(sub_snippets_dir)
-                                and sub_snippets_dir not in snippet_dirs
-                            ):
+                            if os.path.isdir(sub_snippets_dir) and sub_snippets_dir not in snippet_dirs:
                                 snippet_dirs.append(sub_snippets_dir)
 
             # Log discovered directories

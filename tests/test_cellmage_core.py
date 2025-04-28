@@ -2,18 +2,16 @@ import os
 import sys
 import unittest
 import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # Add the parent directory to path so we can import cellmage
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import cellmage
 from cellmage.exceptions import (
-    ConfigurationError,
     NotebookLLMError,
-    ResourceNotFoundError,
 )
-from cellmage.models import ConversationMetadata, Message, PersonaConfig
+from cellmage.models import ConversationMetadata, Message
 from cellmage.resources.memory_loader import MemoryLoader
 from cellmage.storage.memory_store import MemoryStore
 

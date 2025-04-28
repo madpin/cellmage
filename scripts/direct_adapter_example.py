@@ -16,7 +16,6 @@ Requirements:
 
 import argparse
 import logging
-import os
 from typing import Optional
 
 # Configure logging

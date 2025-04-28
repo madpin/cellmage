@@ -3,13 +3,11 @@ import os
 import time
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from .config import Settings
 from .exceptions import (
     ConfigurationError,
-    LLMInteractionError,
-    NotebookLLMError,
     ResourceNotFoundError,
 )
 from .history_manager import HistoryManager
@@ -19,7 +17,6 @@ from .interfaces import (
     LLMClientInterface,
     PersonaLoader,
     SnippetProvider,
-    StreamCallbackHandler,
 )
 from .model_mapping import ModelMapper
 from .models import Message, PersonaConfig

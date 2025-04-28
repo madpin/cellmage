@@ -1,10 +1,6 @@
 import json
 import logging
 import os
-import threading
-import time
-import uuid
-from queue import Queue
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import requests
@@ -400,7 +396,7 @@ class DirectLLMAdapter(LLMClientInterface):
         try:
             error_info = response.json()
             error_message = error_info.get("error", {}).get("message", "Unknown error")
-            error_type = error_info.get("error", {}).get("type", "Unknown error type")
+            _ = error_info.get("error", {}).get("type", "Unknown error type")
             status_code = response.status_code
 
             if status_code == 401:
@@ -454,7 +450,7 @@ class DirectLLMAdapter(LLMClientInterface):
                 self.logger.info(f"Successfully fetched {len(models_data['data'])} models")
                 return models_data["data"]
             else:
-                self.logger.warning(f"Unexpected response format from models endpoint")
+                self.logger.warning("Unexpected response format from models endpoint")
                 return []
         except Exception as e:
             self.logger.error(f"Error fetching models: {e}")

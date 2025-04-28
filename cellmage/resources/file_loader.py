@@ -1,10 +1,9 @@
 import logging
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import List, Optional
 
 import yaml
 
-from ..exceptions import ResourceNotFoundError
 from ..interfaces import PersonaLoader, SnippetProvider
 from ..models import PersonaConfig
 
@@ -31,7 +30,7 @@ class FileLoader(PersonaLoader, SnippetProvider):
         # Ensure directories exist
         for directory in [self.personas_dir, self.snippets_dir]:
             if not directory.strip():  # Skip empty strings
-                self.logger.warning(f"Skipping empty directory path")
+                self.logger.warning("Skipping empty directory path")
                 continue
 
             try:

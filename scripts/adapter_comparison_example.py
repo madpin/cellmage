@@ -15,7 +15,7 @@ Requirements:
 
 import logging
 import os
-from typing import List, Optional
+from typing import List
 
 from cellmage.adapters.direct_client import DirectLLMAdapter
 from cellmage.models import Message

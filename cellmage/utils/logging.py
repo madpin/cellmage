@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Optional, Union
+from typing import Optional
 
 from ..config import settings  # Import settings to get log level from environment
 

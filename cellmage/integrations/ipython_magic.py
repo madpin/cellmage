@@ -9,7 +9,7 @@ import os
 import sys
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 # IPython imports with fallback handling
 try:
@@ -51,8 +51,6 @@ from ..ambient_mode import (
 from ..chat_manager import ChatManager
 from ..context_providers.ipython_context_provider import get_ipython_context_provider
 from ..exceptions import (
-    ConfigurationError,
-    LLMInteractionError,
     PersistenceError,
     ResourceNotFoundError,
 )
@@ -494,7 +492,7 @@ class NotebookLLMMagics(Magics):
                 logger.info(f"Setting default model to: {args.model}")
                 print(f"✅ Default model set to: {args.model}")
             else:
-                print(f"⚠️ Could not set model: LLM client not found or doesn't support overrides")
+                print("⚠️ Could not set model: LLM client not found or doesn't support overrides")
 
         if hasattr(args, "list_mappings") and args.list_mappings:
             action_taken = True
