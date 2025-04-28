@@ -1,4 +1,4 @@
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 # Configure logging as early as possible
 from .utils.logging import setup_logging
