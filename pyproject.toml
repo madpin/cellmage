@@ -96,6 +96,7 @@ exclude = '''
     | \.pytest_cache
     | \.vscode
     | \.venv
+    | \.tox
     | \bdist\b
     | \bdoc\b
 )

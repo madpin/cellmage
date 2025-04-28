@@ -64,9 +64,7 @@ class LangChainAdapter(LLMClientInterface):
             self.set_override("api_key", api_key)
 
         # Set API base from param or env var
-        api_base = (
-            api_base or os.environ.get("CELLMAGE_API_BASE") or os.environ.get("OPENAI_API_BASE")
-        )
+        api_base = api_base or os.environ.get("CELLMAGE_API_BASE") or os.environ.get("OPENAI_API_BASE")
         if api_base:
             self.set_override("api_base", api_base)
 
@@ -123,9 +121,7 @@ class LangChainAdapter(LLMClientInterface):
         if default_model is not None:
             self._instance_overrides["model"] = default_model
 
-        self.logger.info(
-            "[Override] Overrides cleared, preserving api_key and api_base. Model reset to default."
-        )
+        self.logger.info("[Override] Overrides cleared, preserving api_key and api_base. Model reset to default.")
 
     def get_overrides(self) -> Dict[str, Any]:
         """
@@ -186,9 +182,7 @@ class LangChainAdapter(LLMClientInterface):
             # Get API credentials and model
             api_key = kwargs.pop("api_key", None) or self._instance_overrides.get("api_key")
             api_base = kwargs.pop("api_base", None) or self._instance_overrides.get("api_base")
-            final_model = (
-                model or kwargs.pop("model", None) or self._instance_overrides.get("model")
-            )
+            final_model = model or kwargs.pop("model", None) or self._instance_overrides.get("model")
 
             if not api_key:
                 raise ConfigurationError(

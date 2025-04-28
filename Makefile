@@ -11,6 +11,12 @@ run-checks :
 	mypy .
 	CUDA_VISIBLE_DEVICES='' pytest -v --color=yes --doctest-modules tests/ cellmage/
 
+run-fix :
+	isort .
+	black --config pyproject.toml .
+	ruff --config pyproject.toml format
+	CUDA_VISIBLE_DEVICES='' pytest -v --color=yes --doctest-modules tests/ cellmage/
+
 .PHONY : build
 build :
 	rm -rf *.egg-info/

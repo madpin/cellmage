@@ -29,9 +29,7 @@ def setup_logging(
 
     # Get log level from settings - convert string to logging level
     log_level_str = settings.log_level.upper()
-    configured_level = getattr(
-        logging, log_level_str, logging.INFO
-    )  # Default to INFO for file logs
+    configured_level = getattr(logging, log_level_str, logging.INFO)  # Default to INFO for file logs
 
     # Get console log level from settings - convert string to logging level
     console_level_str = settings.console_log_level.upper()
@@ -57,9 +55,7 @@ def setup_logging(
             os.makedirs(log_dir, exist_ok=True)
 
         fh = logging.FileHandler(log_file, encoding="utf-8")
-        fh.setLevel(
-            logging.INFO if not debug else logging.DEBUG
-        )  # Always INFO or DEBUG if debug=True
+        fh.setLevel(logging.INFO if not debug else logging.DEBUG)  # Always INFO or DEBUG if debug=True
         fh.setFormatter(formatter)
         logger.addHandler(fh)
     except Exception as e:

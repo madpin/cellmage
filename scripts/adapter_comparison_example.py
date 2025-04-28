@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 def test_adapter(name: str, adapter, prompts: List[str], stream: bool = False):
     """Test an adapter with a series of prompts."""
-    print(f"\n{'-'*20} Testing {name} {'-'*20}")
+    print(f"\n{'-' * 20} Testing {name} {'-' * 20}")
 
     # Display adapter details
     if hasattr(adapter, "__class__"):
@@ -62,7 +62,7 @@ def test_adapter(name: str, adapter, prompts: List[str], stream: bool = False):
         except Exception as e:
             print(f"Error: {e}")
 
-    print(f"{'-'*20} End of {name} Test {'-'*20}\n")
+    print(f"{'-' * 20} End of {name} Test {'-' * 20}\n")
 
 
 def main():

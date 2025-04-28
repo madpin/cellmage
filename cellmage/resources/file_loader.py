@@ -51,9 +51,7 @@ class FileLoader(PersonaLoader, SnippetProvider):
         """
         try:
             if not os.path.isdir(self.personas_dir):
-                self.logger.warning(
-                    f"Personas directory not found: {os.path.abspath(self.personas_dir)}"
-                )
+                self.logger.warning(f"Personas directory not found: {os.path.abspath(self.personas_dir)}")
                 return []
 
             personas = []
@@ -108,9 +106,7 @@ class FileLoader(PersonaLoader, SnippetProvider):
         # Otherwise try case-insensitive match
         try:
             if not os.path.isdir(self.personas_dir):
-                self.logger.warning(
-                    f"Personas directory not found: {os.path.abspath(self.personas_dir)}"
-                )
+                self.logger.warning(f"Personas directory not found: {os.path.abspath(self.personas_dir)}")
                 return None
 
             for filename in os.listdir(self.personas_dir):
@@ -228,9 +224,7 @@ model: gpt-4.1-nano
         """
         try:
             if not os.path.isdir(self.snippets_dir):
-                self.logger.warning(
-                    f"Snippets directory not found: {os.path.abspath(self.snippets_dir)}"
-                )
+                self.logger.warning(f"Snippets directory not found: {os.path.abspath(self.snippets_dir)}")
                 return []
 
             snippets = []
@@ -304,9 +298,7 @@ class MultiFileLoader(PersonaLoader, SnippetProvider):
     returning the first match found.
     """
 
-    def __init__(
-        self, personas_dirs: Optional[List[str]] = None, snippets_dirs: Optional[List[str]] = None
-    ):
+    def __init__(self, personas_dirs: Optional[List[str]] = None, snippets_dirs: Optional[List[str]] = None):
         """
         Initialize the MultiFileLoader.
 
@@ -326,20 +318,12 @@ class MultiFileLoader(PersonaLoader, SnippetProvider):
         self.logger = logging.getLogger(__name__)
 
         # Create individual loaders for each directory
-        self.persona_loaders = [
-            FileLoader(personas_dir=d, snippets_dir="") for d in self.personas_dirs
-        ]
-        self.snippet_loaders = [
-            FileLoader(personas_dir="", snippets_dir=d) for d in self.snippets_dirs
-        ]
+        self.persona_loaders = [FileLoader(personas_dir=d, snippets_dir="") for d in self.personas_dirs]
+        self.snippet_loaders = [FileLoader(personas_dir="", snippets_dir=d) for d in self.snippets_dirs]
 
         # Log configuration
-        self.logger.info(
-            f"MultiFileLoader initialized with persona directories: {self.personas_dirs}"
-        )
-        self.logger.info(
-            f"MultiFileLoader initialized with snippet directories: {self.snippets_dirs}"
-        )
+        self.logger.info(f"MultiFileLoader initialized with persona directories: {self.personas_dirs}")
+        self.logger.info(f"MultiFileLoader initialized with snippet directories: {self.snippets_dirs}")
 
     def list_personas(self) -> List[str]:
         """

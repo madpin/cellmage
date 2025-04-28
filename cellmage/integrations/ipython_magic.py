@@ -95,9 +95,7 @@ def _init_default_manager() -> ChatManager:
                 logger.info("Using LangChain adapter")
             except ImportError:
                 # Fall back to Direct adapter if LangChain is not available
-                logger.warning(
-                    "LangChain adapter requested but not available. Falling back to Direct adapter."
-                )
+                logger.warning("LangChain adapter requested but not available. Falling back to Direct adapter.")
                 from ..adapters.direct_client import DirectLLMAdapter
 
                 llm_client = DirectLLMAdapter(default_model=settings.default_model)
@@ -122,9 +120,7 @@ def _init_default_manager() -> ChatManager:
     except Exception as e:
         logger.exception("FATAL: Failed to initialize default NotebookLLM ChatManager.")
         _initialization_error = e  # Store the error
-        raise RuntimeError(
-            f"NotebookLLM setup failed. Please check configuration and logs. Error: {e}"
-        ) from e
+        raise RuntimeError(f"NotebookLLM setup failed. Please check configuration and logs. Error: {e}") from e
 
 
 def get_chat_manager() -> ChatManager:
@@ -213,21 +209,15 @@ class NotebookLLMMagics(Magics):
                     if len(history) >= 2:
                         # Convert Any | None values to appropriate types that won't cause type errors
                         tokens_in = history[-2].metadata.get("tokens_in", 0)
-                        status_info["tokens_in"] = (
-                            float(tokens_in) if tokens_in is not None else 0.0
-                        )
+                        status_info["tokens_in"] = float(tokens_in) if tokens_in is not None else 0.0
 
                         tokens_out = history[-1].metadata.get("tokens_out", 0)
-                        status_info["tokens_out"] = (
-                            float(tokens_out) if tokens_out is not None else 0.0
-                        )
+                        status_info["tokens_out"] = float(tokens_out) if tokens_out is not None else 0.0
 
                         status_info["cost_str"] = history[-1].metadata.get("cost_str", "")
                         status_info["model_used"] = history[-1].metadata.get("model_used", "")
                 except Exception as e:
-                    logger.warning(
-                        f"Error retrieving status info from history in ambient mode: {e}"
-                    )
+                    logger.warning(f"Error retrieving status info from history in ambient mode: {e}")
 
         except Exception as e:
             print(f"❌ LLM Error (Ambient Mode): {e}", file=sys.stderr)
@@ -435,9 +425,7 @@ class NotebookLLMMagics(Magics):
 
             # Print history header with token counts
             print(f"--- History ({len(history)} messages) ---")
-            print(
-                f"Total tokens: {total_tokens} (Input: {total_tokens_in}, Output: {total_tokens_out})"
-            )
+            print(f"Total tokens: {total_tokens} (Input: {total_tokens_in}, Output: {total_tokens_out})")
 
             if not history:
                 print("(empty)")
@@ -494,13 +482,9 @@ class NotebookLLMMagics(Magics):
                     ):
                         sessions = manager.history_manager.list_saved_conversations()
                     else:
-                        raise AttributeError(
-                            "No list_saved_sessions or list_conversations method found"
-                        )
+                        raise AttributeError("No list_saved_sessions or list_conversations method found")
 
-                print(
-                    "Saved Sessions:", ", ".join(f"'{s}'" for s in sessions) if sessions else "None"
-                )
+                print("Saved Sessions:", ", ".join(f"'{s}'" for s in sessions) if sessions else "None")
             except Exception as e:
                 print(f"❌ Error listing saved sessions: {e}")
 
@@ -665,9 +649,7 @@ class NotebookLLMMagics(Magics):
                         logger.info("Switched to LangChain adapter")
 
                     except ImportError:
-                        print(
-                            "❌ LangChain adapter not available. Make sure langchain is installed."
-                        )
+                        print("❌ LangChain adapter not available. Make sure langchain is installed.")
                         logger.error("LangChain adapter requested but not available")
 
                 elif adapter_type == "direct":
@@ -726,9 +708,7 @@ class NotebookLLMMagics(Magics):
 
     @magic_arguments()
     @argument("-p", "--persona", type=str, help="Select and activate a persona by name.")
-    @argument(
-        "--show-persona", action="store_true", help="Show the currently active persona details."
-    )
+    @argument("--show-persona", action="store_true", help="Show the currently active persona details.")
     @argument("--list-personas", action="store_true", help="List available persona names.")
     @argument("--list-mappings", action="store_true", help="List current model name mappings")
     @argument(
@@ -749,9 +729,7 @@ class NotebookLLMMagics(Magics):
         help="Set a temporary LLM param override (e.g., --set-override temperature 0.5).",
     )
     @argument("--remove-override", type=str, metavar="KEY", help="Remove a specific override key.")
-    @argument(
-        "--clear-overrides", action="store_true", help="Clear all temporary LLM param overrides."
-    )
+    @argument("--clear-overrides", action="store_true", help="Clear all temporary LLM param overrides.")
     @argument("--show-overrides", action="store_true", help="Show the currently active overrides.")
     @argument(
         "--clear-history",
@@ -779,9 +757,7 @@ class NotebookLLMMagics(Magics):
         action="store_true",
         help="Enable automatic saving of conversations to the conversations directory.",
     )
-    @argument(
-        "--no-auto-save", action="store_true", help="Disable automatic saving of conversations."
-    )
+    @argument("--no-auto-save", action="store_true", help="Disable automatic saving of conversations.")
     @argument("--list-snippets", action="store_true", help="List available snippet names.")
     @argument(
         "--snippet",
@@ -835,9 +811,7 @@ class NotebookLLMMagics(Magics):
 
     @magic_arguments()
     @argument("-p", "--persona", type=str, help="Select and activate a persona by name.")
-    @argument(
-        "--show-persona", action="store_true", help="Show the currently active persona details."
-    )
+    @argument("--show-persona", action="store_true", help="Show the currently active persona details.")
     @argument("--list-personas", action="store_true", help="List available persona names.")
     @argument(
         "--set-override",
@@ -846,9 +820,7 @@ class NotebookLLMMagics(Magics):
         help="Set a temporary LLM param override (e.g., --set-override temperature 0.5).",
     )
     @argument("--remove-override", type=str, metavar="KEY", help="Remove a specific override key.")
-    @argument(
-        "--clear-overrides", action="store_true", help="Clear all temporary LLM param overrides."
-    )
+    @argument("--clear-overrides", action="store_true", help="Clear all temporary LLM param overrides.")
     @argument("--show-overrides", action="store_true", help="Show the currently active overrides.")
     @argument(
         "--clear-history",
@@ -1037,9 +1009,7 @@ class NotebookLLMMagics(Magics):
 
             # If using an external persona (starts with / or .), ensure its system message is added
             # and it's the first system message
-            if (
-                args.persona.startswith("/") or args.persona.startswith(".")
-            ) and temp_persona.system_message:
+            if (args.persona.startswith("/") or args.persona.startswith(".")) and temp_persona.system_message:
                 logger.info(f"Adding system message from external persona: {args.persona}")
 
                 # Get current history
@@ -1054,9 +1024,7 @@ class NotebookLLMMagics(Magics):
 
                 # Add persona system message first
                 manager.history_manager.add_message(
-                    Message(
-                        role="system", content=temp_persona.system_message, id=str(uuid.uuid4())
-                    )
+                    Message(role="system", content=temp_persona.system_message, id=str(uuid.uuid4()))
                 )
 
                 # Re-add all existing system messages (if any)
@@ -1120,11 +1088,7 @@ class NotebookLLMMagics(Magics):
             )
 
             # If we temporarily overrode the model, restore the original value
-            if (
-                args.model
-                and hasattr(manager, "llm_client")
-                and hasattr(manager.llm_client, "set_override")
-            ):
+            if args.model and hasattr(manager, "llm_client") and hasattr(manager.llm_client, "set_override"):
                 if original_model is not None:
                     manager.llm_client.set_override("model", original_model)
                     logger.debug(f"Restored original model override: {original_model}")
@@ -1140,14 +1104,10 @@ class NotebookLLMMagics(Magics):
                     if len(history) >= 2:
                         # Convert Any | None values to appropriate types that won't cause type errors
                         tokens_in = history[-2].metadata.get("tokens_in", 0)
-                        status_info["tokens_in"] = (
-                            float(tokens_in) if tokens_in is not None else 0.0
-                        )
+                        status_info["tokens_in"] = float(tokens_in) if tokens_in is not None else 0.0
 
                         tokens_out = history[-1].metadata.get("tokens_out", 0)
-                        status_info["tokens_out"] = (
-                            float(tokens_out) if tokens_out is not None else 0.0
-                        )
+                        status_info["tokens_out"] = float(tokens_out) if tokens_out is not None else 0.0
 
                         status_info["cost_str"] = history[-1].metadata.get("cost_str", "")
                         status_info["model_used"] = history[-1].metadata.get("model_used", "")
@@ -1159,11 +1119,7 @@ class NotebookLLMMagics(Magics):
             logger.error(f"Error during LLM call: {e}")
 
             # Make sure to restore model override even on error
-            if (
-                args.model
-                and hasattr(manager, "llm_client")
-                and hasattr(manager.llm_client, "set_override")
-            ):
+            if args.model and hasattr(manager, "llm_client") and hasattr(manager.llm_client, "set_override"):
                 if original_model is not None:
                     manager.llm_client.set_override("model", original_model)
                 else:
@@ -1229,9 +1185,7 @@ def load_ipython_extension(ipython):
         magic_class = NotebookLLMMagics(ipython)
         ipython.register_magics(magic_class)
         print("✅ NotebookLLM Magics loaded. Use %llm_config and %%llm.")
-        print(
-            "   For ambient mode, try %llm_config_persistent to process all cells as LLM prompts."
-        )
+        print("   For ambient mode, try %llm_config_persistent to process all cells as LLM prompts.")
     except Exception as e:
         logger.exception("Failed to register NotebookLLM magics.")
         print(f"❌ Failed to load NotebookLLM Magics: {e}", file=sys.stderr)

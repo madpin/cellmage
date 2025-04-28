@@ -19,9 +19,7 @@ import logging
 from typing import Optional
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -69,9 +67,7 @@ def main(
             messages=messages,
             model=model,
             stream=True,  # Enable streaming for a more interactive experience
-            stream_callback=lambda chunk: print(
-                chunk, end="", flush=True
-            ),  # Print chunks as they arrive
+            stream_callback=lambda chunk: print(chunk, end="", flush=True),  # Print chunks as they arrive
         )
 
         print("\n\n" + "-" * 50)
@@ -108,13 +104,9 @@ def main(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Example script for cellmage DirectLLMAdapter")
-    parser.add_argument(
-        "--api-key", help="API key for LLM service (falls back to CELLMAGE_API_KEY env var)"
-    )
+    parser.add_argument("--api-key", help="API key for LLM service (falls back to CELLMAGE_API_KEY env var)")
     parser.add_argument("--api-base", help="API base URL (falls back to CELLMAGE_API_BASE env var)")
-    parser.add_argument(
-        "--model", default="gpt-3.5-turbo", help="Model to use (default: gpt-3.5-turbo)"
-    )
+    parser.add_argument("--model", default="gpt-3.5-turbo", help="Model to use (default: gpt-3.5-turbo)")
     parser.add_argument(
         "--prompt",
         default="Explain what cellmage is and how it helps users interact with LLMs.",
