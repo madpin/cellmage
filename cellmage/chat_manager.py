@@ -350,6 +350,9 @@ class ChatManager:
 
             # Add to messages we'll send to the LLM
             messages.append(user_message)
+            
+            # Deduplicate messages before sending to the LLM
+            messages = self._deduplicate_messages(messages)
 
             # Figure out model to use with more robust fallbacks
             model_name = model
@@ -698,3 +701,36 @@ class ChatManager:
             return None
 
         return self.llm_client.get_model_info(model_name)
+
+    def _deduplicate_messages(self, messages: List[Message]) -> List[Message]:
+        """
+        Deduplicate messages to avoid sending duplicates to the LLM.
+
+        Args:
+            messages: List of messages to deduplicate
+
+        Returns:
+            Deduplicated list of messages
+        """
+        if not messages:
+            return []
+            
+        # Track seen message contents by role to prevent duplicates
+        seen = {}
+        deduplicated = []
+        
+        for msg in messages:
+            # Create a unique key based on role and content
+            key = f"{msg.role}:{msg.content}"
+            
+            # If we haven't seen this message before, add it
+            if key not in seen:
+                seen[key] = True
+                deduplicated.append(msg)
+            else:
+                self.logger.debug(f"Skipping duplicate message with role '{msg.role}'")
+                
+        if len(deduplicated) < len(messages):
+            self.logger.info(f"Removed {len(messages) - len(deduplicated)} duplicate messages")
+            
+        return deduplicated

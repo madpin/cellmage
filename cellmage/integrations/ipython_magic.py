@@ -308,6 +308,10 @@ class NotebookLLMMagics(Magics):
             if hasattr(args, "sys_snippet") and args.sys_snippet:
                 action_taken = True
                 for name in args.sys_snippet:
+                    # Handle quoted paths by removing quotes
+                    if (name.startswith('"') and name.endswith('"')) or (name.startswith("'") and name.endswith("'")):
+                        name = name[1:-1]
+                    
                     if manager.add_snippet(name, role="system"):
                         print(f"✅ Added system snippet: '{name}'")
                     else:
@@ -316,6 +320,10 @@ class NotebookLLMMagics(Magics):
             if hasattr(args, "snippet") and args.snippet:
                 action_taken = True
                 for name in args.snippet:
+                    # Handle quoted paths by removing quotes
+                    if (name.startswith('"') and name.endswith('"')) or (name.startswith("'") and name.endswith("'")):
+                        name = name[1:-1]
+                    
                     if manager.add_snippet(name, role="user"):
                         print(f"✅ Added user snippet: '{name}'")
                     else:
