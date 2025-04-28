@@ -304,7 +304,9 @@ class MultiFileLoader(PersonaLoader, SnippetProvider):
     returning the first match found.
     """
 
-    def __init__(self, personas_dirs: Optional[List[str]] = None, snippets_dirs: Optional[List[str]] = None):
+    def __init__(
+        self, personas_dirs: Optional[List[str]] = None, snippets_dirs: Optional[List[str]] = None
+    ):
         """
         Initialize the MultiFileLoader.
 

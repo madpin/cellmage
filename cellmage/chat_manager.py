@@ -443,7 +443,7 @@ class ChatManager:
             )
             if self.llm_client is None:
                 raise ConfigurationError("LLM client is not configured")
-                
+
             assistant_response_content = self.llm_client.chat(
                 messages=messages, stream=stream, stream_callback=stream_callback, **llm_params
             )
@@ -464,9 +464,13 @@ class ChatManager:
                 input_text = "\n".join([m.content for m in messages])
                 # Rough estimate: 1 token ≈ 4 chars for English text
                 tokens_in = max(1, len(input_text) // 4)
-                
+
                 # Ensure assistant_response_content is treated as a string for length calculation
-                response_content_str = str(assistant_response_content) if assistant_response_content is not None else ""
+                response_content_str = (
+                    str(assistant_response_content)
+                    if assistant_response_content is not None
+                    else ""
+                )
                 tokens_out = max(1, len(response_content_str) // 4)
                 total_tokens = tokens_in + tokens_out
                 self.logger.debug(

@@ -84,11 +84,13 @@ def _init_default_manager() -> ChatManager:
 
         # Initialize the appropriate LLM client adapter
         from ..interfaces import LLMClientInterface
+
         llm_client: Optional[LLMClientInterface] = None
 
         if adapter_type == "langchain":
             try:
                 from ..adapters.langchain_client import LangChainAdapter
+
                 llm_client = LangChainAdapter(default_model=settings.default_model)
                 logger.info("Using LangChain adapter")
             except ImportError:
@@ -97,10 +99,12 @@ def _init_default_manager() -> ChatManager:
                     "LangChain adapter requested but not available. Falling back to Direct adapter."
                 )
                 from ..adapters.direct_client import DirectLLMAdapter
+
                 llm_client = DirectLLMAdapter(default_model=settings.default_model)
         else:
             # Default case: use Direct adapter
             from ..adapters.direct_client import DirectLLMAdapter
+
             llm_client = DirectLLMAdapter(default_model=settings.default_model)
             logger.info("Using Direct adapter")
 
@@ -209,11 +213,15 @@ class NotebookLLMMagics(Magics):
                     if len(history) >= 2:
                         # Convert Any | None values to appropriate types that won't cause type errors
                         tokens_in = history[-2].metadata.get("tokens_in", 0)
-                        status_info["tokens_in"] = float(tokens_in) if tokens_in is not None else 0.0
-                        
+                        status_info["tokens_in"] = (
+                            float(tokens_in) if tokens_in is not None else 0.0
+                        )
+
                         tokens_out = history[-1].metadata.get("tokens_out", 0)
-                        status_info["tokens_out"] = float(tokens_out) if tokens_out is not None else 0.0
-                        
+                        status_info["tokens_out"] = (
+                            float(tokens_out) if tokens_out is not None else 0.0
+                        )
+
                         status_info["cost_str"] = history[-1].metadata.get("cost_str", "")
                         status_info["model_used"] = history[-1].metadata.get("model_used", "")
                 except Exception as e:
@@ -406,12 +414,12 @@ class NotebookLLMMagics(Magics):
         if args.show_history:
             action_taken = True
             history = manager.get_history()
-            
+
             # Calculate total tokens for all messages
             total_tokens_in = 0
             total_tokens_out = 0
             total_tokens = 0
-            
+
             # Calculate cumulative token counts
             for msg in history:
                 if msg.metadata:
@@ -420,15 +428,17 @@ class NotebookLLMMagics(Magics):
                     msg_total = msg.metadata.get("total_tokens", 0)
                     if msg_total > 0:
                         total_tokens += msg_total
-            
+
             # If no total_tokens were found, calculate from in+out
             if total_tokens == 0:
                 total_tokens = total_tokens_in + total_tokens_out
-            
+
             # Print history header with token counts
             print(f"--- History ({len(history)} messages) ---")
-            print(f"Total tokens: {total_tokens} (Input: {total_tokens_in}, Output: {total_tokens_out})")
-            
+            print(
+                f"Total tokens: {total_tokens} (Input: {total_tokens_in}, Output: {total_tokens_out})"
+            )
+
             if not history:
                 print("(empty)")
             else:
@@ -436,18 +446,18 @@ class NotebookLLMMagics(Magics):
                     tokens_in = msg.metadata.get("tokens_in", 0) if msg.metadata else 0
                     tokens_out = msg.metadata.get("tokens_out", 0) if msg.metadata else 0
                     model_used = msg.metadata.get("model_used", "") if msg.metadata else ""
-                    
+
                     # Display token info based on role
                     token_info = ""
                     if msg.role == "user":
                         token_info = f"(Tokens: {tokens_in})"
                     elif msg.role == "assistant":
                         token_info = f"(Tokens: {tokens_out})"
-                    
+
                     print(
                         f"[{i}] {msg.role.upper()} {token_info}: {msg.content[:150]}{'...' if len(msg.content) > 150 else ''}"
                     )
-                    
+
                     # Show more metadata details
                     meta_items = []
                     if msg.id:
@@ -458,7 +468,7 @@ class NotebookLLMMagics(Magics):
                         meta_items.append(f"Exec: {msg.execution_count}")
                     if model_used:
                         meta_items.append(f"Model: {model_used}")
-                    
+
                     print(f"    ({', '.join(meta_items)})")
             print("--------------------------")
 
@@ -479,11 +489,15 @@ class NotebookLLMMagics(Magics):
                     sessions = manager.list_conversations()
                 else:
                     # Fallback to checking if the history_manager has the method
-                    if hasattr(manager, "history_manager") and hasattr(manager.history_manager, "list_saved_conversations"):
+                    if hasattr(manager, "history_manager") and hasattr(
+                        manager.history_manager, "list_saved_conversations"
+                    ):
                         sessions = manager.history_manager.list_saved_conversations()
                     else:
-                        raise AttributeError("No list_saved_sessions or list_conversations method found")
-                        
+                        raise AttributeError(
+                            "No list_saved_sessions or list_conversations method found"
+                        )
+
                 print(
                     "Saved Sessions:", ", ".join(f"'{s}'" for s in sessions) if sessions else "None"
                 )
@@ -519,7 +533,7 @@ class NotebookLLMMagics(Magics):
                     manager.load_conversation(args.load)
                 else:
                     raise AttributeError("No load_session or load_conversation method found")
-                    
+
                 print(f"✅ Session loaded from '{args.load}'.")
             except ResourceNotFoundError:
                 print(f"❌ Error: Session '{args.load}' not found.")
@@ -542,7 +556,7 @@ class NotebookLLMMagics(Magics):
                     save_path = manager.save_conversation(filename)
                 else:
                     raise AttributeError("No save_session or save_conversation method found")
-                    
+
                 print(f"✅ Session saved to '{Path(save_path).name}'.")  # Show only filename
             except PersistenceError as e:
                 print(f"❌ Error saving session: {e}")
@@ -568,7 +582,7 @@ class NotebookLLMMagics(Magics):
         if hasattr(args, "list_mappings") and args.list_mappings:
             action_taken = True
             if (
-                manager.llm_client is not None 
+                manager.llm_client is not None
                 and hasattr(manager.llm_client, "model_mapper")
                 and manager.llm_client.model_mapper is not None
             ):
@@ -1078,8 +1092,8 @@ class NotebookLLMMagics(Magics):
         if args.model:
             # Directly set model override in the LLM client to ensure highest priority
             if (
-                hasattr(manager, "llm_client") 
-                and manager.llm_client is not None 
+                hasattr(manager, "llm_client")
+                and manager.llm_client is not None
                 and hasattr(manager.llm_client, "set_override")
             ):
                 # Temporarily set model override for this call
@@ -1126,11 +1140,15 @@ class NotebookLLMMagics(Magics):
                     if len(history) >= 2:
                         # Convert Any | None values to appropriate types that won't cause type errors
                         tokens_in = history[-2].metadata.get("tokens_in", 0)
-                        status_info["tokens_in"] = float(tokens_in) if tokens_in is not None else 0.0
-                        
+                        status_info["tokens_in"] = (
+                            float(tokens_in) if tokens_in is not None else 0.0
+                        )
+
                         tokens_out = history[-1].metadata.get("tokens_out", 0)
-                        status_info["tokens_out"] = float(tokens_out) if tokens_out is not None else 0.0
-                        
+                        status_info["tokens_out"] = (
+                            float(tokens_out) if tokens_out is not None else 0.0
+                        )
+
                         status_info["cost_str"] = history[-1].metadata.get("cost_str", "")
                         status_info["model_used"] = history[-1].metadata.get("model_used", "")
                 except Exception as e:

@@ -312,7 +312,7 @@ class DirectLLMAdapter(LLMClientInterface):
 
         # Parse the response
         result = response.json()
-        
+
         # Extract token usage information
         self._extract_token_usage(result)
 
@@ -351,7 +351,7 @@ class DirectLLMAdapter(LLMClientInterface):
     def get_last_token_usage(self) -> Dict[str, int]:
         """
         Get token usage from the last API call.
-        
+
         Returns:
             Dictionary with prompt_tokens, completion_tokens, and total_tokens
         """
@@ -360,7 +360,7 @@ class DirectLLMAdapter(LLMClientInterface):
     def get_last_model_used(self) -> Optional[str]:
         """
         Get the model that was used in the last API call.
-        
+
         Returns:
             Model name or None if no call has been made
         """
@@ -419,7 +419,7 @@ class DirectLLMAdapter(LLMClientInterface):
                     model_from_stream = chunk_data["model"]
                     # Update model in instance overrides to make it available for status reporting
                     self._instance_overrides["model"] = model_from_stream
-                
+
                 # Check if this chunk has token usage data (typically in the final chunk)
                 if "usage" in chunk_data:
                     token_usage_data = chunk_data["usage"]
@@ -440,7 +440,7 @@ class DirectLLMAdapter(LLMClientInterface):
         # Store the actual model used from the streaming response
         if model_from_stream:
             self._last_model_used = model_from_stream
-        
+
         # Update token usage from streaming response (if available)
         if token_usage_data:
             self._last_token_usage = {
@@ -453,7 +453,8 @@ class DirectLLMAdapter(LLMClientInterface):
             # This is a very rough approximation and should be improved
             self._last_token_usage = {
                 "prompt_tokens": 0,  # Can't accurately determine this from streaming
-                "completion_tokens": len(accumulated_content) // 4,  # Rough estimate: 4 chars per token
+                "completion_tokens": len(accumulated_content)
+                // 4,  # Rough estimate: 4 chars per token
                 "total_tokens": 0,  # Can't accurately determine this from streaming
             }
 
