@@ -18,9 +18,15 @@ class Settings(BaseSettings):
     """
 
     # Default settings
-    default_model: str = Field(default="gpt-4.1-nano", description="Default LLM model to use for chat")
-    default_persona: Optional[str] = Field(default=None, description="Default persona to use for chat")
-    auto_display: bool = Field(default=True, description="Whether to automatically display chat messages")
+    default_model: str = Field(
+        default="gpt-4.1-nano", description="Default LLM model to use for chat"
+    )
+    default_persona: Optional[str] = Field(
+        default=None, description="Default persona to use for chat"
+    )
+    auto_display: bool = Field(
+        default=True, description="Whether to automatically display chat messages"
+    )
     auto_save: bool = Field(default=True, description="Whether to automatically save conversations")
     autosave_file: str = Field(
         default="autosaved_conversation", description="Filename for auto-saved conversations"
@@ -33,22 +39,25 @@ class Settings(BaseSettings):
         alias="personas_dirs",
         description="Additional directories containing persona definitions",
     )
-    snippets_dir: str = Field(default="llm_snippets", description="Primary directory containing snippets")
+    snippets_dir: str = Field(
+        default="llm_snippets", description="Primary directory containing snippets"
+    )
     snippets_dirs_list: List[str] = Field(
         default_factory=list,
         alias="snippets_dirs",
         description="Additional directories containing snippets",
     )
-    conversations_dir: str = Field(default="llm_conversations", description="Directory for saved conversations")
-    
+    conversations_dir: str = Field(
+        default="llm_conversations", description="Directory for saved conversations"
+    )
+
     # Model mapping settings
     model_mappings_file: Optional[str] = Field(
-        default=None,
-        description="Path to YAML file containing model name mappings"
+        default=None, description="Path to YAML file containing model name mappings"
     )
     auto_find_mappings: bool = Field(
         default=True,
-        description="Automatically look for .cellmage_models.yml in notebook directory"
+        description="Automatically look for .cellmage_models.yml in notebook directory",
     )
 
     # Logging settings
@@ -85,7 +94,9 @@ class Settings(BaseSettings):
         # Check if conversations_dir exists and enable auto_save if it does
         if os.path.exists(self.conversations_dir) and os.path.isdir(self.conversations_dir):
             self.auto_save = True
-            logger.info(f"Found '{self.conversations_dir}' folder. Auto-save enabled automatically.")
+            logger.info(
+                f"Found '{self.conversations_dir}' folder. Auto-save enabled automatically."
+            )
 
     @property
     def personas_dirs(self) -> List[str]:
@@ -96,7 +107,9 @@ class Settings(BaseSettings):
     def personas_dirs(self, value: Union[List[str], str]) -> None:
         """Set additional persona directories"""
         if isinstance(value, str):
-            self.personas_dirs_list = [d.strip() for d in value.replace(";", ",").split(",") if d.strip()]
+            self.personas_dirs_list = [
+                d.strip() for d in value.replace(";", ",").split(",") if d.strip()
+            ]
         else:
             self.personas_dirs_list = value
 
@@ -109,7 +122,9 @@ class Settings(BaseSettings):
     def snippets_dirs(self, value: Union[List[str], str]) -> None:
         """Set additional snippet directories"""
         if isinstance(value, str):
-            self.snippets_dirs_list = [d.strip() for d in value.replace(";", ",").split(",") if d.strip()]
+            self.snippets_dirs_list = [
+                d.strip() for d in value.replace(";", ",").split(",") if d.strip()
+            ]
         else:
             self.snippets_dirs_list = value
 

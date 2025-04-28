@@ -8,8 +8,8 @@ import logging
 import os
 import sys
 import time
-from typing import Any, Dict, List, Optional
 import uuid
+from typing import Any, Dict, List, Optional
 
 # IPython imports with fallback handling
 try:
@@ -77,28 +77,33 @@ def _init_default_manager() -> ChatManager:
 
         # Determine which adapter to use
         adapter_type = os.environ.get("CELLMAGE_ADAPTER", "direct").lower()
-        
+
         logger.info(f"Initializing default ChatManager with adapter type: {adapter_type}")
 
         # Create default dependencies
         loader = FileLoader(settings.personas_dir, settings.snippets_dir)
         store = MarkdownStore(settings.save_dir)
         context_provider = get_ipython_context_provider()
-        
+
         # Initialize the appropriate LLM client adapter
         if adapter_type == "langchain":
             try:
                 from ..adapters.langchain_client import LangChainAdapter
+
                 client = LangChainAdapter(default_model=settings.default_model)
                 logger.info("Using LangChain adapter")
             except ImportError:
                 # Fall back to Direct adapter if LangChain is not available
-                logger.warning("LangChain adapter requested but not available. Falling back to Direct adapter.")
+                logger.warning(
+                    "LangChain adapter requested but not available. Falling back to Direct adapter."
+                )
                 from ..adapters.direct_client import DirectLLMAdapter
+
                 client = DirectLLMAdapter(default_model=settings.default_model)
         else:
             # Default case: use Direct adapter
             from ..adapters.direct_client import DirectLLMAdapter
+
             client = DirectLLMAdapter(default_model=settings.default_model)
             logger.info("Using Direct adapter")
 
@@ -116,7 +121,9 @@ def _init_default_manager() -> ChatManager:
     except Exception as e:
         logger.exception("FATAL: Failed to initialize default NotebookLLM ChatManager.")
         _initialization_error = e  # Store the error
-        raise RuntimeError(f"NotebookLLM setup failed. Please check configuration and logs. Error: {e}") from e
+        raise RuntimeError(
+            f"NotebookLLM setup failed. Please check configuration and logs. Error: {e}"
+        ) from e
 
 
 def get_chat_manager() -> ChatManager:
@@ -209,7 +216,9 @@ class NotebookLLMMagics(Magics):
                         status_info["cost_str"] = history[-1].metadata.get("cost_str")
                         status_info["model_used"] = history[-1].metadata.get("model_used")
                 except Exception as e:
-                    logger.warning(f"Error retrieving status info from history in ambient mode: {e}")
+                    logger.warning(
+                        f"Error retrieving status info from history in ambient mode: {e}"
+                    )
 
         except Exception as e:
             print(f"❌ LLM Error (Ambient Mode): {e}", file=sys.stderr)
@@ -309,9 +318,11 @@ class NotebookLLMMagics(Magics):
                 action_taken = True
                 for name in args.sys_snippet:
                     # Handle quoted paths by removing quotes
-                    if (name.startswith('"') and name.endswith('"')) or (name.startswith("'") and name.endswith("'")):
+                    if (name.startswith('"') and name.endswith('"')) or (
+                        name.startswith("'") and name.endswith("'")
+                    ):
                         name = name[1:-1]
-                    
+
                     if manager.add_snippet(name, role="system"):
                         print(f"✅ Added system snippet: '{name}'")
                     else:
@@ -321,9 +332,11 @@ class NotebookLLMMagics(Magics):
                 action_taken = True
                 for name in args.snippet:
                     # Handle quoted paths by removing quotes
-                    if (name.startswith('"') and name.endswith('"')) or (name.startswith("'") and name.endswith("'")):
+                    if (name.startswith('"') and name.endswith('"')) or (
+                        name.startswith("'") and name.endswith("'")
+                    ):
                         name = name[1:-1]
-                    
+
                     if manager.add_snippet(name, role="user"):
                         print(f"✅ Added user snippet: '{name}'")
                     else:
@@ -416,7 +429,9 @@ class NotebookLLMMagics(Magics):
             action_taken = True
             try:
                 sessions = manager.list_saved_sessions()
-                print("Saved Sessions:", ", ".join(f"'{s}'" for s in sessions) if sessions else "None")
+                print(
+                    "Saved Sessions:", ", ".join(f"'{s}'" for s in sessions) if sessions else "None"
+                )
             except Exception as e:
                 print(f"❌ Error listing saved sessions: {e}")
 
@@ -480,7 +495,7 @@ class NotebookLLMMagics(Magics):
                 print(f"✅ Default model set to: {args.model}")
             else:
                 print(f"⚠️ Could not set model: LLM client not found or doesn't support overrides")
-        
+
         if hasattr(args, "list_mappings") and args.list_mappings:
             action_taken = True
             if hasattr(manager.llm_client, "model_mapper"):
@@ -519,91 +534,93 @@ class NotebookLLMMagics(Magics):
     def _handle_adapter_switch(self, args, manager: ChatManager) -> bool:
         """Handle adapter switching."""
         action_taken = False
-        
+
         if hasattr(args, "adapter") and args.adapter:
             action_taken = True
             adapter_type = args.adapter.lower()
-            
+
             try:
                 # Import necessary components dynamically
                 from ..config import settings
-                
+
                 # Initialize the appropriate LLM client adapter
                 if adapter_type == "langchain":
                     try:
                         from ..adapters.langchain_client import LangChainAdapter
-                        
+
                         # Create new adapter instance with current settings from existing client
                         current_api_key = None
                         current_api_base = None
                         current_model = settings.default_model
-                        
+
                         if manager.llm_client:
                             if hasattr(manager.llm_client, "get_overrides"):
                                 overrides = manager.llm_client.get_overrides()
                                 current_api_key = overrides.get("api_key")
                                 current_api_base = overrides.get("api_base")
                                 current_model = overrides.get("model", current_model)
-                        
+
                         # Create the new adapter
                         new_client = LangChainAdapter(
                             api_key=current_api_key,
                             api_base=current_api_base,
-                            default_model=current_model
+                            default_model=current_model,
                         )
-                        
+
                         # Set the new adapter
                         manager.llm_client = new_client
-                        
+
                         # Update env var for persistence between sessions
                         os.environ["CELLMAGE_ADAPTER"] = "langchain"
-                        
+
                         print("✅ Switched to LangChain adapter")
                         logger.info("Switched to LangChain adapter")
-                        
+
                     except ImportError:
-                        print("❌ LangChain adapter not available. Make sure langchain is installed.")
+                        print(
+                            "❌ LangChain adapter not available. Make sure langchain is installed."
+                        )
                         logger.error("LangChain adapter requested but not available")
-                        
+
                 elif adapter_type == "direct":
                     from ..adapters.direct_client import DirectLLMAdapter
-                    
+
                     # Create new adapter instance with current settings from existing client
                     current_api_key = None
                     current_api_base = None
                     current_model = settings.default_model
-                    
+
                     if manager.llm_client:
                         if hasattr(manager.llm_client, "get_overrides"):
                             overrides = manager.llm_client.get_overrides()
                             current_api_key = overrides.get("api_key")
                             current_api_base = overrides.get("api_base")
                             current_model = overrides.get("model", current_model)
-                    
+
                     # Create the new adapter
                     new_client = DirectLLMAdapter(
                         api_key=current_api_key,
                         api_base=current_api_base,
-                        default_model=current_model
+                        default_model=current_model,
                     )
-                    
+
                     # Set the new adapter
                     manager.llm_client = new_client
-                    
+
                     # Update env var for persistence between sessions
                     os.environ["CELLMAGE_ADAPTER"] = "direct"
-                    
+
                     print("✅ Switched to Direct adapter")
                     logger.info("Switched to Direct adapter")
-                    
+
                 else:
                     print(f"❌ Unknown adapter type: {adapter_type}")
                     logger.error(f"Unknown adapter type requested: {adapter_type}")
-                    
+
             except Exception as e:
                 print(f"❌ Error switching adapter: {e}")
                 logger.exception(f"Error switching to adapter {adapter_type}: {e}")
-                
+
         return action_taken
 
     # --- Implementation of status display ---
@@ -621,7 +638,9 @@ class NotebookLLMMagics(Magics):
 
     @magic_arguments()
     @argument("-p", "--persona", type=str, help="Select and activate a persona by name.")
-    @argument("--show-persona", action="store_true", help="Show the currently active persona details.")
+    @argument(
+        "--show-persona", action="store_true", help="Show the currently active persona details."
+    )
     @argument("--list-personas", action="store_true", help="List available persona names.")
     @argument("--list-mappings", action="store_true", help="List current model name mappings")
     @argument(
@@ -642,7 +661,9 @@ class NotebookLLMMagics(Magics):
         help="Set a temporary LLM param override (e.g., --set-override temperature 0.5).",
     )
     @argument("--remove-override", type=str, metavar="KEY", help="Remove a specific override key.")
-    @argument("--clear-overrides", action="store_true", help="Clear all temporary LLM param overrides.")
+    @argument(
+        "--clear-overrides", action="store_true", help="Clear all temporary LLM param overrides."
+    )
     @argument("--show-overrides", action="store_true", help="Show the currently active overrides.")
     @argument(
         "--clear-history",
@@ -670,7 +691,9 @@ class NotebookLLMMagics(Magics):
         action="store_true",
         help="Enable automatic saving of conversations to the conversations directory.",
     )
-    @argument("--no-auto-save", action="store_true", help="Disable automatic saving of conversations.")
+    @argument(
+        "--no-auto-save", action="store_true", help="Disable automatic saving of conversations."
+    )
     @argument("--list-snippets", action="store_true", help="List available snippet names.")
     @argument(
         "--snippet",
@@ -724,7 +747,9 @@ class NotebookLLMMagics(Magics):
 
     @magic_arguments()
     @argument("-p", "--persona", type=str, help="Select and activate a persona by name.")
-    @argument("--show-persona", action="store_true", help="Show the currently active persona details.")
+    @argument(
+        "--show-persona", action="store_true", help="Show the currently active persona details."
+    )
     @argument("--list-personas", action="store_true", help="List available persona names.")
     @argument(
         "--set-override",
@@ -733,7 +758,9 @@ class NotebookLLMMagics(Magics):
         help="Set a temporary LLM param override (e.g., --set-override temperature 0.5).",
     )
     @argument("--remove-override", type=str, metavar="KEY", help="Remove a specific override key.")
-    @argument("--clear-overrides", action="store_true", help="Clear all temporary LLM param overrides.")
+    @argument(
+        "--clear-overrides", action="store_true", help="Clear all temporary LLM param overrides."
+    )
     @argument("--show-overrides", action="store_true", help="Show the currently active overrides.")
     @argument(
         "--clear-history",
@@ -919,12 +946,14 @@ class NotebookLLMMagics(Magics):
                 status_info["duration"] = time.time() - start_time
                 context_provider.display_status(status_info)
                 return
-                
+
             # If using an external persona (starts with / or .), ensure its system message is added
             # and it's the first system message
-            if (args.persona.startswith('/') or args.persona.startswith('.')) and temp_persona.system_message:
+            if (
+                args.persona.startswith("/") or args.persona.startswith(".")
+            ) and temp_persona.system_message:
                 logger.info(f"Adding system message from external persona: {args.persona}")
-                
+
                 # Get current history
                 current_history = manager.history_manager.get_history()
 
@@ -937,7 +966,9 @@ class NotebookLLMMagics(Magics):
 
                 # Add persona system message first
                 manager.history_manager.add_message(
-                    Message(role="system", content=temp_persona.system_message, id=str(uuid.uuid4()))
+                    Message(
+                        role="system", content=temp_persona.system_message, id=str(uuid.uuid4())
+                    )
                 )
 
                 # Re-add all existing system messages (if any)
@@ -998,7 +1029,11 @@ class NotebookLLMMagics(Magics):
             )
 
             # If we temporarily overrode the model, restore the original value
-            if args.model and hasattr(manager, "llm_client") and hasattr(manager.llm_client, "set_override"):
+            if (
+                args.model
+                and hasattr(manager, "llm_client")
+                and hasattr(manager.llm_client, "set_override")
+            ):
                 if original_model is not None:
                     manager.llm_client.set_override("model", original_model)
                     logger.debug(f"Restored original model override: {original_model}")
@@ -1025,7 +1060,11 @@ class NotebookLLMMagics(Magics):
             logger.error(f"Error during LLM call: {e}")
 
             # Make sure to restore model override even on error
-            if args.model and hasattr(manager, "llm_client") and hasattr(manager.llm_client, "set_override"):
+            if (
+                args.model
+                and hasattr(manager, "llm_client")
+                and hasattr(manager.llm_client, "set_override")
+            ):
                 if original_model is not None:
                     manager.llm_client.set_override("model", original_model)
                 else:
@@ -1091,7 +1130,9 @@ def load_ipython_extension(ipython):
         magic_class = NotebookLLMMagics(ipython)
         ipython.register_magics(magic_class)
         print("✅ NotebookLLM Magics loaded. Use %llm_config and %%llm.")
-        print("   For ambient mode, try %llm_config_persistent to process all cells as LLM prompts.")
+        print(
+            "   For ambient mode, try %llm_config_persistent to process all cells as LLM prompts."
+        )
     except Exception as e:
         logger.exception("Failed to register NotebookLLM magics.")
         print(f"❌ Failed to load NotebookLLM Magics: {e}", file=sys.stderr)

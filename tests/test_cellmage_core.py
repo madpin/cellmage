@@ -115,7 +115,9 @@ class TestCellmageCore(unittest.TestCase):
         from cellmage.history_manager import HistoryManager
 
         # Create history manager with context provider
-        history_manager = HistoryManager(history_store=self.memory_store, context_provider=self.context_provider)
+        history_manager = HistoryManager(
+            history_store=self.memory_store, context_provider=self.context_provider
+        )
 
         # Add test messages
         msg1 = Message(role="system", content="System message", id=str(uuid.uuid4()))

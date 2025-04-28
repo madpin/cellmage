@@ -49,7 +49,9 @@ class FileLoader(PersonaLoader, SnippetProvider):
         """
         try:
             if not os.path.isdir(self.personas_dir):
-                self.logger.warning(f"Personas directory not found: {os.path.abspath(self.personas_dir)}")
+                self.logger.warning(
+                    f"Personas directory not found: {os.path.abspath(self.personas_dir)}"
+                )
                 return []
 
             personas = []
@@ -74,21 +76,21 @@ class FileLoader(PersonaLoader, SnippetProvider):
             PersonaConfig object or None if not found
         """
         # Check if name represents a file path (starts with '/' or '.')
-        if name.startswith('/') or name.startswith('.'):
+        if name.startswith("/") or name.startswith("."):
             # Direct file path case - ensure it has .md extension
-            if not name.lower().endswith('.md'):
+            if not name.lower().endswith(".md"):
                 filepath = f"{name}.md"
             else:
                 filepath = name
-                
+
             # Extract the base name for use as original_name
             original_name = os.path.splitext(os.path.basename(filepath))[0]
-            
+
             # Try to load directly from the given path
             if os.path.isfile(filepath):
                 self.logger.debug(f"Loading persona from direct path: {filepath}")
                 return self._load_persona_file(filepath, original_name)
-                
+
             self.logger.warning(f"Persona file not found at path: {filepath}")
             return None
 
@@ -104,7 +106,9 @@ class FileLoader(PersonaLoader, SnippetProvider):
         # Otherwise try case-insensitive match
         try:
             if not os.path.isdir(self.personas_dir):
-                self.logger.warning(f"Personas directory not found: {os.path.abspath(self.personas_dir)}")
+                self.logger.warning(
+                    f"Personas directory not found: {os.path.abspath(self.personas_dir)}"
+                )
                 return None
 
             for filename in os.listdir(self.personas_dir):
@@ -167,11 +171,12 @@ class FileLoader(PersonaLoader, SnippetProvider):
                 self.logger.info(
                     f"Persona name not found in frontmatter. Using filename '{original_name}' as persona name."
                 )
-                
+
             # Make sure 'model' is in the config - this is crucial for external personas
             if "model" not in config:
                 # Import settings to get the default model
                 from ..config import settings
+
                 config["model"] = settings.default_model
                 self.logger.info(
                     f"Model not specified in persona '{original_name}'. Using default model: {settings.default_model}"
@@ -221,7 +226,9 @@ model: gpt-4.1-nano
         """
         try:
             if not os.path.isdir(self.snippets_dir):
-                self.logger.warning(f"Snippets directory not found: {os.path.abspath(self.snippets_dir)}")
+                self.logger.warning(
+                    f"Snippets directory not found: {os.path.abspath(self.snippets_dir)}"
+                )
                 return []
 
             snippets = []
@@ -246,10 +253,10 @@ model: gpt-4.1-nano
             Snippet content as string or None if not found
         """
         # Check if name represents a file path (starts with '/' or '.')
-        if name.startswith('/') or name.startswith('.'):
+        if name.startswith("/") or name.startswith("."):
             # Direct file path case
             filepath = name
-            
+
             # Try to load directly from the given path
             try:
                 if not os.path.isfile(filepath):
@@ -264,7 +271,7 @@ model: gpt-4.1-nano
             except Exception as e:
                 self.logger.error(f"Error loading snippet from path '{filepath}': {e}")
                 return None
-        
+
         # Standard case - search in configured directory
         # Add .md extension if not provided and we're using the default directory lookup
         if not name.lower().endswith(".md"):
@@ -315,12 +322,20 @@ class MultiFileLoader(PersonaLoader, SnippetProvider):
         self.logger = logging.getLogger(__name__)
 
         # Create individual loaders for each directory
-        self.persona_loaders = [FileLoader(personas_dir=d, snippets_dir="") for d in self.personas_dirs]
-        self.snippet_loaders = [FileLoader(personas_dir="", snippets_dir=d) for d in self.snippets_dirs]
+        self.persona_loaders = [
+            FileLoader(personas_dir=d, snippets_dir="") for d in self.personas_dirs
+        ]
+        self.snippet_loaders = [
+            FileLoader(personas_dir="", snippets_dir=d) for d in self.snippets_dirs
+        ]
 
         # Log configuration
-        self.logger.info(f"MultiFileLoader initialized with persona directories: {self.personas_dirs}")
-        self.logger.info(f"MultiFileLoader initialized with snippet directories: {self.snippets_dirs}")
+        self.logger.info(
+            f"MultiFileLoader initialized with persona directories: {self.personas_dirs}"
+        )
+        self.logger.info(
+            f"MultiFileLoader initialized with snippet directories: {self.snippets_dirs}"
+        )
 
     def list_personas(self) -> List[str]:
         """
@@ -346,7 +361,7 @@ class MultiFileLoader(PersonaLoader, SnippetProvider):
             First matching PersonaConfig object or None if not found
         """
         # Check if name represents a file path (starts with '/' or '.')
-        if name.startswith('/') or name.startswith('.'):
+        if name.startswith("/") or name.startswith("."):
             # For direct file paths, use the first loader to handle it
             # (any loader can handle direct paths)
             if self.persona_loaders:
@@ -389,7 +404,7 @@ class MultiFileLoader(PersonaLoader, SnippetProvider):
             Snippet content as string or None if not found
         """
         # Check if name represents a file path (starts with '/' or '.')
-        if name.startswith('/') or name.startswith('.'):
+        if name.startswith("/") or name.startswith("."):
             # For direct file paths, use the first loader to handle it
             # (any loader can handle direct paths)
             if self.snippet_loaders:

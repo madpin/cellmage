@@ -63,7 +63,9 @@ def main():
 
     # Test persona operations
     total_tests += 1
-    success_count += check("test_persona" in memory_loader.list_personas(), "Persona was added successfully")
+    success_count += check(
+        "test_persona" in memory_loader.list_personas(), "Persona was added successfully"
+    )
 
     persona = memory_loader.get_persona("test_persona")
     total_tests += 1
@@ -74,11 +76,15 @@ def main():
 
     # Test snippet operations
     total_tests += 1
-    success_count += check("test_snippet" in memory_loader.list_snippets(), "Snippet was added successfully")
+    success_count += check(
+        "test_snippet" in memory_loader.list_snippets(), "Snippet was added successfully"
+    )
 
     snippet = memory_loader.get_snippet("test_snippet")
     total_tests += 1
-    success_count += check(snippet == "This is a test snippet", "Snippet can be retrieved and has correct content")
+    success_count += check(
+        snippet == "This is a test snippet", "Snippet can be retrieved and has correct content"
+    )
 
     print("\n----- Testing Memory Store -----\n")
 
@@ -94,7 +100,9 @@ def main():
     # Test saving conversation
     identifier = memory_store.save_conversation(messages, metadata, "test_conversation")
     total_tests += 1
-    success_count += check(identifier == "test_conversation", "Conversation saved with correct identifier")
+    success_count += check(
+        identifier == "test_conversation", "Conversation saved with correct identifier"
+    )
 
     # Test listing conversations
     conversations = memory_store.list_saved_conversations()
@@ -159,7 +167,9 @@ def main():
     # Set default persona
     chat_manager.set_default_persona("test_persona")
     total_tests += 1
-    success_count += check(llm_client.set_override.called, "Setting persona applies configuration overrides")
+    success_count += check(
+        llm_client.set_override.called, "Setting persona applies configuration overrides"
+    )
 
     # Test snippet operations
     snippets = chat_manager.list_snippets()
@@ -168,12 +178,16 @@ def main():
 
     chat_manager.add_snippet("test_snippet")
     total_tests += 1
-    success_count += check(any(m.is_snippet for m in chat_manager.get_history()), "Snippet was added to history")
+    success_count += check(
+        any(m.is_snippet for m in chat_manager.get_history()), "Snippet was added to history"
+    )
 
     # Test chat functionality - disable streaming for test
     response = chat_manager.chat("Hello world", stream=False)
     total_tests += 1
-    success_count += check(response == "This is a mock LLM response", "Chat returns the expected response")
+    success_count += check(
+        response == "This is a mock LLM response", "Chat returns the expected response"
+    )
 
     # Test that LLM client was called
     total_tests += 1

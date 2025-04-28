@@ -103,15 +103,18 @@ def _auto_process_cells(lines: List[str]) -> List[str]:
         return lines
 
     # Skip processing for cells with explicit %%llm or other known magics
-    if any(line.strip().startswith(("%%", "%load", "%reload", "%llm_config", "%disable_llm")) for line in lines):
+    if any(
+        line.strip().startswith(("%%", "%load", "%reload", "%llm_config", "%disable_llm"))
+        for line in lines
+    ):
         return lines
-        
+
     # Skip processing for internal Jupyter functions
     cell_content = "\n".join(lines)
     if "__jupyter_exec_background__" in cell_content:
         logger.debug("Skipping ambient mode for internal Jupyter function")
         return lines
-        
+
     # Skip processing for known completion/autocomplete related code patterns
     if "get_ipython().kernel.do_complete" in cell_content:
         logger.debug("Skipping ambient mode for code completion function")

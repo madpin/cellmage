@@ -42,11 +42,12 @@ class DirectLLMAdapter(LLMClientInterface):
 
         # Instance overrides
         self._instance_overrides = {}
-        
+
         # Initialize model mapper and try to load default mappings
         from ..model_mapping import ModelMapper
+
         self.model_mapper = ModelMapper()
-        
+
         # Try to find and load default mapping file
         mapping_file = ModelMapper.find_mapping_file()
         if mapping_file:
@@ -59,7 +60,9 @@ class DirectLLMAdapter(LLMClientInterface):
             self.set_override("api_key", api_key)
 
         # Set API base from param or env var
-        api_base = api_base or os.environ.get("CELLMAGE_API_BASE") or os.environ.get("OPENAI_API_BASE")
+        api_base = (
+            api_base or os.environ.get("CELLMAGE_API_BASE") or os.environ.get("OPENAI_API_BASE")
+        )
         if api_base:
             self.set_override("api_base", api_base)
 
@@ -96,26 +99,29 @@ class DirectLLMAdapter(LLMClientInterface):
         # Save api_key, api_base and default model
         api_key = self._instance_overrides.get("api_key")
         api_base = self._instance_overrides.get("api_base")
-        
+
         # Import settings to get the default model
         from ..config import settings
+
         default_model = settings.default_model
-        
+
         # Clear all overrides
         self._instance_overrides = {}
-        
+
         # Restore the preserved values
         if api_key is not None:
             self._instance_overrides["api_key"] = api_key
-        
+
         if api_base is not None:
             self._instance_overrides["api_base"] = api_base
-            
+
         # Set model to the default value
         if default_model is not None:
             self._instance_overrides["model"] = default_model
-            
-        self.logger.info("[Override] Overrides cleared, preserving api_key and api_base. Model reset to default.")
+
+        self.logger.info(
+            "[Override] Overrides cleared, preserving api_key and api_base. Model reset to default."
+        )
 
     def get_overrides(self) -> Dict[str, Any]:
         """
@@ -173,11 +179,13 @@ class DirectLLMAdapter(LLMClientInterface):
         # 1. Call overrides
         # 2. Instance overrides
         # 3. Model name passed to this method
-        model_alias = call_overrides.get("model") or self._instance_overrides.get("model") or model_name
-            
+        model_alias = (
+            call_overrides.get("model") or self._instance_overrides.get("model") or model_name
+        )
+
         # Translate model alias to full name
         final_model = self.model_mapper.get_full_name(model_alias) if model_alias else None
-            
+
         # Store original model alias for reference
         if model_alias and model_alias != final_model:
             self.logger.info(f"Translated model alias '{model_alias}' to '{final_model}'")
@@ -226,7 +234,9 @@ class DirectLLMAdapter(LLMClientInterface):
             system_message = next((m.content for m in messages if m.role == "system"), None)
 
             # Determine model and config for this call
-            final_model, final_config = self._determine_model_and_config(model, system_message, kwargs)
+            final_model, final_config = self._determine_model_and_config(
+                model, system_message, kwargs
+            )
 
             # Get API credentials
             api_key = final_config.pop("api_key", None)
@@ -280,7 +290,9 @@ class DirectLLMAdapter(LLMClientInterface):
         """Convert our Message objects to the format expected by the API."""
         return [{"role": msg.role, "content": msg.content} for msg in messages]
 
-    def _handle_non_streaming(self, api_base: str, headers: Dict[str, str], payload: Dict[str, Any]) -> str:
+    def _handle_non_streaming(
+        self, api_base: str, headers: Dict[str, str], payload: Dict[str, Any]
+    ) -> str:
         """Handle non-streaming API response."""
         url = f"{api_base}/chat/completions"
 

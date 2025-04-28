@@ -12,7 +12,6 @@ from .exceptions import (
     NotebookLLMError,
     ResourceNotFoundError,
 )
-from .model_mapping import ModelMapper
 from .history_manager import HistoryManager
 from .interfaces import (
     ContextProvider,
@@ -22,6 +21,7 @@ from .interfaces import (
     SnippetProvider,
     StreamCallbackHandler,
 )
+from .model_mapping import ModelMapper
 from .models import Message, PersonaConfig
 
 
@@ -66,10 +66,10 @@ class ChatManager:
         self.llm_client = llm_client
         self.persona_loader = persona_loader
         self.snippet_provider = snippet_provider
-        
+
         # Initialize model mapper
         self.model_mapper = ModelMapper()
-        
+
         # Load model mappings if configured
         if self.settings.model_mappings_file:
             self.model_mapper.load_mappings(self.settings.model_mappings_file)
@@ -84,9 +84,11 @@ class ChatManager:
 
         # Store creation timestamp for auto-save filename
         self.creation_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
+
         # Set up history manager
-        self.history_manager = HistoryManager(history_store=history_store, context_provider=context_provider)
+        self.history_manager = HistoryManager(
+            history_store=history_store, context_provider=context_provider
+        )
         self.context_provider = context_provider
 
         # Set up session
@@ -286,11 +288,15 @@ class ChatManager:
                 if self.persona_loader:
                     temp_persona = self.persona_loader.get_persona(persona_name)
                     if not temp_persona:
-                        self.logger.warning(f"Persona '{persona_name}' not found, using active persona instead.")
+                        self.logger.warning(
+                            f"Persona '{persona_name}' not found, using active persona instead."
+                        )
                     else:
                         self.logger.info(f"Using persona '{persona_name}' for this request")
                 else:
-                    self.logger.warning("No persona loader configured, ignoring persona_name parameter.")
+                    self.logger.warning(
+                        "No persona loader configured, ignoring persona_name parameter."
+                    )
 
             # Get all message history
             history_messages = self.history_manager.get_history() if self.history_manager else []
@@ -350,48 +356,71 @@ class ChatManager:
 
             # Add to messages we'll send to the LLM
             messages.append(user_message)
-            
+
             # Deduplicate messages before sending to the LLM
             messages = self._deduplicate_messages(messages)
 
             # Figure out model to use with more robust fallbacks
             model_name = model
-            
+
             # If model not specified directly, try to get it from the temp persona if available
-            if model_name is None and temp_persona and temp_persona.config and "model" in temp_persona.config:
+            if (
+                model_name is None
+                and temp_persona
+                and temp_persona.config
+                and "model" in temp_persona.config
+            ):
                 model_name = temp_persona.config.get("model")
                 self.logger.debug(f"Using model from temporary persona: {model_name}")
-                
+
             # If still no model, try to get it from the active persona if available
-            if model_name is None and self._active_persona and self._active_persona.config and "model" in self._active_persona.config:
+            if (
+                model_name is None
+                and self._active_persona
+                and self._active_persona.config
+                and "model" in self._active_persona.config
+            ):
                 model_name = self._active_persona.config.get("model")
                 self.logger.debug(f"Using model from active persona: {model_name}")
-                
+
             # If still no model, check if LLM client has a model override set
-            if model_name is None and hasattr(self.llm_client, "_instance_overrides") and "model" in self.llm_client._instance_overrides:
+            if (
+                model_name is None
+                and hasattr(self.llm_client, "_instance_overrides")
+                and "model" in self.llm_client._instance_overrides
+            ):
                 model_name = self.llm_client._instance_overrides.get("model")
                 self.logger.debug(f"Using model from LLM client override: {model_name}")
-                
+
             # Final fallback to the default model from settings
             if model_name is None:
                 model_name = self.settings.default_model
                 self.logger.debug(f"Using default model from settings: {model_name}")
-                
+
             # Ensure we have a model specified at this point
             if model_name is None:
-                raise ConfigurationError("No model specified and no default model available in settings.")
+                raise ConfigurationError(
+                    "No model specified and no default model available in settings."
+                )
 
             # Prepare LLM parameters
             llm_params = {}
-            
-            # Always set the model explicitly 
+
+            # Always set the model explicitly
             llm_params["model"] = model_name
 
             # Apply parameter overrides from temp persona if available
             if temp_persona and temp_persona.config:
                 valid_llm_params = {
-                    "temperature", "top_p", "n", "stream", "max_tokens", 
-                    "presence_penalty", "frequency_penalty", "logit_bias", "stop"
+                    "temperature",
+                    "top_p",
+                    "n",
+                    "stream",
+                    "max_tokens",
+                    "presence_penalty",
+                    "frequency_penalty",
+                    "logit_bias",
+                    "stop",
                 }
                 for key, value in temp_persona.config.items():
                     if key in valid_llm_params:
@@ -404,7 +433,9 @@ class ChatManager:
                     self.logger.debug(f"Applying parameter overrides: {kwargs['overrides']}")
                     llm_params.update(kwargs["overrides"])
                 else:
-                    self.logger.warning(f"Ignoring non-dictionary 'overrides': {kwargs['overrides']}")
+                    self.logger.warning(
+                        f"Ignoring non-dictionary 'overrides': {kwargs['overrides']}"
+                    )
                 # Remove 'overrides' from kwargs to prevent it from being sent as a parameter
                 del kwargs["overrides"]
 
@@ -412,7 +443,9 @@ class ChatManager:
             llm_params.update(kwargs)
 
             # Call LLM client
-            self.logger.info(f"Sending message to LLM with {len(messages)} messages in context using model: {model_name}")
+            self.logger.info(
+                f"Sending message to LLM with {len(messages)} messages in context using model: {model_name}"
+            )
             assistant_response_content = self.llm_client.chat(
                 messages=messages, stream=stream, stream_callback=stream_callback, **llm_params
             )
@@ -441,7 +474,10 @@ class ChatManager:
             # Get the actual model used from the LLM client
             # Try to get the actual model used from the LLM client's instance overrides
             actual_model_used = None
-            if hasattr(self.llm_client, "_instance_overrides") and "model" in self.llm_client._instance_overrides:
+            if (
+                hasattr(self.llm_client, "_instance_overrides")
+                and "model" in self.llm_client._instance_overrides
+            ):
                 actual_model_used = self.llm_client._instance_overrides.get("model")
 
             # If we're adding to history, add both user and assistant messages
@@ -464,18 +500,21 @@ class ChatManager:
                         "tokens_in": tokens_in,
                         "tokens_out": tokens_out,
                         "cost_mili_cents": cost_mili_cents,
-                        "model_used": actual_model_used or model_name,  # Use the actual model if available
+                        "model_used": actual_model_used
+                        or model_name,  # Use the actual model if available
                     },
                 )
 
                 if self.history_manager:
                     self.history_manager.add_message(assistant_message)
-                    
+
                 # Auto-save the conversation if enabled in settings
                 if self.settings.auto_save and self.history_manager:
                     try:
                         # Use the autosave_file setting with the fixed creation timestamp
-                        autosave_filename = f"{self.settings.autosave_file}_{self.creation_datetime}"
+                        autosave_filename = (
+                            f"{self.settings.autosave_file}_{self.creation_datetime}"
+                        )
                         saved_path = self.history_manager.save_conversation(autosave_filename)
                         if saved_path:
                             self.logger.info(f"Auto-saved conversation to {saved_path}")
@@ -485,14 +524,17 @@ class ChatManager:
             # Display status bar if context provider is available
             duration = time.time() - start_time
             if self.context_provider and not stream:
-                self.context_provider.display_status({
-                    "success": True,
-                    "duration": duration,
-                    "tokens_in": tokens_in,
-                    "tokens_out": tokens_out,
-                    "cost_mili_cents": cost_mili_cents,
-                    "model": actual_model_used or model_name  # Use the actual model if available
-                })
+                self.context_provider.display_status(
+                    {
+                        "success": True,
+                        "duration": duration,
+                        "tokens_in": tokens_in,
+                        "tokens_out": tokens_out,
+                        "cost_mili_cents": cost_mili_cents,
+                        "model": actual_model_used
+                        or model_name,  # Use the actual model if available
+                    }
+                )
 
             return assistant_response_content
 
@@ -502,14 +544,16 @@ class ChatManager:
 
             # Show error in status bar
             if self.context_provider:
-                self.context_provider.display_status({
-                    "success": False,
-                    "duration": duration,
-                    "tokens_in": None,
-                    "tokens_out": None,
-                    "cost_mili_cents": None,
-                    "model": None
-                })
+                self.context_provider.display_status(
+                    {
+                        "success": False,
+                        "duration": duration,
+                        "tokens_in": None,
+                        "tokens_out": None,
+                        "cost_mili_cents": None,
+                        "model": None,
+                    }
+                )
 
             # Re-raise to let caller handle
             raise
@@ -636,7 +680,9 @@ class ChatManager:
         """
         sensitive_keys = ["api_key", "secret", "password", "token"]
 
-        if any(sensitive_part in key.lower() for sensitive_part in sensitive_keys) and isinstance(value, str):
+        if any(sensitive_part in key.lower() for sensitive_part in sensitive_keys) and isinstance(
+            value, str
+        ):
             if len(value) > 8:
                 return value[:4] + "..." + value[-2:]
             else:
@@ -658,7 +704,9 @@ class ChatManager:
         if hasattr(self.llm_client, "_instance_overrides"):
             raw_overrides = self.llm_client._instance_overrides.copy()
             # Mask sensitive values
-            masked_overrides = {k: self._mask_sensitive_value(k, v) for k, v in raw_overrides.items()}
+            masked_overrides = {
+                k: self._mask_sensitive_value(k, v) for k, v in raw_overrides.items()
+            }
             return masked_overrides
         else:
             self.logger.warning("LLM client does not have _instance_overrides attribute")
@@ -714,23 +762,23 @@ class ChatManager:
         """
         if not messages:
             return []
-            
+
         # Track seen message contents by role to prevent duplicates
         seen = {}
         deduplicated = []
-        
+
         for msg in messages:
             # Create a unique key based on role and content
             key = f"{msg.role}:{msg.content}"
-            
+
             # If we haven't seen this message before, add it
             if key not in seen:
                 seen[key] = True
                 deduplicated.append(msg)
             else:
                 self.logger.debug(f"Skipping duplicate message with role '{msg.role}'")
-                
+
         if len(deduplicated) < len(messages):
             self.logger.info(f"Removed {len(messages) - len(deduplicated)} duplicate messages")
-            
+
         return deduplicated
