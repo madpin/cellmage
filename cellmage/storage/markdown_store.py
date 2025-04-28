@@ -2,9 +2,8 @@ import logging
 import os
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import yaml
 else:

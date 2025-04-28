@@ -6,8 +6,12 @@ including magics and context providers.
 """
 
 try:
-    from .ipython_magic import NotebookLLMMagics, load_ipython_extension, unload_ipython_extension
     from ..context_providers.ipython_context_provider import IPythonContextProvider
+    from .ipython_magic import (
+        NotebookLLMMagics,
+        load_ipython_extension,
+        unload_ipython_extension,
+    )
 
     _IPYTHON_AVAILABLE = True
 except ImportError:

@@ -1,8 +1,7 @@
 import logging
 import os
-from typing import List, Optional, Any
+from typing import TYPE_CHECKING, Any, List, Optional
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import yaml
 else:

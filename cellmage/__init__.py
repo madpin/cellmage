@@ -11,7 +11,7 @@ import os  # noqa: E402
 
 # Expose key classes and exceptions for easier import by users
 from .chat_manager import ChatManager  # noqa: E402
-from .exceptions import ( # noqa: E402
+from .exceptions import (  # noqa: E402
     ConfigurationError,
     HistoryManagementError,
     LLMInteractionError,
@@ -22,7 +22,7 @@ from .exceptions import ( # noqa: E402
 )
 
 # Expose interfaces if they are intended for external implementation/type hinting
-from .interfaces import ( # noqa: E402
+from .interfaces import (  # noqa: E402
     ContextProvider,
     HistoryStore,
     LLMClientInterface,
@@ -74,7 +74,9 @@ def get_default_manager():
             from .storage.markdown_store import MarkdownStore
 
             try:
-                from .context_providers.ipython_context_provider import IPythonContextProvider
+                from .context_providers.ipython_context_provider import (
+                    IPythonContextProvider,
+                )
 
                 context_provider = IPythonContextProvider()
             except ImportError:

@@ -52,10 +52,7 @@ from ..ambient_mode import (
 # Project imports
 from ..chat_manager import ChatManager
 from ..context_providers.ipython_context_provider import get_ipython_context_provider
-from ..exceptions import (
-    PersistenceError,
-    ResourceNotFoundError,
-)
+from ..exceptions import PersistenceError, ResourceNotFoundError
 from ..models import Message
 
 # Logging setup
@@ -409,17 +406,60 @@ class NotebookLLMMagics(Magics):
         if args.show_history:
             action_taken = True
             history = manager.get_history()
+            
+            # Calculate total tokens for all messages
+            total_tokens_in = 0
+            total_tokens_out = 0
+            total_tokens = 0
+            
+            # Calculate cumulative token counts
+            for msg in history:
+                if msg.metadata:
+                    total_tokens_in += msg.metadata.get("tokens_in", 0)
+                    total_tokens_out += msg.metadata.get("tokens_out", 0)
+                    msg_total = msg.metadata.get("total_tokens", 0)
+                    if msg_total > 0:
+                        total_tokens += msg_total
+            
+            # If no total_tokens were found, calculate from in+out
+            if total_tokens == 0:
+                total_tokens = total_tokens_in + total_tokens_out
+            
+            # Print history header with token counts
             print(f"--- History ({len(history)} messages) ---")
+            print(f"Total tokens: {total_tokens} (Input: {total_tokens_in}, Output: {total_tokens_out})")
+            
             if not history:
                 print("(empty)")
             else:
                 for i, msg in enumerate(history):
+                    tokens_in = msg.metadata.get("tokens_in", 0) if msg.metadata else 0
+                    tokens_out = msg.metadata.get("tokens_out", 0) if msg.metadata else 0
+                    model_used = msg.metadata.get("model_used", "") if msg.metadata else ""
+                    
+                    # Display token info based on role
+                    token_info = ""
+                    if msg.role == "user":
+                        token_info = f"(Tokens: {tokens_in})"
+                    elif msg.role == "assistant":
+                        token_info = f"(Tokens: {tokens_out})"
+                    
                     print(
-                        f"[{i}] {msg.role.upper()}: {msg.content[:150]}{'...' if len(msg.content) > 150 else ''}"
+                        f"[{i}] {msg.role.upper()} {token_info}: {msg.content[:150]}{'...' if len(msg.content) > 150 else ''}"
                     )
-                    print(
-                        f"    (ID: ...{msg.id[-6:]}, Cell: {msg.cell_id[-8:] if msg.cell_id else 'N/A'}, Exec: {msg.execution_count})"
-                    )
+                    
+                    # Show more metadata details
+                    meta_items = []
+                    if msg.id:
+                        meta_items.append(f"ID: ...{msg.id[-6:]}")
+                    if msg.cell_id:
+                        meta_items.append(f"Cell: {msg.cell_id[-8:]}")
+                    if msg.execution_count:
+                        meta_items.append(f"Exec: {msg.execution_count}")
+                    if model_used:
+                        meta_items.append(f"Model: {model_used}")
+                    
+                    print(f"    ({', '.join(meta_items)})")
             print("--------------------------")
 
         return action_taken
@@ -1086,10 +1126,10 @@ class NotebookLLMMagics(Magics):
                     if len(history) >= 2:
                         # Convert Any | None values to appropriate types that won't cause type errors
                         tokens_in = history[-2].metadata.get("tokens_in", 0)
-                        status_info["tokens_in"] = float(tokens_in if tokens_in is not None else 0)
+                        status_info["tokens_in"] = float(tokens_in) if tokens_in is not None else 0.0
                         
                         tokens_out = history[-1].metadata.get("tokens_out", 0)
-                        status_info["tokens_out"] = float(tokens_out if tokens_out is not None else 0)
+                        status_info["tokens_out"] = float(tokens_out) if tokens_out is not None else 0.0
                         
                         status_info["cost_str"] = history[-1].metadata.get("cost_str", "")
                         status_info["model_used"] = history[-1].metadata.get("model_used", "")

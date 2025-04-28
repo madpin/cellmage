@@ -8,9 +8,7 @@ from unittest.mock import MagicMock
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import cellmage
-from cellmage.exceptions import (
-    NotebookLLMError,
-)
+from cellmage.exceptions import NotebookLLMError
 from cellmage.models import ConversationMetadata, Message
 from cellmage.resources.memory_loader import MemoryLoader
 from cellmage.storage.memory_store import MemoryStore

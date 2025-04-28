@@ -42,6 +42,10 @@ class DirectLLMAdapter(LLMClientInterface):
 
         # Instance overrides
         self._instance_overrides: Dict[str, Any] = {}
+        # Track the last token usage
+        self._last_token_usage: Dict[str, int] = {}
+        # Track the last model used
+        self._last_model_used: Optional[str] = None
 
         # Initialize model mapper and try to load default mappings
         from ..model_mapping import ModelMapper
@@ -309,6 +313,9 @@ class DirectLLMAdapter(LLMClientInterface):
 
         # Parse the response
         result = response.json()
+        
+        # Extract token usage information
+        self._extract_token_usage(result)
 
         # Store the actual model used from the response
         if "model" in result:
@@ -323,6 +330,42 @@ class DirectLLMAdapter(LLMClientInterface):
                 return content.strip()
 
         return ""
+
+    def _extract_token_usage(self, response_data: Dict[str, Any]) -> None:
+        """Extract token usage information from API response."""
+        if "usage" in response_data:
+            usage = response_data["usage"]
+            self._last_token_usage = {
+                "prompt_tokens": usage.get("prompt_tokens", 0),
+                "completion_tokens": usage.get("completion_tokens", 0),
+                "total_tokens": usage.get("total_tokens", 0),
+            }
+            self.logger.debug(
+                f"Token usage: {self._last_token_usage['prompt_tokens']} (prompt) + "
+                f"{self._last_token_usage['completion_tokens']} (completion) = "
+                f"{self._last_token_usage['total_tokens']} (total)"
+            )
+        else:
+            self._last_token_usage = {}
+            self.logger.debug("No token usage information in API response")
+
+    def get_last_token_usage(self) -> Dict[str, int]:
+        """
+        Get token usage from the last API call.
+        
+        Returns:
+            Dictionary with prompt_tokens, completion_tokens, and total_tokens
+        """
+        return self._last_token_usage.copy()
+
+    def get_last_model_used(self) -> Optional[str]:
+        """
+        Get the model that was used in the last API call.
+        
+        Returns:
+            Model name or None if no call has been made
+        """
+        return self._last_model_used
 
     def _handle_streaming(
         self,
@@ -352,6 +395,8 @@ class DirectLLMAdapter(LLMClientInterface):
 
         accumulated_content = ""
         model_from_stream = None
+        # For streaming responses, we need to look for token usage in the final chunk
+        token_usage_data = {}
 
         # Process the streaming response
         for line in response.iter_lines():
@@ -375,6 +420,10 @@ class DirectLLMAdapter(LLMClientInterface):
                     model_from_stream = chunk_data["model"]
                     # Update model in instance overrides to make it available for status reporting
                     self._instance_overrides["model"] = model_from_stream
+                
+                # Check if this chunk has token usage data (typically in the final chunk)
+                if "usage" in chunk_data:
+                    token_usage_data = chunk_data["usage"]
 
                 # Extract content from choices
                 if "choices" in chunk_data and len(chunk_data["choices"]) > 0:
@@ -392,6 +441,22 @@ class DirectLLMAdapter(LLMClientInterface):
         # Store the actual model used from the streaming response
         if model_from_stream:
             self._last_model_used = model_from_stream
+        
+        # Update token usage from streaming response (if available)
+        if token_usage_data:
+            self._last_token_usage = {
+                "prompt_tokens": token_usage_data.get("prompt_tokens", 0),
+                "completion_tokens": token_usage_data.get("completion_tokens", 0),
+                "total_tokens": token_usage_data.get("total_tokens", 0),
+            }
+        else:
+            # If we didn't get token usage data in the stream, make an estimate based on char count
+            # This is a very rough approximation and should be improved
+            self._last_token_usage = {
+                "prompt_tokens": 0,  # Can't accurately determine this from streaming
+                "completion_tokens": len(accumulated_content) // 4,  # Rough estimate: 4 chars per token
+                "total_tokens": 0,  # Can't accurately determine this from streaming
+            }
 
         return accumulated_content
 

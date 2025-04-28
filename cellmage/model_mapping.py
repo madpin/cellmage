@@ -1,8 +1,7 @@
 import logging
 from pathlib import Path
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import yaml
 else:

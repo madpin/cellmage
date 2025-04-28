@@ -6,10 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from .config import Settings
-from .exceptions import (
-    ConfigurationError,
-    ResourceNotFoundError,
-)
+from .exceptions import ConfigurationError, ResourceNotFoundError
 from .history_manager import HistoryManager
 from .interfaces import (
     ContextProvider,
@@ -451,15 +448,31 @@ class ChatManager:
                 messages=messages, stream=stream, stream_callback=stream_callback, **llm_params
             )
 
-            # Estimate token counts
-            # This is a naive implementation - ideally the LLM adapter should return this information
-            input_text = "\n".join([m.content for m in messages])
-            # Rough estimate: 1 token ≈ 4 chars for English text
-            tokens_in = max(1, len(input_text) // 4)
-            
-            # Ensure assistant_response_content is treated as a string for length calculation
-            response_content_str = str(assistant_response_content) if assistant_response_content is not None else ""
-            tokens_out = max(1, len(response_content_str) // 4)
+            # Get token usage data from the LLM client
+            token_usage = {}
+            if hasattr(self.llm_client, "get_last_token_usage"):
+                token_usage = self.llm_client.get_last_token_usage()
+                tokens_in = token_usage.get("prompt_tokens", 0)
+                tokens_out = token_usage.get("completion_tokens", 0)
+                total_tokens = token_usage.get("total_tokens", 0)
+                self.logger.debug(
+                    f"Token usage from API: {tokens_in} (prompt) + "
+                    f"{tokens_out} (completion) = {total_tokens} (total)"
+                )
+            else:
+                # Fallback to estimation if token usage isn't available from the client
+                input_text = "\n".join([m.content for m in messages])
+                # Rough estimate: 1 token ≈ 4 chars for English text
+                tokens_in = max(1, len(input_text) // 4)
+                
+                # Ensure assistant_response_content is treated as a string for length calculation
+                response_content_str = str(assistant_response_content) if assistant_response_content is not None else ""
+                tokens_out = max(1, len(response_content_str) // 4)
+                total_tokens = tokens_in + tokens_out
+                self.logger.debug(
+                    f"Estimated token usage: {tokens_in} (prompt) + "
+                    f"{tokens_out} (completion) = {total_tokens} (total)"
+                )
 
             # Calculate cost - simplified model for now
             if model_name and "gpt-4" in model_name.lower():
@@ -475,10 +488,14 @@ class ChatManager:
             # Convert to millicents (1/100,000 of a dollar) for consistent display
             cost_mili_cents = int(cost_dollars * 100000)
 
+            # Format cost as a string for display
+            cost_str = f"${cost_dollars:.6f}"
+
             # Get the actual model used from the LLM client
-            # Try to get the actual model used from the LLM client's instance overrides
             actual_model_used = None
-            if (
+            if hasattr(self.llm_client, "get_last_model_used"):
+                actual_model_used = self.llm_client.get_last_model_used()
+            elif (
                 hasattr(self.llm_client, "_instance_overrides")
                 and "model" in self.llm_client._instance_overrides
             ):
@@ -503,9 +520,10 @@ class ChatManager:
                     metadata={
                         "tokens_in": tokens_in,
                         "tokens_out": tokens_out,
+                        "total_tokens": total_tokens,
+                        "cost_str": cost_str,
                         "cost_mili_cents": cost_mili_cents,
-                        "model_used": actual_model_used
-                        or model_name,  # Use the actual model if available
+                        "model_used": actual_model_used or model_name,
                     },
                 )
 
@@ -534,9 +552,10 @@ class ChatManager:
                         "duration": duration,
                         "tokens_in": tokens_in,
                         "tokens_out": tokens_out,
+                        "total_tokens": total_tokens,
+                        "cost_str": cost_str,
                         "cost_mili_cents": cost_mili_cents,
-                        "model": actual_model_used
-                        or model_name,  # Use the actual model if available
+                        "model": actual_model_used or model_name,
                     }
                 )
 
@@ -554,6 +573,8 @@ class ChatManager:
                         "duration": duration,
                         "tokens_in": None,
                         "tokens_out": None,
+                        "total_tokens": None,
+                        "cost_str": None,
                         "cost_mili_cents": None,
                         "model": None,
                     }
