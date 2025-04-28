@@ -74,7 +74,7 @@ def get_default_manager():
             from .storage.markdown_store import MarkdownStore
 
             try:
-                from .integrations.ipython_magic import IPythonContextProvider
+                from .context_providers.ipython_context_provider import IPythonContextProvider
 
                 context_provider = IPythonContextProvider()
             except ImportError:

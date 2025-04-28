@@ -1,8 +1,12 @@
 import logging
 import os
-from typing import List, Optional
+from typing import List, Optional, Any
 
-import yaml
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    import yaml
+else:
+    import yaml  # type: ignore
 
 from ..interfaces import PersonaLoader, SnippetProvider
 from ..models import PersonaConfig
@@ -139,7 +143,7 @@ class FileLoader(PersonaLoader, SnippetProvider):
                 content = f.read()
 
             # Manual YAML frontmatter parsing
-            config = {}
+            config: dict[str, Any] = {}
             system_message = ""
 
             if content.startswith("---"):
@@ -301,7 +305,7 @@ class MultiFileLoader(PersonaLoader, SnippetProvider):
     returning the first match found.
     """
 
-    def __init__(self, personas_dirs: List[str] = None, snippets_dirs: List[str] = None):
+    def __init__(self, personas_dirs: Optional[List[str]] = None, snippets_dirs: Optional[List[str]] = None):
         """
         Initialize the MultiFileLoader.
 

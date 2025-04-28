@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from ..interfaces import PersonaLoader, SnippetProvider
 from ..models import PersonaConfig
@@ -49,7 +49,7 @@ class MemoryLoader(PersonaLoader, SnippetProvider):
         self.logger.warning(f"Persona '{name}' not found")
         return None
 
-    def add_persona(self, name: str, system_message: str, config: Dict = None) -> None:
+    def add_persona(self, name: str, system_message: str, config: Optional[Dict[str, Any]] = None) -> None:
         """
         Add a persona to the in-memory collection.
 

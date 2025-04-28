@@ -334,7 +334,7 @@ class ChatManager:
 
                 def stream_handler(chunk: str) -> None:
                     """Handle streaming chunks by updating display"""
-                    if display_handle is not None:
+                    if display_handle is not None and self.context_provider is not None:
                         self.context_provider.update_stream(display_handle, chunk)
                     else:
                         # Fallback to print if display handle isn't available
@@ -383,6 +383,7 @@ class ChatManager:
             # If still no model, check if LLM client has a model override set
             if (
                 model_name is None
+                and self.llm_client is not None
                 and hasattr(self.llm_client, "_instance_overrides")
                 and "model" in self.llm_client._instance_overrides
             ):
@@ -443,6 +444,9 @@ class ChatManager:
             self.logger.info(
                 f"Sending message to LLM with {len(messages)} messages in context using model: {model_name}"
             )
+            if self.llm_client is None:
+                raise ConfigurationError("LLM client is not configured")
+                
             assistant_response_content = self.llm_client.chat(
                 messages=messages, stream=stream, stream_callback=stream_callback, **llm_params
             )
@@ -452,7 +456,10 @@ class ChatManager:
             input_text = "\n".join([m.content for m in messages])
             # Rough estimate: 1 token ≈ 4 chars for English text
             tokens_in = max(1, len(input_text) // 4)
-            tokens_out = max(1, len(assistant_response_content) // 4)
+            
+            # Ensure assistant_response_content is treated as a string for length calculation
+            response_content_str = str(assistant_response_content) if assistant_response_content is not None else ""
+            tokens_out = max(1, len(response_content_str) // 4)
 
             # Calculate cost - simplified model for now
             if model_name and "gpt-4" in model_name.lower():
@@ -520,7 +527,7 @@ class ChatManager:
 
             # Display status bar if context provider is available
             duration = time.time() - start_time
-            if self.context_provider and not stream:
+            if self.context_provider is not None and not stream:
                 self.context_provider.display_status(
                     {
                         "success": True,
@@ -540,7 +547,7 @@ class ChatManager:
             self.logger.error(f"Error during chat: {e}")
 
             # Show error in status bar
-            if self.context_provider:
+            if self.context_provider is not None:
                 self.context_provider.display_status(
                     {
                         "success": False,
@@ -698,7 +705,7 @@ class ChatManager:
             return {}
 
         # Access the internal _instance_overrides attribute of the LLM client
-        if hasattr(self.llm_client, "_instance_overrides"):
+        if self.llm_client is not None and hasattr(self.llm_client, "_instance_overrides"):
             raw_overrides = self.llm_client._instance_overrides.copy()
             # Mask sensitive values
             masked_overrides = {

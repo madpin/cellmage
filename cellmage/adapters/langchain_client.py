@@ -55,7 +55,7 @@ class LangChainAdapter(LLMClientInterface):
         self.logger = logging.getLogger(__name__)
 
         # Instance overrides (similar to DirectLLMAdapter)
-        self._instance_overrides = {}
+        self._instance_overrides: Dict[str, Any] = {}
         self._last_model_used = None
 
         # Set API key from param or env var
@@ -236,14 +236,18 @@ class LangChainAdapter(LLMClientInterface):
                 response = chat.invoke(lc_messages)
                 # The streaming handler already called the callbacks
                 # Just return the collected response
-                result = streaming_handler.captured_text if streaming_handler else ""
+                result = "" if not streaming_handler else streaming_handler.captured_text
             else:
                 # For non-streaming, get the content directly
                 response = chat.invoke(lc_messages)
                 # In 0.3.24, response is an AIMessage object with a content attribute
                 if not response:
                     return ""
-                result = response.content
+                # Ensure result is properly typed as a string
+                if hasattr(response, "content"):
+                    result = str(response.content)
+                else:
+                    result = ""
 
             # Store the model used for status reporting
             self._last_model_used = final_model

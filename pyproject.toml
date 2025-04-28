@@ -27,6 +27,8 @@ dependencies = [
     "requests",
     "PyYAML",
     "python-dotenv",
+    "types-PyYAML",
+    "types-requests",
 ]
 license = {file = "LICENSE"}
 

@@ -3,7 +3,11 @@ import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import requests
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    import requests
+else:
+    import requests  # type: ignore
 
 from ..exceptions import ConfigurationError, LLMInteractionError
 from ..interfaces import LLMClientInterface, StreamCallbackHandler
@@ -37,7 +41,7 @@ class DirectLLMAdapter(LLMClientInterface):
         self.logger = logging.getLogger(__name__)
 
         # Instance overrides
-        self._instance_overrides = {}
+        self._instance_overrides: Dict[str, Any] = {}
 
         # Initialize model mapper and try to load default mappings
         from ..model_mapping import ModelMapper

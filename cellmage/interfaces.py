@@ -250,3 +250,13 @@ class ContextProvider(ABC):
             content: The content to display
         """
         pass
+
+    @abstractmethod
+    def display_status(self, status_info: Dict[str, Any]) -> None:
+        """
+        Display status information in the user interface.
+
+        Args:
+            status_info: Dictionary containing status information to display
+        """
+        pass

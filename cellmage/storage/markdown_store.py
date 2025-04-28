@@ -4,7 +4,11 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-import yaml
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    import yaml
+else:
+    import yaml  # type: ignore
 
 from ..exceptions import PersistenceError
 from ..interfaces import HistoryStore
@@ -113,8 +117,8 @@ class MarkdownStore(HistoryStore):
         content_parts.append(f"# Conversation on {current_date}\n\n")
 
         # Group messages by role for better readability
-        current_role = None
-        current_text = []
+        current_role: Optional[str] = None
+        current_text: List[str] = []
 
         for msg in messages:
             if msg.role != current_role:
@@ -123,7 +127,7 @@ class MarkdownStore(HistoryStore):
                     role_prefix = (
                         "**You:**"
                         if current_role == "user"
-                        else f"**{current_role.capitalize()}:**"
+                        else f"**{current_role or 'Unknown'}:**"
                     )
                     content_parts.append(f"{role_prefix}\n{''.join(current_text)}\n")
                     current_text = []
@@ -139,7 +143,7 @@ class MarkdownStore(HistoryStore):
         # Add any remaining text
         if current_text:
             role_prefix = (
-                "**You:**" if current_role == "user" else f"**{current_role.capitalize()}:**"
+                "**You:**" if current_role == "user" else f"**{current_role or 'Unknown'}:**"
             )
             content_parts.append(f"{role_prefix}\n{''.join(current_text)}\n")
 
@@ -217,8 +221,8 @@ class MarkdownStore(HistoryStore):
 
             # Simple parsing based on role markers
             # More robust parsing might be needed for complex conversations
-            current_role = None
-            current_content = []
+            current_role: Optional[str] = None
+            current_content: List[str] = []
 
             for line in content_text.split("\n"):
                 if line.startswith("**System:**"):

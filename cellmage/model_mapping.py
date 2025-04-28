@@ -2,7 +2,11 @@ import logging
 from pathlib import Path
 from typing import Dict, Optional
 
-import yaml
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    import yaml
+else:
+    import yaml  # type: ignore
 
 logger = logging.getLogger(__name__)
 

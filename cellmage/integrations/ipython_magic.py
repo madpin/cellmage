@@ -37,8 +37,10 @@ except ImportError:
     def argument(*args, **kwargs):
         return lambda func: func
 
-    class Magics:
+    class DummyMagics:
         pass  # Dummy base class
+
+    Magics = DummyMagics  # Type alias for compatibility
 
 
 from ..ambient_mode import (
@@ -84,11 +86,13 @@ def _init_default_manager() -> ChatManager:
         context_provider = get_ipython_context_provider()
 
         # Initialize the appropriate LLM client adapter
+        from ..interfaces import LLMClientInterface
+        llm_client: Optional[LLMClientInterface] = None
+
         if adapter_type == "langchain":
             try:
                 from ..adapters.langchain_client import LangChainAdapter
-
-                client = LangChainAdapter(default_model=settings.default_model)
+                llm_client = LangChainAdapter(default_model=settings.default_model)
                 logger.info("Using LangChain adapter")
             except ImportError:
                 # Fall back to Direct adapter if LangChain is not available
@@ -96,18 +100,16 @@ def _init_default_manager() -> ChatManager:
                     "LangChain adapter requested but not available. Falling back to Direct adapter."
                 )
                 from ..adapters.direct_client import DirectLLMAdapter
-
-                client = DirectLLMAdapter(default_model=settings.default_model)
+                llm_client = DirectLLMAdapter(default_model=settings.default_model)
         else:
             # Default case: use Direct adapter
             from ..adapters.direct_client import DirectLLMAdapter
-
-            client = DirectLLMAdapter(default_model=settings.default_model)
+            llm_client = DirectLLMAdapter(default_model=settings.default_model)
             logger.info("Using Direct adapter")
 
         manager = ChatManager(
             settings=settings,
-            llm_client=client,
+            llm_client=llm_client,
             persona_loader=loader,
             snippet_provider=loader,
             history_store=store,
@@ -157,7 +159,7 @@ class NotebookLLMMagics(Magics):
     def _get_manager(self) -> ChatManager:
         """Helper to get the manager instance, with clear error handling."""
         if not _IPYTHON_AVAILABLE:
-            return None
+            raise RuntimeError("IPython not available")
 
         try:
             return get_chat_manager()
@@ -208,11 +210,15 @@ class NotebookLLMMagics(Magics):
                 try:
                     history = manager.history_manager.get_history()
                     if len(history) >= 2:
-                        status_info["tokens_in"] = history[-2].metadata.get("tokens_in")
-                    if len(history) >= 1:
-                        status_info["tokens_out"] = history[-1].metadata.get("tokens_out")
-                        status_info["cost_str"] = history[-1].metadata.get("cost_str")
-                        status_info["model_used"] = history[-1].metadata.get("model_used")
+                        # Convert Any | None values to appropriate types that won't cause type errors
+                        tokens_in = history[-2].metadata.get("tokens_in", 0)
+                        status_info["tokens_in"] = float(tokens_in) if tokens_in is not None else 0.0
+                        
+                        tokens_out = history[-1].metadata.get("tokens_out", 0)
+                        status_info["tokens_out"] = float(tokens_out) if tokens_out is not None else 0.0
+                        
+                        status_info["cost_str"] = history[-1].metadata.get("cost_str", "")
+                        status_info["model_used"] = history[-1].metadata.get("model_used", "")
                 except Exception as e:
                     logger.warning(
                         f"Error retrieving status info from history in ambient mode: {e}"
@@ -426,7 +432,18 @@ class NotebookLLMMagics(Magics):
         if args.list_sessions:
             action_taken = True
             try:
-                sessions = manager.list_saved_sessions()
+                # Check if list_saved_sessions or list_conversations method exists
+                if hasattr(manager, "list_saved_sessions"):
+                    sessions = manager.list_saved_sessions()
+                elif hasattr(manager, "list_conversations"):
+                    sessions = manager.list_conversations()
+                else:
+                    # Fallback to checking if the history_manager has the method
+                    if hasattr(manager, "history_manager") and hasattr(manager.history_manager, "list_saved_conversations"):
+                        sessions = manager.history_manager.list_saved_conversations()
+                    else:
+                        raise AttributeError("No list_saved_sessions or list_conversations method found")
+                        
                 print(
                     "Saved Sessions:", ", ".join(f"'{s}'" for s in sessions) if sessions else "None"
                 )
@@ -455,7 +472,14 @@ class NotebookLLMMagics(Magics):
         if args.load:
             action_taken = True
             try:
-                manager.load_session(args.load)
+                # Check if load_conversation method exists (it might be named differently than load_session)
+                if hasattr(manager, "load_session"):
+                    manager.load_session(args.load)
+                elif hasattr(manager, "load_conversation"):
+                    manager.load_conversation(args.load)
+                else:
+                    raise AttributeError("No load_session or load_conversation method found")
+                    
                 print(f"✅ Session loaded from '{args.load}'.")
             except ResourceNotFoundError:
                 print(f"❌ Error: Session '{args.load}' not found.")
@@ -471,7 +495,14 @@ class NotebookLLMMagics(Magics):
                 from pathlib import Path
 
                 filename = args.save if isinstance(args.save, str) else None
-                save_path = manager.save_session(identifier=filename)
+                # Check if save_conversation method exists (it might be named differently than save_session)
+                if hasattr(manager, "save_session"):
+                    save_path = manager.save_session(identifier=filename)
+                elif hasattr(manager, "save_conversation"):
+                    save_path = manager.save_conversation(filename)
+                else:
+                    raise AttributeError("No save_session or save_conversation method found")
+                    
                 print(f"✅ Session saved to '{Path(save_path).name}'.")  # Show only filename
             except PersistenceError as e:
                 print(f"❌ Error saving session: {e}")
@@ -487,7 +518,7 @@ class NotebookLLMMagics(Magics):
 
         if hasattr(args, "model") and args.model:
             action_taken = True
-            if hasattr(manager, "llm_client") and hasattr(manager.llm_client, "set_override"):
+            if manager.llm_client is not None:
                 manager.llm_client.set_override("model", args.model)
                 logger.info(f"Setting default model to: {args.model}")
                 print(f"✅ Default model set to: {args.model}")
@@ -496,7 +527,11 @@ class NotebookLLMMagics(Magics):
 
         if hasattr(args, "list_mappings") and args.list_mappings:
             action_taken = True
-            if hasattr(manager.llm_client, "model_mapper"):
+            if (
+                manager.llm_client is not None 
+                and hasattr(manager.llm_client, "model_mapper")
+                and manager.llm_client.model_mapper is not None
+            ):
                 mappings = manager.llm_client.model_mapper.get_mappings()
                 if mappings:
                     print("\nCurrent model mappings:")
@@ -509,7 +544,7 @@ class NotebookLLMMagics(Magics):
 
         if hasattr(args, "add_mapping") and args.add_mapping:
             action_taken = True
-            if hasattr(manager.llm_client, "model_mapper"):
+            if manager.llm_client is not None and hasattr(manager.llm_client, "model_mapper"):
                 alias, full_name = args.add_mapping
                 manager.llm_client.model_mapper.add_mapping(alias, full_name)
                 print(f"✅ Added mapping: {alias} -> {full_name}")
@@ -545,6 +580,7 @@ class NotebookLLMMagics(Magics):
                 if adapter_type == "langchain":
                     try:
                         from ..adapters.langchain_client import LangChainAdapter
+                        from ..interfaces import LLMClientInterface
 
                         # Create new adapter instance with current settings from existing client
                         current_api_key = None
@@ -559,7 +595,7 @@ class NotebookLLMMagics(Magics):
                                 current_model = overrides.get("model", current_model)
 
                         # Create the new adapter
-                        new_client = LangChainAdapter(
+                        new_client: LLMClientInterface = LangChainAdapter(
                             api_key=current_api_key,
                             api_base=current_api_base,
                             default_model=current_model,
@@ -857,12 +893,12 @@ class NotebookLLMMagics(Magics):
         """Deactivate ambient mode (stops processing regular code cells as LLM prompts)."""
         if not _IPYTHON_AVAILABLE:
             print("❌ IPython not available.", file=sys.stderr)
-            return
+            return None
 
         ip = get_ipython()
         if not ip:
             print("❌ IPython shell not found.", file=sys.stderr)
-            return
+            return None
 
         if is_ambient_mode_enabled():
             disable_ambient_mode(ip)
@@ -936,7 +972,7 @@ class NotebookLLMMagics(Magics):
 
         # Check if the persona exists if one was specified
         temp_persona = None
-        if args.persona:
+        if args.persona and manager.persona_loader is not None:
             temp_persona = manager.persona_loader.get_persona(args.persona)
             if not temp_persona:
                 print(f"❌ Error: Persona '{args.persona}' not found.")
@@ -1001,10 +1037,13 @@ class NotebookLLMMagics(Magics):
         original_model = None
         if args.model:
             # Directly set model override in the LLM client to ensure highest priority
-            if hasattr(manager, "llm_client") and hasattr(manager.llm_client, "set_override"):
+            if (
+                hasattr(manager, "llm_client") 
+                and manager.llm_client is not None 
+                and hasattr(manager.llm_client, "set_override")
+            ):
                 # Temporarily set model override for this call
-                if hasattr(manager.llm_client, "_instance_overrides"):
-                    original_model = manager.llm_client._instance_overrides.get("model")
+                original_model = manager.llm_client.get_overrides().get("model")
                 manager.llm_client.set_override("model", args.model)
                 logger.debug(f"Temporarily set model override to: {args.model}")
             else:
@@ -1045,11 +1084,15 @@ class NotebookLLMMagics(Magics):
                 try:
                     history = manager.history_manager.get_history()
                     if len(history) >= 2:
-                        status_info["tokens_in"] = history[-2].metadata.get("tokens_in")
-                    if len(history) >= 1:
-                        status_info["tokens_out"] = history[-1].metadata.get("tokens_out")
-                        status_info["cost_str"] = history[-1].metadata.get("cost_str")
-                        status_info["model_used"] = history[-1].metadata.get("model_used")
+                        # Convert Any | None values to appropriate types that won't cause type errors
+                        tokens_in = history[-2].metadata.get("tokens_in", 0)
+                        status_info["tokens_in"] = float(tokens_in if tokens_in is not None else 0)
+                        
+                        tokens_out = history[-1].metadata.get("tokens_out", 0)
+                        status_info["tokens_out"] = float(tokens_out if tokens_out is not None else 0)
+                        
+                        status_info["cost_str"] = history[-1].metadata.get("cost_str", "")
+                        status_info["model_used"] = history[-1].metadata.get("model_used", "")
                 except Exception as e:
                     logger.warning(f"Error retrieving status info from history: {e}")
 
