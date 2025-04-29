@@ -73,7 +73,7 @@ Fetch your recent tickets:
 
 After loading a Jira ticket with `%jira`, you can refer to it in your LLM prompts:
 
-```python
+```ipython
 # First, fetch a ticket
 %jira PROJECT-123
 
