@@ -37,7 +37,7 @@ jobs:
           - python: "3.10"
             task:
               name: Lint
-              run: ruff check .
+              run: ruff --config pyproject.toml check .
 
           # - python: "3.10"
           #   task:
@@ -55,7 +55,7 @@ jobs:
               name: Style
               run: |
                 isort --check .
-                black --check .
+                black --config pyproject.toml --check .
 
           - python: "3.10"
             task:
