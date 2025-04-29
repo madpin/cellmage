@@ -1226,12 +1226,26 @@ def load_ipython_extension(ipython):
         print("IPython is not available. Cannot load NotebookLLM magics.", file=sys.stderr)
         return
     try:
+        # Load main magics
         magic_class = NotebookLLMMagics(ipython)
         ipython.register_magics(magic_class)
         print("✅ NotebookLLM Magics loaded. Use %llm_config and %%llm.")
         print(
             "   For ambient mode, try %llm_config_persistent to process all cells as LLM prompts."
         )
+
+        # Try to load Jira magic if available
+        try:
+            from . import jira_magic
+
+            jira_magic.load_ipython_extension(ipython)
+        except ImportError:
+            logger.info(
+                "Jira integration not available. Install with 'pip install cellmage[jira]' to enable."
+            )
+        except Exception as e:
+            logger.warning(f"Failed to load Jira magic: {e}")
+
     except Exception as e:
         logger.exception("Failed to register NotebookLLM magics.")
         print(f"❌ Failed to load NotebookLLM Magics: {e}", file=sys.stderr)

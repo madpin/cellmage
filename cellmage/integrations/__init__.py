@@ -1,28 +1,10 @@
 """
-Integration components for various environments.
+Integration modules for CellMage.
 
-This module contains integrations with environments like IPython/Jupyter,
-including magics and context providers.
+This package contains modules that integrate CellMage with other systems.
 """
 
-try:
-    from ..context_providers.ipython_context_provider import IPythonContextProvider
-    from .ipython_magic import (
-        NotebookLLMMagics,
-        load_ipython_extension,
-        unload_ipython_extension,
-    )
+# Import the IPython magic modules for easy access
+from . import ipython_magic, jira_magic
 
-    _IPYTHON_AVAILABLE = True
-except ImportError:
-    _IPYTHON_AVAILABLE = False
-
-if _IPYTHON_AVAILABLE:
-    __all__ = [
-        "IPythonContextProvider",
-        "NotebookLLMMagics",
-        "load_ipython_extension",
-        "unload_ipython_extension",
-    ]
-else:
-    __all__ = []
+__all__ = ["ipython_magic", "jira_magic"]
