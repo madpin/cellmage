@@ -23,6 +23,7 @@ It's designed for **data scientists, software engineers, researchers, and studen
 *   **🧩 Adapter System:** Supports different LLM backends (currently Direct OpenAI-compatible API access, with LangChain integration).
 *   **🏷️ Model Mapping:** Use short aliases (like `g4o`) for full model names (`gpt-4o`).
 *   **📊 Status & Cost Tracking:** Get immediate feedback on prompt execution time, token usage, and estimated cost.
+*   **🔄 Jira Integration:** Fetch Jira tickets directly into your notebook to use as context for your LLM queries.
 
 ---
 
@@ -202,6 +203,48 @@ Cellmage automatically saves conversations if an `llm_conversations` directory e
 # List saved sessions
 %llm_config --list-sessions
 ```
+
+### 6. Jira Integration
+
+Connect your notebooks directly to Jira tickets using the `%jira` magic command.
+
+*   **Installation:**
+    ```bash
+    pip install "cellmage[jira]"
+    ```
+
+*   **Configuration:**
+    Set these environment variables in a `.env` file or your environment:
+    ```
+    JIRA_URL=https://your-company.atlassian.net
+    JIRA_USER_EMAIL=your.email@company.com
+    JIRA_API_TOKEN=your_jira_api_token
+    ```
+
+*   **Basic Usage:**
+    ```python
+    # Fetch a specific ticket and add it to chat history
+    %jira PROJECT-123
+
+    # Fetch a ticket and add as system context
+    %jira PROJECT-123 --system
+
+    # Just display a ticket without adding to history
+    %jira PROJECT-123 --show
+
+    # Use JQL to fetch multiple tickets
+    %jira --jql 'assignee = currentUser() ORDER BY updated DESC' --max 5
+    ```
+
+*   **Using with LLM Queries:**
+    ```python
+    # First, fetch the ticket
+    %jira PROJECT-123
+
+    # Then, reference it in your prompt
+    %%llm
+    Given the Jira ticket above, what are the key requirements I need to implement?
+    ```
 
 ---
 

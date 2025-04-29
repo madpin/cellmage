@@ -6,15 +6,14 @@ docs :
 .PHONY : run-checks
 run-checks :
 	isort --check .
-	black --check .
-	ruff check .
-	mypy .
+	black --config pyproject.toml --check .
+	ruff  --config pyproject.toml check .
 	CUDA_VISIBLE_DEVICES='' pytest -v --color=yes --doctest-modules tests/ cellmage/
 
 run-fix :
 	isort .
-	black .
-	ruff format
+	black --config pyproject.toml .
+	ruff --config pyproject.toml format
 	CUDA_VISIBLE_DEVICES='' pytest -v --color=yes --doctest-modules tests/ cellmage/
 
 .PHONY : build
