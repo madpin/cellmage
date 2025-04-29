@@ -4,7 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 # See https://setuptools.pypa.io/en/latest/userguide/quickstart.html for more project configuration options.
-name = "cellmage"
+name = "Cellmage"
+description = "IPython magic commands for seamless LLM integration in Jupyter notebooks, with persona management, context snippets, and Jira/GitLab integrations"
 dynamic = ["version"]
 readme = "README.md"
 classifiers = [
@@ -62,6 +63,11 @@ langchain = [
 jira = [
     "jira>=3.5.0",
     "python-dotenv>=1.0.0"
+]
+gitlab = [
+    "python-gitlab>=3.15.0",
+    "python-dotenv>=1.0.0",
+    "tiktoken>=0.5.0"
 ]
 dev = [
     "ruff",

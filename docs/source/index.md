@@ -9,6 +9,7 @@ installation
 overview
 ipython_magic_commands
 jira_integration
+gitlab_integration
 ```
 
 ```{toctree}
