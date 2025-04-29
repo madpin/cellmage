@@ -17,7 +17,6 @@ try:
     from IPython import get_ipython  # noqa: E402
     from IPython.display import (  # noqa: E402
         HTML,
-        # Javascript,
         Markdown,
         clear_output,
         display,
