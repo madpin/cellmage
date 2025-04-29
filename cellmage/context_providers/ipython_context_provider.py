@@ -6,6 +6,7 @@ that works with IPython/Jupyter environments.
 """
 
 import logging
+import uuid
 from typing import Any, Dict, Optional, Tuple
 
 # Set up logging
@@ -14,7 +15,13 @@ logger = logging.getLogger(__name__)
 # Try to import IPython dependencies with fallbacks
 try:
     from IPython import get_ipython  # noqa: E402
-    from IPython.display import HTML, Markdown, clear_output, display  # noqa: E402
+    from IPython.display import (  # noqa: E402
+        HTML,
+        Javascript,
+        Markdown,
+        clear_output,
+        display,
+    )
 
     _IPYTHON_AVAILABLE = True
 except ImportError:
@@ -46,6 +53,7 @@ class IPythonContextProvider(ContextProvider):
     def __init__(self):
         """Initialize the context provider."""
         self._ipython = get_ipython() if _IPYTHON_AVAILABLE else None
+        self._display_handles = {}  # Store display handles for updating
 
     def display_markdown(self, content: str) -> None:
         """
@@ -81,7 +89,7 @@ class IPythonContextProvider(ContextProvider):
         Set up display for a streaming response.
 
         Returns:
-            An object (output widget) that can be used to update the display
+            An object that can be used to update the display
         """
         if not _IPYTHON_AVAILABLE:
             # For non-IPython environments, return a simple placeholder
@@ -89,15 +97,32 @@ class IPythonContextProvider(ContextProvider):
             return {"content": ""}
 
         try:
-            # Use ipywidgets if available, otherwise fall back to simpler approach
+            # Generate a unique ID for this stream
+            stream_id = str(uuid.uuid4().hex)
+
+            # Set up the base content for tracking accumulated output
+            stream_obj = {"content": "", "id": stream_id}
+
             if _WIDGETS_AVAILABLE:
-                out = widgets.Output()
-                display(out)
-                return out
-            else:
-                # Simpler fallback without widgets
-                display(HTML("<div id='stream-output'></div>"))
-                return {"content": ""}
+                # Try ipywidgets approach first
+                try:
+                    # Use Output widget for widgetized display
+                    out = widgets.Output()
+                    display(out)
+                    stream_obj["widget"] = out
+                    return stream_obj
+                except Exception as e:
+                    logger.debug(f"Widget display failed, falling back: {e}")
+                    # Fall through to simpler approach
+
+            # Simple approach using direct display
+            # Display initial empty markdown that we'll update
+            display(Markdown(""))
+
+            # Store the stream object for tracking content
+            self._display_handles[stream_id] = True
+
+            return stream_obj
         except Exception as e:
             logger.error(f"Error setting up stream display: {e}")
             # Emergency fallback
@@ -118,23 +143,27 @@ class IPythonContextProvider(ContextProvider):
             return
 
         try:
-            if _WIDGETS_AVAILABLE and hasattr(display_object, "clear_output"):
-                # If we have a proper Output widget
-                with display_object:
-                    clear_output(wait=True)
-                    display(Markdown(content))
-            elif isinstance(display_object, dict):
-                # If we're using the fallback dict approach
+            # Append new content to existing accumulated content
+            if isinstance(display_object, dict):
                 display_object["content"] += content
-                # Clear output and redisplay all content to simulate streaming
-                clear_output(wait=True)
-                display(Markdown(display_object["content"]))
+                accumulated_content = display_object["content"]
             else:
-                # Ultimate fallback
-                print(content, end="", flush=True)
+                accumulated_content = content
+
+            # Try widgets approach first if available
+            if _WIDGETS_AVAILABLE and isinstance(display_object, dict) and "widget" in display_object:
+                with display_object["widget"]:
+                    clear_output(wait=True)
+                    display(Markdown(accumulated_content))
+                return
+
+            # For non-widget approach, use standard display with clear_output
+            clear_output(wait=True)
+            display(Markdown(accumulated_content))
+
         except Exception as e:
             logger.error(f"Error updating stream display: {e}")
-            # Emergency fallback
+            # Emergency fallback - print to console
             print(content, end="", flush=True)
 
     def display_status(self, status_info: Dict[str, Any]) -> None:
@@ -142,13 +171,7 @@ class IPythonContextProvider(ContextProvider):
         Display status information in a styled HTML box.
 
         Args:
-            status_info: Dictionary with status information including:
-                - success (bool): Whether the operation was successful
-                - duration (float): Time taken in seconds
-                - tokens_in (int, optional): Number of input tokens
-                - tokens_out (int, optional): Number of output tokens
-                - cost_str (str, optional): Formatted cost string
-                - model_used (str, optional): Name of the model used
+            status_info: Dictionary with status information
         """
         if not _IPYTHON_AVAILABLE:
             # Fallback for non-IPython environments
