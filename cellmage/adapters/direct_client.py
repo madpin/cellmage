@@ -259,12 +259,12 @@ class DirectLLMAdapter(LLMClientInterface):
 
             # Get headers from settings
             from ..config import settings
-            
+
             # Prepare headers
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {api_key}",
-                **settings.request_headers
+                **settings.request_headers,
             }
 
             # Convert messages to the format expected by the API

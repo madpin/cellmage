@@ -208,7 +208,7 @@ class LangChainAdapter(LLMClientInterface):
 
             # Get headers from settings
             from ..config import settings
-            
+
             # Create LangChain ChatOpenAI instance with appropriate configs
             chat_params = {
                 "model": final_model,
