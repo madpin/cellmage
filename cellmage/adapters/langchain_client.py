@@ -206,12 +206,16 @@ class LangChainAdapter(LLMClientInterface):
             if stream:
                 streaming_handler = LangChainStreamingCallbackHandler(stream_callback)
 
+            # Get headers from settings
+            from ..config import settings
+
             # Create LangChain ChatOpenAI instance with appropriate configs
             chat_params = {
                 "model": final_model,
                 "api_key": api_key,
                 "streaming": stream,
                 "temperature": kwargs.pop("temperature", 0.7),
+                "extra_headers": settings.request_headers,
             }
 
             # Set API base URL if provided - must be done during initialization

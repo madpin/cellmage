@@ -60,6 +60,12 @@ class Settings(BaseSettings):
         description="Automatically look for .cellmage_models.yml in notebook directory",
     )
 
+    # LLM Request Headers
+    request_headers: dict = Field(
+        default_factory=dict,
+        description="Additional headers to send with LLM requests",
+    )
+
     # Logging settings
     log_level: str = Field(default="INFO", description="Global logging level")
     console_log_level: str = Field(default="WARNING", description="Console logging level")
@@ -75,6 +81,16 @@ class Settings(BaseSettings):
     )
 
     def __init__(self, **data):
+        # Process headers from environment variables
+        headers = {}
+        for key, value in os.environ.items():
+            if key.startswith("CELLMAGE_HEADER_"):
+                header_name = key.replace("CELLMAGE_HEADER_", "").lower().replace("_", "-")
+                headers[header_name] = value
+        if headers:
+            data["request_headers"] = headers
+            logger.debug(f"Set request_headers from environment: {headers}")
+
         # Process environment variables before initialization
         env_personas_dirs = os.environ.get("CELLMAGE_PERSONAS_DIRS")
         if env_personas_dirs:

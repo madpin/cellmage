@@ -5,16 +5,25 @@ Test the Jira magic command.
 import unittest.mock as mock
 
 import pytest
-from IPython.testing.globalipapp import start_ipython
+from IPython.testing.globalipapp import get_ipython, start_ipython
 
 # Skip tests if jira module is not available
 pytest.importorskip("jira")
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def ip():
     """Start a test IPython kernel."""
-    return start_ipython()
+    ipython = start_ipython()
+    if ipython is None:
+        ipython = get_ipython()
+
+    # Make sure we have an IPython instance
+    if ipython is None:
+        pytest.skip("IPython is not available")
+
+    # Yield the instance for use in tests
+    yield ipython
 
 
 def test_jira_magic_loads(ip):
