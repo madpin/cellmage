@@ -49,7 +49,9 @@ class MemoryLoader(PersonaLoader, SnippetProvider):
         self.logger.warning(f"Persona '{name}' not found")
         return None
 
-    def add_persona(self, name: str, system_message: str, config: Optional[Dict[str, Any]] = None) -> None:
+    def add_persona(
+        self, name: str, system_message: str, config: Optional[Dict[str, Any]] = None
+    ) -> None:
         """
         Add a persona to the in-memory collection.
 

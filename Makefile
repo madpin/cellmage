@@ -13,8 +13,8 @@ run-checks :
 
 run-fix :
 	isort .
-	black --config pyproject.toml .
-	ruff --config pyproject.toml format
+	black .
+	ruff format
 	CUDA_VISIBLE_DEVICES='' pytest -v --color=yes --doctest-modules tests/ cellmage/
 
 .PHONY : build

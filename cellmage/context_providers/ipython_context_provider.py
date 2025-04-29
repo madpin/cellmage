@@ -151,7 +151,11 @@ class IPythonContextProvider(ContextProvider):
                 accumulated_content = content
 
             # Try widgets approach first if available
-            if _WIDGETS_AVAILABLE and isinstance(display_object, dict) and "widget" in display_object:
+            if (
+                _WIDGETS_AVAILABLE
+                and isinstance(display_object, dict)
+                and "widget" in display_object
+            ):
                 with display_object["widget"]:
                     clear_output(wait=True)
                     display(Markdown(accumulated_content))

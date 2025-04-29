@@ -63,7 +63,9 @@ class DirectLLMAdapter(LLMClientInterface):
             self.set_override("api_key", api_key)
 
         # Set API base from param or env var
-        api_base = api_base or os.environ.get("CELLMAGE_API_BASE") or os.environ.get("OPENAI_API_BASE")
+        api_base = (
+            api_base or os.environ.get("CELLMAGE_API_BASE") or os.environ.get("OPENAI_API_BASE")
+        )
         if api_base:
             self.set_override("api_base", api_base)
 
@@ -120,7 +122,9 @@ class DirectLLMAdapter(LLMClientInterface):
         if default_model is not None:
             self._instance_overrides["model"] = default_model
 
-        self.logger.info("[Override] Overrides cleared, preserving api_key and api_base. Model reset to default.")
+        self.logger.info(
+            "[Override] Overrides cleared, preserving api_key and api_base. Model reset to default."
+        )
 
     def get_overrides(self) -> Dict[str, Any]:
         """
@@ -178,7 +182,9 @@ class DirectLLMAdapter(LLMClientInterface):
         # 1. Call overrides
         # 2. Instance overrides
         # 3. Model name passed to this method
-        model_alias = call_overrides.get("model") or self._instance_overrides.get("model") or model_name
+        model_alias = (
+            call_overrides.get("model") or self._instance_overrides.get("model") or model_name
+        )
 
         # Translate model alias to full name
         final_model = self.model_mapper.get_full_name(model_alias) if model_alias else None
@@ -231,7 +237,9 @@ class DirectLLMAdapter(LLMClientInterface):
             system_message = next((m.content for m in messages if m.role == "system"), None)
 
             # Determine model and config for this call
-            final_model, final_config = self._determine_model_and_config(model, system_message, kwargs)
+            final_model, final_config = self._determine_model_and_config(
+                model, system_message, kwargs
+            )
 
             # Get API credentials
             api_key = final_config.pop("api_key", None)
@@ -285,7 +293,9 @@ class DirectLLMAdapter(LLMClientInterface):
         """Convert our Message objects to the format expected by the API."""
         return [{"role": msg.role, "content": msg.content} for msg in messages]
 
-    def _handle_non_streaming(self, api_base: str, headers: Dict[str, str], payload: Dict[str, Any]) -> str:
+    def _handle_non_streaming(
+        self, api_base: str, headers: Dict[str, str], payload: Dict[str, Any]
+    ) -> str:
         """Handle non-streaming API response."""
         url = f"{api_base}/chat/completions"
 
@@ -443,7 +453,8 @@ class DirectLLMAdapter(LLMClientInterface):
             # This is a very rough approximation and should be improved
             self._last_token_usage = {
                 "prompt_tokens": 0,  # Can't accurately determine this from streaming
-                "completion_tokens": len(accumulated_content) // 4,  # Rough estimate: 4 chars per token
+                "completion_tokens": len(accumulated_content)
+                // 4,  # Rough estimate: 4 chars per token
                 "total_tokens": 0,  # Can't accurately determine this from streaming
             }
 

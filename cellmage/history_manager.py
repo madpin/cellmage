@@ -62,7 +62,9 @@ class HistoryManager:
         if message.cell_id:
             current_idx = len(self.history) - 1
             self.cell_last_history_index[message.cell_id] = current_idx
-            self.logger.debug(f"Updated tracking for cell ID {message.cell_id} to history index {current_idx}")
+            self.logger.debug(
+                f"Updated tracking for cell ID {message.cell_id} to history index {current_idx}"
+            )
 
         # Clear current save path since history has changed
         self.current_save_path = None
@@ -182,7 +184,9 @@ class HistoryManager:
 
         # Count tokens from message metadata
         total_tokens = 0
-        messages_with_tokens = [m for m in self.history if "tokens_in" in m.metadata or "tokens_out" in m.metadata]
+        messages_with_tokens = [
+            m for m in self.history if "tokens_in" in m.metadata or "tokens_out" in m.metadata
+        ]
         for message in messages_with_tokens:
             total_tokens += message.metadata.get("tokens_in", 0)
             total_tokens += message.metadata.get("tokens_out", 0)

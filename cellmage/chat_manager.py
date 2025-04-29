@@ -80,7 +80,9 @@ class ChatManager:
         self.creation_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Set up history manager
-        self.history_manager = HistoryManager(history_store=history_store, context_provider=context_provider)
+        self.history_manager = HistoryManager(
+            history_store=history_store, context_provider=context_provider
+        )
         self.context_provider = context_provider
 
         # Set up session
@@ -280,11 +282,15 @@ class ChatManager:
                 if self.persona_loader:
                     temp_persona = self.persona_loader.get_persona(persona_name)
                     if not temp_persona:
-                        self.logger.warning(f"Persona '{persona_name}' not found, using active persona instead.")
+                        self.logger.warning(
+                            f"Persona '{persona_name}' not found, using active persona instead."
+                        )
                     else:
                         self.logger.info(f"Using persona '{persona_name}' for this request")
                 else:
-                    self.logger.warning("No persona loader configured, ignoring persona_name parameter.")
+                    self.logger.warning(
+                        "No persona loader configured, ignoring persona_name parameter."
+                    )
 
             # Get all message history
             history_messages = self.history_manager.get_history() if self.history_manager else []
@@ -302,7 +308,9 @@ class ChatManager:
             # If no system messages in history but we have an active persona, add its system message
             elif temp_persona and temp_persona.system_message:
                 # Use the temp persona's system message if provided
-                system_message = Message(role="system", content=temp_persona.system_message, id=str(uuid.uuid4()))
+                system_message = Message(
+                    role="system", content=temp_persona.system_message, id=str(uuid.uuid4())
+                )
                 messages.append(system_message)
                 self.logger.debug("Added system message from temporary persona")
             elif self._active_persona and self._active_persona.system_message:
@@ -350,7 +358,12 @@ class ChatManager:
             model_name = model
 
             # If model not specified directly, try to get it from the temp persona if available
-            if model_name is None and temp_persona and temp_persona.config and "model" in temp_persona.config:
+            if (
+                model_name is None
+                and temp_persona
+                and temp_persona.config
+                and "model" in temp_persona.config
+            ):
                 model_name = temp_persona.config.get("model")
                 self.logger.debug(f"Using model from temporary persona: {model_name}")
 
@@ -381,7 +394,9 @@ class ChatManager:
 
             # Ensure we have a model specified at this point
             if model_name is None:
-                raise ConfigurationError("No model specified and no default model available in settings.")
+                raise ConfigurationError(
+                    "No model specified and no default model available in settings."
+                )
 
             # Prepare LLM parameters
             llm_params = {}
@@ -413,7 +428,9 @@ class ChatManager:
                     self.logger.debug(f"Applying parameter overrides: {kwargs['overrides']}")
                     llm_params.update(kwargs["overrides"])
                 else:
-                    self.logger.warning(f"Ignoring non-dictionary 'overrides': {kwargs['overrides']}")
+                    self.logger.warning(
+                        f"Ignoring non-dictionary 'overrides': {kwargs['overrides']}"
+                    )
                 # Remove 'overrides' from kwargs to prevent it from being sent as a parameter
                 del kwargs["overrides"]
 
@@ -450,7 +467,9 @@ class ChatManager:
 
                 # Ensure assistant_response_content is treated as a string for length calculation
                 response_content_str = (
-                    str(assistant_response_content) if assistant_response_content is not None else ""
+                    str(assistant_response_content)
+                    if assistant_response_content is not None
+                    else ""
                 )
                 tokens_out = max(1, len(response_content_str) // 4)
                 total_tokens = tokens_in + tokens_out
@@ -481,7 +500,8 @@ class ChatManager:
             if hasattr(self.llm_client, "get_last_model_used"):
                 actual_model_used = self.llm_client.get_last_model_used()
             elif (
-                hasattr(self.llm_client, "_instance_overrides") and "model" in self.llm_client._instance_overrides
+                hasattr(self.llm_client, "_instance_overrides")
+                and "model" in self.llm_client._instance_overrides
             ):
                 actual_model_used = self.llm_client._instance_overrides.get("model")
 
@@ -518,7 +538,9 @@ class ChatManager:
                 if self.settings.auto_save and self.history_manager:
                     try:
                         # Use the autosave_file setting with the fixed creation timestamp
-                        autosave_filename = f"{self.settings.autosave_file}_{self.creation_datetime}"
+                        autosave_filename = (
+                            f"{self.settings.autosave_file}_{self.creation_datetime}"
+                        )
                         saved_path = self.history_manager.save_conversation(autosave_filename)
                         if saved_path:
                             self.logger.info(f"Auto-saved conversation to {saved_path}")
@@ -687,7 +709,9 @@ class ChatManager:
         """
         sensitive_keys = ["api_key", "secret", "password", "token"]
 
-        if any(sensitive_part in key.lower() for sensitive_part in sensitive_keys) and isinstance(value, str):
+        if any(sensitive_part in key.lower() for sensitive_part in sensitive_keys) and isinstance(
+            value, str
+        ):
             if len(value) > 8:
                 return value[:4] + "..." + value[-2:]
             else:
@@ -709,7 +733,9 @@ class ChatManager:
         if self.llm_client is not None and hasattr(self.llm_client, "_instance_overrides"):
             raw_overrides = self.llm_client._instance_overrides.copy()
             # Mask sensitive values
-            masked_overrides = {k: self._mask_sensitive_value(k, v) for k, v in raw_overrides.items()}
+            masked_overrides = {
+                k: self._mask_sensitive_value(k, v) for k, v in raw_overrides.items()
+            }
             return masked_overrides
         else:
             self.logger.warning("LLM client does not have _instance_overrides attribute")

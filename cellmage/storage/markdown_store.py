@@ -123,7 +123,11 @@ class MarkdownStore(HistoryStore):
             if msg.role != current_role:
                 # Save previous role's content if we have any
                 if current_text:
-                    role_prefix = "**You:**" if current_role == "user" else f"**{current_role or 'Unknown'}:**"
+                    role_prefix = (
+                        "**You:**"
+                        if current_role == "user"
+                        else f"**{current_role or 'Unknown'}:**"
+                    )
                     content_parts.append(f"{role_prefix}\n{''.join(current_text)}\n")
                     current_text = []
 
@@ -137,7 +141,9 @@ class MarkdownStore(HistoryStore):
 
         # Add any remaining text
         if current_text:
-            role_prefix = "**You:**" if current_role == "user" else f"**{current_role or 'Unknown'}:**"
+            role_prefix = (
+                "**You:**" if current_role == "user" else f"**{current_role or 'Unknown'}:**"
+            )
             content_parts.append(f"{role_prefix}\n{''.join(current_text)}\n")
 
         # Add separator after final assistant/system message
@@ -181,13 +187,17 @@ class MarkdownStore(HistoryStore):
             # Parse frontmatter and content
             if not content.startswith("---"):
                 self.logger.error(f"Invalid conversation file format: {filepath}")
-                raise PersistenceError(f"Invalid conversation file format, missing frontmatter: {filepath}")
+                raise PersistenceError(
+                    f"Invalid conversation file format, missing frontmatter: {filepath}"
+                )
 
             # Split on the second occurrence of '---'
             parts = content[3:].split("---", 1)
             if len(parts) < 2:
                 self.logger.error(f"Invalid conversation file format: {filepath}")
-                raise PersistenceError(f"Invalid conversation file format, incomplete frontmatter: {filepath}")
+                raise PersistenceError(
+                    f"Invalid conversation file format, incomplete frontmatter: {filepath}"
+                )
 
             # Parse frontmatter
             yaml_part = parts[0].strip()
@@ -196,7 +206,9 @@ class MarkdownStore(HistoryStore):
             # Create metadata object
             metadata = ConversationMetadata(
                 session_id=uuid.UUID(metadata_dict.get("session_id", str(uuid.uuid4()))),
-                saved_at=datetime.fromisoformat(metadata_dict.get("saved_at", datetime.now().isoformat())),
+                saved_at=datetime.fromisoformat(
+                    metadata_dict.get("saved_at", datetime.now().isoformat())
+                ),
                 persona_name=metadata_dict.get("persona_name"),
                 model_name=metadata_dict.get("model_name"),
                 total_tokens=metadata_dict.get("total_tokens"),
