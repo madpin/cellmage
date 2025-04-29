@@ -153,9 +153,7 @@ class JiraUtils:
         self.epic_link_field_id = (
             epic_link_field_id
             if epic_link_field_id is not None
-            else _env_epic_field
-            if _env_epic_field is not None
-            else DEFAULT_EPIC_LINK_FIELD_ID
+            else _env_epic_field if _env_epic_field is not None else DEFAULT_EPIC_LINK_FIELD_ID
         )
 
         # Validate essential configuration
