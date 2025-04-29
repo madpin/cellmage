@@ -76,11 +76,8 @@ After loading a Jira ticket with `%jira`, you can refer to it in your LLM prompt
 ```python
 # First, fetch a ticket
 %jira PROJECT-123
-```
 
-Then in a new cell, you can ask the LLM about it:
-
-```
+# Then ask the LLM about it
 %%llm
 Given the Jira ticket above, what are the key requirements I need to implement?
 ```
