@@ -4,13 +4,11 @@ Jira utility for interacting with the Jira API.
 This module provides the JiraUtils class for fetching and processing Jira tickets.
 """
 
-import json
 import logging
-import math
 import os
 from collections import defaultdict
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Set, Tuple
 
 # Flag to check if Jira is available
 _JIRA_AVAILABLE = False

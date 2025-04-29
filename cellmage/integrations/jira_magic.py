@@ -4,15 +4,12 @@ IPython magic command for Jira integration with CellMage.
 This module provides magic commands for fetching Jira tickets and using them as context in LLM prompts.
 """
 
-import json
 import logging
-import os
 import sys
 from typing import Any, Dict, List, Optional
 
 # IPython imports with fallback handling
 try:
-    from IPython import get_ipython
     from IPython.core.magic import Magics, line_magic, magics_class
     from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
 
@@ -43,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 # Attempt to import Jira utils
 try:
-    from functools import lru_cache
+    # from functools import lru_cache
 
     from jira import JIRA
 

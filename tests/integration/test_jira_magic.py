@@ -5,7 +5,6 @@ Test the Jira magic command.
 import unittest.mock as mock
 
 import pytest
-from IPython.core.interactiveshell import InteractiveShell
 from IPython.testing.globalipapp import start_ipython
 
 # Skip tests if jira module is not available
@@ -45,7 +44,7 @@ def test_jira_fetch_ticket(mock_fetch_ticket, ip):
     ip.run_cell("%load_ext cellmage.integrations.jira_magic")
 
     # Run the magic command
-    result = ip.run_line_magic("jira", "TEST-123 --show")
+    ip.run_line_magic("jira", "TEST-123 --show")
 
     # Check that the fetch_ticket method was called with the correct ticket key
     mock_fetch_ticket.assert_called_once_with("TEST-123")
@@ -76,7 +75,7 @@ def test_jira_fetch_by_jql(mock_fetch_by_jql, ip):
 
     # Run the magic command with JQL
     jql_query = "project = TEST AND assignee = currentUser()"
-    result = ip.run_line_magic("jira", f'--jql "{jql_query}" --max 2 --show')
+    ip.run_line_magic("jira", f'--jql "{jql_query}" --max 2 --show')
 
     # Check that the fetch_tickets_by_jql method was called with the correct arguments
     mock_fetch_by_jql.assert_called_once_with(jql_query, max_results=2)
@@ -100,7 +99,7 @@ def test_jira_add_to_history(mock_fetch_ticket, mock_add_to_history, ip):
     ip.run_cell("%load_ext cellmage.integrations.jira_magic")
 
     # Run the magic command with system flag
-    result = ip.run_line_magic("jira", "TEST-123 --system")
+    ip.run_line_magic("jira", "TEST-123 --system")
 
     # Check that the methods were called with the correct arguments
     mock_fetch_ticket.assert_called_once_with("TEST-123")
