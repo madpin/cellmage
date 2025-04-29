@@ -4,7 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 # See https://setuptools.pypa.io/en/latest/userguide/quickstart.html for more project configuration options.
-name = "cellmage"
+name = "Cellmage"
+description = "IPython magic commands for seamless LLM integration in Jupyter notebooks, with persona management, context snippets, and Jira/GitLab integrations"
 dynamic = ["version"]
 readme = "README.md"
 classifiers = [
@@ -137,7 +138,7 @@ reportPrivateImportUsage = false
 line-length = 100
 target-version = "py39"
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 
 [tool.mypy]
