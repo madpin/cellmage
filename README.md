@@ -234,7 +234,7 @@ Contributions, bug reports, and feature requests are welcome! Please check the `
 
 ## 🧑‍💻 About the Author
 
-Crafted with ❤️ and ☕ in Dublin, Ireland 🇮🇪 by **Thiago Pinto**.
+Crafted with ❤️ and ☕ in Dublin, Ireland 🇮🇪 by **Thiago MadPin**.
 
 *   Staff Software Engineer @ Indeed
 *   Passionate about Data Intelligence, Python, Leadership, and Geek Culture (Matrix, One Piece, Asimov fan!)
