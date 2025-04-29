@@ -5,6 +5,7 @@ from typing import Dict, List, Optional
 
 from .interfaces import ContextProvider, HistoryStore
 from .models import ConversationMetadata, Message
+from .utils.token_utils import count_tokens
 
 
 class HistoryManager:
@@ -184,12 +185,27 @@ class HistoryManager:
 
         # Count tokens from message metadata
         total_tokens = 0
-        messages_with_tokens = [
-            m for m in self.history if "tokens_in" in m.metadata or "tokens_out" in m.metadata
-        ]
-        for message in messages_with_tokens:
-            total_tokens += message.metadata.get("tokens_in", 0)
-            total_tokens += message.metadata.get("tokens_out", 0)
+
+        for message in self.history:
+            # If the message has token metadata, use it
+            if message.metadata and (
+                "tokens_in" in message.metadata or "tokens_out" in message.metadata
+            ):
+                total_tokens += message.metadata.get("tokens_in", 0)
+                total_tokens += message.metadata.get("tokens_out", 0)
+            # Otherwise, estimate tokens for messages that don't have token counts
+            elif message.content:
+                # Use token_utils to count tokens in content
+                message_tokens = count_tokens(message.content)
+                # Add to total
+                total_tokens += message_tokens
+                # Store in metadata for future reference
+                if not message.metadata:
+                    message.metadata = {}
+                if message.role == "user":
+                    message.metadata["tokens_in"] = message_tokens
+                elif message.role == "assistant":
+                    message.metadata["tokens_out"] = message_tokens
 
         # Find current persona name and model if available
         persona_name = None
@@ -197,7 +213,11 @@ class HistoryManager:
 
         # Try to get model and persona from the most recent assistant message
         for message in reversed(self.history):
-            if message.role == "assistant" and "model_used" in message.metadata:
+            if (
+                message.role == "assistant"
+                and message.metadata
+                and "model_used" in message.metadata
+            ):
                 model_name = message.metadata.get("model_used")
                 break
 

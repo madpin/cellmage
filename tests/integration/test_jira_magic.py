@@ -12,7 +12,7 @@ pytest.importorskip("jira")
 
 
 @pytest.fixture(scope="module")
-def ip():
+def ip_instance():
     """Start a test IPython kernel."""
     ipython = start_ipython()
     if ipython is None:

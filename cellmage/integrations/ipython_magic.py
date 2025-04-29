@@ -280,10 +280,16 @@ class NotebookLLMMagics(Magics):
             action_taken = True
             try:
                 personas = manager.list_personas()
-                print(
-                    "Available Personas:",
-                    ", ".join(f"'{p}'" for p in personas) if personas else "None",
-                )
+                print("══════════════════════════════════════════════════════════")
+                print("  👤 Available Personas")
+                print("══════════════════════════════════════════════════════════")
+                if personas:
+                    for persona in sorted(personas):
+                        print(f"  • {persona}")
+                else:
+                    print("  No personas found")
+                print("──────────────────────────────────────────────────────────")
+                print("  Use: %llm_config --persona <name> to activate a persona")
             except Exception as e:
                 print(f"❌ Error listing personas: {e}")
 
@@ -291,16 +297,37 @@ class NotebookLLMMagics(Magics):
             action_taken = True
             try:
                 active_persona = manager.get_active_persona()
+                print("══════════════════════════════════════════════════════════")
+                print("  👤 Active Persona Details")
+                print("══════════════════════════════════════════════════════════")
                 if active_persona:
-                    print(f"Active Persona: '{active_persona.name}'")
-                    print(
-                        f"  System Prompt: {active_persona.system_message[:100]}{'...' if len(active_persona.system_message) > 100 else ''}"
-                    )
-                    print(f"  LLM Params: {active_persona.config}")
+                    print(f"  📝 Name: {active_persona.name}")
+                    print("  📋 System Prompt:")
+
+                    # Format system prompt with nice wrapping for readability
+                    system_lines = []
+                    remaining = active_persona.system_message
+                    while remaining and len(remaining) > 80:
+                        split_point = remaining[:80].rfind(" ")
+                        if split_point == -1:  # No space found, just cut at 80
+                            split_point = 80
+                        system_lines.append(remaining[:split_point])
+                        remaining = remaining[split_point:].lstrip()
+                    if remaining:
+                        system_lines.append(remaining)
+
+                    for line in system_lines:
+                        print(f"    {line}")
+
+                    if active_persona.config:
+                        print("  ⚙️  LLM Parameters:")
+                        for k, v in active_persona.config.items():
+                            print(f"    • {k}: {v}")
                 else:
-                    print("Active Persona: None")
-                    print("  To set a persona, use: %llm_config --persona <name>")
-                    print("  To list available personas, use: %llm_config --list-personas")
+                    print("  ❌ No active persona")
+                    print("  • To set a persona, use: %llm_config --persona <name>")
+                    print("  • To list available personas, use: %llm_config --list-personas")
+                print("══════════════════════════════════════════════════════════")
             except Exception as e:
                 print(f"❌ Error retrieving active persona: {e}")
                 print("  Try listing available personas with: %llm_config --list-personas")
@@ -309,9 +336,37 @@ class NotebookLLMMagics(Magics):
             action_taken = True
             try:
                 manager.set_default_persona(args.persona)
-                print(f"✅ Persona activated: '{args.persona}'")
+                print("══════════════════════════════════════════════════════════")
+                print(f"  👤 Persona '{args.persona}' Activated ✅")
+
+                # Show brief summary of the activated persona
+                try:
+                    active_persona = manager.get_active_persona()
+                    if active_persona and active_persona.system_message:
+                        # Show just the beginning of the system message
+                        preview = active_persona.system_message[:100].replace("\n", " ")
+                        if len(active_persona.system_message) > 100:
+                            preview += "..."
+                        print(f"  📋 System: {preview}")
+
+                    if active_persona and active_persona.config:
+                        params = ", ".join(f"{k}={v}" for k, v in active_persona.config.items())
+                        print(f"  ⚙️  Params: {params}")
+
+                except Exception:
+                    pass  # If this fails, just skip the extra info
+
+                print("══════════════════════════════════════════════════════════")
+                print("  Use %llm_config --show-persona for full details")
             except ResourceNotFoundError:
                 print(f"❌ Error: Persona '{args.persona}' not found.")
+                # List available personas for convenience
+                try:
+                    personas = manager.list_personas()
+                    if personas:
+                        print("  Available personas: " + ", ".join(sorted(personas)))
+                except Exception:
+                    pass
             except Exception as e:
                 print(f"❌ Error setting persona '{args.persona}': {e}")
 
@@ -325,6 +380,12 @@ class NotebookLLMMagics(Magics):
         try:
             if hasattr(args, "sys_snippet") and args.sys_snippet:
                 action_taken = True
+                # If multiple snippets are being added, show a header
+                if len(args.sys_snippet) > 1:
+                    print("══════════════════════════════════════════════════════════")
+                    print("  📎 Loading System Snippets")
+                    print("══════════════════════════════════════════════════════════")
+
                 for name in args.sys_snippet:
                     # Handle quoted paths by removing quotes
                     if (name.startswith('"') and name.endswith('"')) or (
@@ -332,13 +393,43 @@ class NotebookLLMMagics(Magics):
                     ):
                         name = name[1:-1]
 
+                    # If single snippet and no header printed yet
+                    if len(args.sys_snippet) == 1:
+                        print("══════════════════════════════════════════════════════════")
+                        print(f"  📎 Loading System Snippet: {name}")
+                        print("══════════════════════════════════════════════════════════")
+
                     if manager.add_snippet(name, role="system"):
-                        print(f"✅ Added system snippet: '{name}'")
+                        if len(args.sys_snippet) > 1:
+                            print(f"  • ✅ Added: {name}")
+                        else:
+                            print("  ✅ System snippet loaded successfully")
+                            # Try to get a preview of the snippet content
+                            try:
+                                history = manager.get_history()
+                                for msg in reversed(history):
+                                    if msg.is_snippet and msg.role == "system":
+                                        preview = msg.content.replace("\n", " ")[:100]
+                                        if len(msg.content) > 100:
+                                            preview += "..."
+                                        print(f"  📄 Content: {preview}")
+                                        break
+                            except Exception:
+                                pass  # Skip preview if something goes wrong
                     else:
-                        print(f"⚠️ Warning: Could not add system snippet '{name}'.")
+                        if len(args.sys_snippet) > 1:
+                            print(f"  • ❌ Failed to add: {name}")
+                        else:
+                            print(f"  ❌ Failed to load system snippet: {name}")
 
             if hasattr(args, "snippet") and args.snippet:
                 action_taken = True
+                # If multiple snippets are being added, show a header
+                if len(args.snippet) > 1:
+                    print("══════════════════════════════════════════════════════════")
+                    print("  📎 Loading User Snippets")
+                    print("══════════════════════════════════════════════════════════")
+
                 for name in args.snippet:
                     # Handle quoted paths by removing quotes
                     if (name.startswith('"') and name.endswith('"')) or (
@@ -346,19 +437,50 @@ class NotebookLLMMagics(Magics):
                     ):
                         name = name[1:-1]
 
+                    # If single snippet and no header printed yet
+                    if len(args.snippet) == 1:
+                        print("══════════════════════════════════════════════════════════")
+                        print(f"  📎 Loading User Snippet: {name}")
+                        print("══════════════════════════════════════════════════════════")
+
                     if manager.add_snippet(name, role="user"):
-                        print(f"✅ Added user snippet: '{name}'")
+                        if len(args.snippet) > 1:
+                            print(f"  • ✅ Added: {name}")
+                        else:
+                            print("  ✅ User snippet loaded successfully")
+                            # Try to get a preview of the snippet content
+                            try:
+                                history = manager.get_history()
+                                for msg in reversed(history):
+                                    if msg.is_snippet and msg.role == "user":
+                                        preview = msg.content.replace("\n", " ")[:100]
+                                        if len(msg.content) > 100:
+                                            preview += "..."
+                                        print(f"  📄 Content: {preview}")
+                                        break
+                            except Exception:
+                                pass  # Skip preview if something goes wrong
                     else:
-                        print(f"⚠️ Warning: Could not add user snippet '{name}'.")
+                        if len(args.snippet) > 1:
+                            print(f"  • ❌ Failed to add: {name}")
+                        else:
+                            print(f"  ❌ Failed to load user snippet: {name}")
 
             if args.list_snippets:
                 action_taken = True
                 try:
                     snippets = manager.list_snippets()
-                    print(
-                        "Available Snippets:",
-                        ", ".join(f"'{s}'" for s in snippets) if snippets else "None",
-                    )
+                    print("══════════════════════════════════════════════════════════")
+                    print("  📎 Available Snippets")
+                    print("══════════════════════════════════════════════════════════")
+                    if snippets:
+                        for snippet in sorted(snippets):
+                            print(f"  • {snippet}")
+                    else:
+                        print("  No snippets found")
+                    print("──────────────────────────────────────────────────────────")
+                    print("  Use: %llm_config --snippet <name> to load a user snippet")
+                    print("  Use: %llm_config --sys-snippet <name> for system snippets")
                 except Exception as e:
                     print(f"❌ Error listing snippets: {e}")
         except Exception as e:
@@ -381,23 +503,61 @@ class NotebookLLMMagics(Magics):
             except ValueError:
                 parsed_value = value  # Keep as string if conversion fails
             manager.set_override(key, parsed_value)
-            print(f"✅ Override set: {key} = {parsed_value} ({type(parsed_value).__name__})")
+
+            # Enhanced message for setting override
+            print("══════════════════════════════════════════════════════════")
+            print("  ⚙️  Parameter Override Set")
+            print("══════════════════════════════════════════════════════════")
+            print(f"  • Parameter: {key}")
+            print(f"  • Value: {parsed_value}")
+            print(f"  • Type: {type(parsed_value).__name__}")
+
+            # Try to get model mapping information if this is a model override
+            if key.lower() == "model" and hasattr(manager.llm_client, "model_mapper"):
+                try:
+                    mapped_model = manager.llm_client.model_mapper.resolve_model_name(
+                        str(parsed_value)
+                    )
+                    if mapped_model != str(parsed_value):
+                        print(f"  • Maps to: {mapped_model}")
+                except Exception:
+                    pass
+
+            print("══════════════════════════════════════════════════════════")
 
         if args.remove_override:
             action_taken = True
             key = args.remove_override
             manager.remove_override(key)
-            print(f"✅ Override removed: {key}")
+            print("══════════════════════════════════════════════════════════")
+            print("  ⚙️  Parameter Override Removed")
+            print("══════════════════════════════════════════════════════════")
+            print(f"  • Parameter: {key}")
+            print("══════════════════════════════════════════════════════════")
 
         if args.clear_overrides:
             action_taken = True
             manager.clear_overrides()
-            print("✅ All overrides cleared.")
+            print("══════════════════════════════════════════════════════════")
+            print("  ⚙️  All Parameter Overrides Cleared")
+            print("══════════════════════════════════════════════════════════")
 
         if args.show_overrides:
             action_taken = True
             overrides = manager.get_overrides()
-            print("Active Overrides:", overrides if overrides else "None")
+            print("══════════════════════════════════════════════════════════")
+            print("  ⚙️  Active Parameter Overrides")
+            print("══════════════════════════════════════════════════════════")
+            if overrides:
+                for k, v in overrides.items():
+                    # Hide API key for security
+                    if k.lower() == "api_key":
+                        print(f"  • {k} = [HIDDEN]")
+                    else:
+                        print(f"  • {k} = {v}")
+            else:
+                print("  No active overrides")
+            print("══════════════════════════════════════════════════════════")
 
         return action_taken
 
@@ -433,32 +593,79 @@ class NotebookLLMMagics(Magics):
             if total_tokens == 0:
                 total_tokens = total_tokens_in + total_tokens_out
 
-            # Print history header with token counts
-            print(f"--- History ({len(history)} messages) ---")
-            print(
-                f"Total tokens: {total_tokens} (Input: {total_tokens_in}, Output: {total_tokens_out})"
-            )
+            # Print history header with summary information
+            print("📜 Conversation History")
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            print(f"• Messages: {len(history)}")
+
+            # Format token information
+            token_summary = f"• 📊 Total: {total_tokens} tokens"
+            if total_tokens_in > 0 or total_tokens_out > 0:
+                token_summary += f" (Input: {total_tokens_in} • Output: {total_tokens_out})"
+            print(token_summary)
 
             if not history:
-                print("(empty)")
+                print("(No messages in history)")
             else:
+                # First, display a summary of models used in the conversation
+                models_used = {}
+                for msg in history:
+                    if msg.metadata and "model_used" in msg.metadata:
+                        model = msg.metadata.get("model_used", "")
+                        if model:
+                            models_used[model] = models_used.get(model, 0) + 1
+
+                if models_used:
+                    model_str = "• 🤖 Models: " + ", ".join(
+                        f"{model} ({count})" for model, count in models_used.items()
+                    )
+                    print(model_str)
+
+                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+                # Display the messages with improved formatting
                 for i, msg in enumerate(history):
+                    # Get metadata values with defaults
                     tokens_in = msg.metadata.get("tokens_in", 0) if msg.metadata else 0
                     tokens_out = msg.metadata.get("tokens_out", 0) if msg.metadata else 0
                     model_used = msg.metadata.get("model_used", "") if msg.metadata else ""
+                    cost_str = msg.metadata.get("cost_str", "") if msg.metadata else ""
+
+                    # Determine role icon and create a formatted role label
+                    role_icon = ""
+                    if msg.role == "system":
+                        role_icon = "⚙️"
+                    elif msg.role == "user":
+                        role_icon = "👤"
+                    elif msg.role == "assistant":
+                        role_icon = "🤖"
+                    else:
+                        role_icon = "📄"
+
+                    role_label = f"[{i}] {role_icon} {msg.role.upper()}"
 
                     # Display token info based on role
                     token_info = ""
-                    if msg.role == "user":
-                        token_info = f"(Tokens: {tokens_in})"
-                    elif msg.role == "assistant":
-                        token_info = f"(Tokens: {tokens_out})"
+                    if msg.role == "user" and tokens_in > 0:
+                        token_info = f"📥 {tokens_in} tokens"
+                    elif msg.role == "assistant" and tokens_out > 0:
+                        token_info = f"📤 {tokens_out} tokens"
+                        if cost_str:
+                            token_info += f" • {cost_str}"
 
-                    print(
-                        f"[{i}] {msg.role.upper()} {token_info}: {msg.content[:150]}{'...' if len(msg.content) > 150 else ''}"
-                    )
+                    # Print the message header with role and tokens
+                    if token_info:
+                        print(f"{role_label}  {token_info}")
+                    else:
+                        print(role_label)
 
-                    # Show more metadata details
+                    # Format the message content with proper handling of long text
+                    content_preview = msg.content.replace("\n", " ").strip()
+                    if len(content_preview) > 100:
+                        content_preview = content_preview[:97] + "..."
+                    print(f"  {content_preview}")
+
+                    # Format metadata in a cleaner way
                     meta_items = []
                     if msg.id:
                         meta_items.append(f"ID: ...{msg.id[-6:]}")
@@ -466,11 +673,20 @@ class NotebookLLMMagics(Magics):
                         meta_items.append(f"Cell: {msg.cell_id[-8:]}")
                     if msg.execution_count:
                         meta_items.append(f"Exec: {msg.execution_count}")
-                    if model_used:
+                    if model_used and msg.role == "assistant":
                         meta_items.append(f"Model: {model_used}")
+                    if msg.is_snippet:
+                        meta_items.append("Snippet: Yes")
 
-                    print(f"    ({', '.join(meta_items)})")
-            print("--------------------------")
+                    if meta_items:
+                        meta_str = "  └─ " + ", ".join(meta_items)
+                        print(meta_str)
+
+                    # Add separator between messages
+                    if i < len(history) - 1:
+                        print("  ·····")
+
+                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         return action_taken
 
@@ -717,12 +933,172 @@ class NotebookLLMMagics(Magics):
         active_persona = manager.get_active_persona()
         overrides = manager.get_overrides()
         history = manager.get_history()
-        print("--- NotebookLLM Status ---")
-        print(f"Session ID: {manager._session_id}")  # Access internal for status
-        print(f"Active Persona: '{active_persona.name}'" if active_persona else "None")
-        print(f"Active Overrides: {overrides if overrides else 'None'}")
-        print(f"History Length: {len(history)} messages")
-        print("--------------------------")
+
+        # Calculate token statistics
+        total_tokens_in = 0
+        total_tokens_out = 0
+        total_tokens = 0
+        models_used = {}
+
+        for msg in history:
+            if msg.metadata:
+                tokens_in = msg.metadata.get("tokens_in", 0)
+                tokens_out = msg.metadata.get("tokens_out", 0)
+                total_tokens_in += tokens_in
+                total_tokens_out += tokens_out
+                msg_total = msg.metadata.get("total_tokens", 0)
+                if msg_total > 0:
+                    total_tokens += msg_total
+
+                # Track models used
+                model = msg.metadata.get("model_used", "")
+                if model and msg.role == "assistant":
+                    models_used[model] = models_used.get(model, 0) + 1
+
+        # If no total_tokens were calculated from metadata, use in+out sum
+        if total_tokens == 0:
+            total_tokens = total_tokens_in + total_tokens_out
+
+        # Get session information
+        session_id = getattr(manager, "_session_id", "Unknown")
+        adapter_type = os.environ.get("CELLMAGE_ADAPTER", "direct").lower()
+        is_ambient = is_ambient_mode_enabled()
+
+        # Get API base URL if available
+        api_base = None
+        if hasattr(manager, "llm_client") and hasattr(manager.llm_client, "get_overrides"):
+            client_overrides = manager.llm_client.get_overrides()
+            api_base = client_overrides.get("api_base")
+        if not api_base and "OPENAI_API_BASE" in os.environ:
+            api_base = os.environ.get("OPENAI_API_BASE")
+
+        # Get model information
+        current_model = None
+        mapped_model = None
+        if hasattr(manager, "llm_client"):
+            if hasattr(manager.llm_client, "get_overrides"):
+                client_overrides = manager.llm_client.get_overrides()
+                current_model = client_overrides.get("model")
+
+            # Get model mapping information if available
+            if hasattr(manager.llm_client, "model_mapper") and current_model:
+                if hasattr(manager.llm_client.model_mapper, "resolve_model_name"):
+                    mapped_model = manager.llm_client.model_mapper.resolve_model_name(current_model)
+                    # If they're the same, no mapping is applied
+                    if mapped_model == current_model:
+                        mapped_model = None
+
+        # Print simplified status output with dividers but no side borders
+        print("══════════════════════════════════════════════════════════")
+        print("  🪄 CellMage Status Summary                             ")
+        print("══════════════════════════════════════════════════════════")
+
+        # Session information
+        print(f"  📌 Session ID: {session_id}")
+        print(f"  🤖 LLM Adapter: {adapter_type.capitalize()}")
+        if api_base:
+            print(f"  🔗 API Base URL: {api_base}")
+        if current_model:
+            print(f"  📝 Current Model: {current_model}")
+            if mapped_model:
+                print(f"      → Maps to: {mapped_model}")
+        print(f"  🔄 Ambient Mode: {'✅ Active' if is_ambient else '❌ Disabled'}")
+
+        # Persona information
+        print("──────────────────────────────────────────────────────────")
+        print("  👤 Persona")
+        if active_persona:
+            print(f"    • Name: {active_persona.name}")
+            # Truncate system prompt if too long
+            sys_prompt = active_persona.system_message
+            if sys_prompt:
+                if len(sys_prompt) > 70:
+                    sys_prompt = sys_prompt[:67] + "..."
+                print(f"    • System: {sys_prompt}")
+
+            # Show persona parameters if available
+            if active_persona.config:
+                param_str = ", ".join(f"{k}={v}" for k, v in active_persona.config.items())
+                if len(param_str) > 70:
+                    param_str = param_str[:67] + "..."
+                print(f"    • Parameters: {param_str}")
+        else:
+            print("    • No active persona")
+
+        # Parameter overrides
+        print("──────────────────────────────────────────────────────────")
+        print("  ⚙️  Parameter Overrides")
+        if overrides:
+            for k, v in overrides.items():
+                # Skip displaying API key for security
+                if k.lower() == "api_key":
+                    print(f"    • {k} = [HIDDEN]")
+                else:
+                    print(f"    • {k} = {v}")
+        else:
+            print("    • No active overrides")
+
+        # History information
+        print("──────────────────────────────────────────────────────────")
+        print("  📜 Conversation History")
+        print(f"    • Messages: {len(history)}")
+
+        # Show token counts
+        if total_tokens > 0:
+            print(f"    • Total Tokens: {total_tokens:,}")
+            if total_tokens_in > 0 or total_tokens_out > 0:
+                print(f"      - Input: {total_tokens_in:,}")
+                print(f"      - Output: {total_tokens_out:,}")
+
+        # Show models used
+        if models_used:
+            print("    • Models Used:")
+            for model, count in models_used.items():
+                print(f"      - {model}: {count} responses")
+
+        # Integrations status
+        print("──────────────────────────────────────────────────────────")
+        print("  🔌 Integrations")
+
+        # Check for Jira integration
+        try:
+            import sys
+
+            jira_available = "cellmage.integrations.jira_magic" in sys.modules
+            print(f"    • Jira: {'✅ Loaded' if jira_available else '❌ Not loaded'}")
+        except Exception:
+            print("    • Jira: ❓ Unknown")
+
+        # Check for GitLab integration
+        try:
+            gitlab_available = "cellmage.integrations.gitlab_magic" in sys.modules
+            print(f"    • GitLab: {'✅ Loaded' if gitlab_available else '❌ Not loaded'}")
+        except Exception:
+            print("    • GitLab: ❓ Unknown")
+
+        # Show environment/config file paths
+        print("──────────────────────────────────────────────────────────")
+        print("  📁 Configuration")
+        if hasattr(manager, "settings"):
+            if hasattr(manager.settings, "personas_dir"):
+                print(f"    • Personas Dir: {manager.settings.personas_dir}")
+            if hasattr(manager.settings, "snippets_dir"):
+                print(f"    • Snippets Dir: {manager.settings.snippets_dir}")
+            if hasattr(manager.settings, "conversations_dir"):
+                print(f"    • Save Dir: {manager.settings.conversations_dir}")
+            if hasattr(manager.settings, "auto_save"):
+                print(
+                    f"    • Auto-Save: {'✅ Enabled' if manager.settings.auto_save else '❌ Disabled'}"
+                )
+
+        print("══════════════════════════════════════════════════════════")
+
+        # Add hint for more details
+        print("\nℹ️  For more details:")
+        print("  • %llm_config --show-persona (detailed persona info)")
+        print("  • %llm_config --show-history (full conversation history)")
+        print("  • %llm_config --show-overrides (all parameter overrides)")
+        print("  • %llm_config --list-mappings (view model name mappings)")
 
     @magic_arguments()
     @argument("-p", "--persona", type=str, help="Select and activate a persona by name.")
@@ -935,12 +1311,21 @@ class NotebookLLMMagics(Magics):
 
         if not is_ambient_mode_enabled():
             enable_ambient_mode(ip)
-            print(
-                "✅ Ambient mode ENABLED. All cells will now be processed as LLM prompts unless they start with % or !."
-            )
-            print("   Run %disable_llm_config_persistent to disable ambient mode.")
+            print("══════════════════════════════════════════════════════════")
+            print("  🔄 Ambient Mode Enabled")
+            print("══════════════════════════════════════════════════════════")
+            print("  • All cells will now be processed as LLM prompts")
+            print("  • Cells starting with % (magic) or ! (shell) will run normally")
+            print("  • Use %%py to run a specific cell as Python code")
+            print("  • Use %disable_llm_config_persistent to disable ambient mode")
+            print("══════════════════════════════════════════════════════════")
         else:
-            print("ℹ️ Ambient mode is already active.")
+            print("══════════════════════════════════════════════════════════")
+            print("  ℹ️  Ambient Mode Status")
+            print("══════════════════════════════════════════════════════════")
+            print("  • Ambient mode is already active")
+            print("  • Use %disable_llm_config_persistent to disable it")
+            print("══════════════════════════════════════════════════════════")
 
     @line_magic("disable_llm_config_persistent")
     def disable_llm_config_persistent(self, line):
@@ -1229,21 +1614,63 @@ def load_ipython_extension(ipython):
         # Load main magics
         magic_class = NotebookLLMMagics(ipython)
         ipython.register_magics(magic_class)
-        print("✅ NotebookLLM Magics loaded. Use %llm_config and %%llm.")
-        print(
-            "   For ambient mode, try %llm_config_persistent to process all cells as LLM prompts."
-        )
+
+        # Get API base URL if available
+        api_base = None
+        api_key_info = "🔑 API key: "
+        adapter_type = os.environ.get("CELLMAGE_ADAPTER", "direct").lower()
+
+        # Try to get ChatManager to get API base
+        try:
+            manager = get_chat_manager()
+            if hasattr(manager, "llm_client") and hasattr(manager.llm_client, "get_overrides"):
+                overrides = manager.llm_client.get_overrides()
+                api_base = overrides.get("api_base")
+
+                # Check if API key is set (don't show the key itself)
+                if overrides.get("api_key"):
+                    api_key_info += "✅ Set"
+                else:
+                    api_key_info += "❌ Not set"
+            else:
+                api_key_info += "❓ Unknown"
+        except Exception:
+            api_key_info += "❓ Unknown"
+
+        # Fall back to env var if needed
+        if not api_base and "OPENAI_API_BASE" in os.environ:
+            api_base = os.environ.get("OPENAI_API_BASE")
+
+        # Improved loading message with more information
+        print("══════════════════════════════════════════════════════════")
+        print("  🪄 CellMage Extension Loaded                           ")
+        print("══════════════════════════════════════════════════════════")
+        print(f"  🔌 LLM Adapter: {adapter_type.capitalize()}")
+        if api_base:
+            print(f"  🔗 API Base URL: {api_base}")
+        print(f"  {api_key_info}")
+        print("  ⌨️  Available commands:")
+        print("    • %llm_config - Configure LLM settings")
+        print("    • %%llm - Send prompt to LLM")
+        print("    • %llm_config_persistent - Enable ambient mode")
+
+        # Show integrations that were loaded
+        print("──────────────────────────────────────────────────────────")
+        print("  🧩 Loading integrations:")
 
         # Try to load Jira magic if available
         try:
             from . import jira_magic
 
             jira_magic.load_ipython_extension(ipython)
+            # Note: The jira_magic module will print its own success message
         except ImportError:
+            print("    • Jira: ❌ Not available (install with: pip install cellmage[jira])")
             logger.info(
                 "Jira integration not available. Install with 'pip install cellmage[jira]' to enable."
             )
         except Exception as e:
+            print(f"    • Jira: ❌ Error loading ({str(e)[:50]})")
             logger.warning(f"Failed to load Jira magic: {e}")
 
         # Try to load GitLab magic if available
@@ -1251,12 +1678,18 @@ def load_ipython_extension(ipython):
             from . import gitlab_magic
 
             gitlab_magic.load_ipython_extension(ipython)
+            # Note: The gitlab_magic module will print its own success message
         except ImportError:
+            print("    • GitLab: ❌ Not available (install with: pip install cellmage[gitlab])")
             logger.info(
                 "GitLab integration not available. Install with 'pip install cellmage[gitlab]' to enable."
             )
         except Exception as e:
+            print(f"    • GitLab: ❌ Error loading ({str(e)[:50]})")
             logger.warning(f"Failed to load GitLab magic: {e}")
+
+        print("══════════════════════════════════════════════════════════")
+        print("  💡 Tip: Use %llm_config --status to see full configuration")
 
     except Exception as e:
         logger.exception("Failed to register NotebookLLM magics.")

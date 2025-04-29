@@ -461,9 +461,12 @@ class ChatManager:
                 )
             else:
                 # Fallback to estimation if token usage isn't available from the client
+                from .utils.token_utils import count_tokens
+
+                # Get text content from messages
                 input_text = "\n".join([m.content for m in messages])
-                # Rough estimate: 1 token ≈ 4 chars for English text
-                tokens_in = max(1, len(input_text) // 4)
+                # Use proper token counting function
+                tokens_in = count_tokens(input_text)
 
                 # Ensure assistant_response_content is treated as a string for length calculation
                 response_content_str = (
@@ -471,7 +474,7 @@ class ChatManager:
                     if assistant_response_content is not None
                     else ""
                 )
-                tokens_out = max(1, len(response_content_str) // 4)
+                tokens_out = count_tokens(response_content_str)
                 total_tokens = tokens_in + tokens_out
                 self.logger.debug(
                     f"Estimated token usage: {tokens_in} (prompt) + "
