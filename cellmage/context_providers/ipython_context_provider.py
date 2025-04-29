@@ -15,12 +15,7 @@ logger = logging.getLogger(__name__)
 # Try to import IPython dependencies with fallbacks
 try:
     from IPython import get_ipython  # noqa: E402
-    from IPython.display import (  # noqa: E402
-        HTML,
-        Markdown,
-        clear_output,
-        display,
-    )
+    from IPython.display import HTML, Markdown, clear_output, display  # noqa: E402
 
     _IPYTHON_AVAILABLE = True
 except ImportError:
