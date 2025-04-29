@@ -18,12 +18,12 @@ It's designed for **data scientists, software engineers, researchers, and studen
 *   **🎭 Personas:** Define and switch between different AI personalities (e.g., 'code_reviewer', 'data_analyst', 'rubber_duck_debugger').
 *   **🔮 Ambient Mode:** Optionally turn your entire notebook into an LLM chat interface.
 *   **✂️ Snippets:** Inject reusable code or text snippets into your prompts on the fly.
-*   **📋 Jira Integration:** Fetch Jira tickets directly as context for your LLM prompts with the `%jira` command.
 *   **💾 History & Session Management:** Automatically track conversations, save/load sessions to Markdown, and manage context.
 *   **⚙️ Flexible Configuration:** Customize models, parameters (like `temperature`), and behavior via commands or environment variables.
 *   **🧩 Adapter System:** Supports different LLM backends (currently Direct OpenAI-compatible API access, with LangChain integration).
 *   **🏷️ Model Mapping:** Use short aliases (like `g4o`) for full model names (`gpt-4o`).
 *   **📊 Status & Cost Tracking:** Get immediate feedback on prompt execution time, token usage, and estimated cost.
+*   **🔄 Jira Integration:** Fetch Jira tickets directly into your notebook to use as context for your LLM queries.
 
 ---
 
@@ -41,12 +41,6 @@ pip install cellmage
 
 ```bash
 pip install "cellmage[langchain]"
-```
-
-*(Optional)* To use the Jira integration, install with the jira extras:
-
-```bash
-pip install "cellmage[jira]"
 ```
 
 *(Optional)* For development or to get the latest code, install from source:
@@ -114,19 +108,6 @@ pip install -e .[dev] # Includes dev dependencies
     %llm_config --clear-history
     ```
     *(Run `%llm_config --help` for all options!)*
-
-*   `%jira`: Fetches Jira tickets and adds them as context for LLM prompts.
-    ```python
-    # Fetch a specific ticket
-    %jira PROJECT-123
-    
-    # Use JQL to fetch multiple tickets
-    %jira --jql "project = PROJECT AND assignee = currentUser()" --max 3
-    
-    # Add as system message instead of user message
-    %jira PROJECT-123 --system
-    ```
-    *(Requires installing the `jira` extras: `pip install "cellmage[jira]"`)*
 
 ### 2. Personas (Your AI's Identities)
 
@@ -208,32 +189,7 @@ Inject files as context (e.g., code definitions, instructions) into your prompts
     *(Snippets added via `%llm_config` persist until cleared or new snippets are added.)*
     *You can also add snippets per-cell using `%%llm --snippet ...`.*
 
-### 5. Jira Integration (Project Context)
-
-Fetch Jira tickets directly as context for your LLM prompts.
-
-*   **Setup:**
-    ```
-    # Install with Jira extras
-    pip install "cellmage[jira]"
-    
-    # Set environment variables (in your .env file or directly)
-    JIRA_URL=https://your-company.atlassian.net
-    JIRA_USER_EMAIL=your.email@example.com
-    JIRA_API_TOKEN=your-jira-api-token
-    ```
-
-*   **Using with LLM prompts:**
-    ```python
-    # First, fetch a ticket
-    %jira PROJECT-123
-    
-    # Then ask the LLM about it
-    %%llm
-    Based on the Jira ticket above, write a Python function that implements the requirements.
-    ```
-
-### 6. Session Management (Saving Your Work)
+### 5. Session Management (Saving Your Work)
 
 Cellmage automatically saves conversations if an `llm_conversations` directory exists. You can also manually save/load.
 
@@ -248,6 +204,48 @@ Cellmage automatically saves conversations if an `llm_conversations` directory e
 %llm_config --list-sessions
 ```
 
+### 6. Jira Integration
+
+Connect your notebooks directly to Jira tickets using the `%jira` magic command.
+
+*   **Installation:**
+    ```bash
+    pip install "cellmage[jira]"
+    ```
+
+*   **Configuration:**
+    Set these environment variables in a `.env` file or your environment:
+    ```
+    JIRA_URL=https://your-company.atlassian.net
+    JIRA_USER_EMAIL=your.email@company.com
+    JIRA_API_TOKEN=your_jira_api_token
+    ```
+
+*   **Basic Usage:**
+    ```python
+    # Fetch a specific ticket and add it to chat history
+    %jira PROJECT-123
+
+    # Fetch a ticket and add as system context
+    %jira PROJECT-123 --system
+
+    # Just display a ticket without adding to history
+    %jira PROJECT-123 --show
+
+    # Use JQL to fetch multiple tickets
+    %jira --jql 'assignee = currentUser() ORDER BY updated DESC' --max 5
+    ```
+
+*   **Using with LLM Queries:**
+    ```python
+    # First, fetch the ticket
+    %jira PROJECT-123
+
+    # Then, reference it in your prompt
+    %%llm
+    Given the Jira ticket above, what are the key requirements I need to implement?
+    ```
+
 ---
 
 ## ⚙️ Configuration
@@ -257,8 +255,6 @@ Cellmage is configured via:
 1.  **Environment Variables:** (Prefix `CELLMAGE_`) - e.g., `CELLMAGE_API_KEY`, `CELLMAGE_DEFAULT_MODEL`, `CELLMAGE_PERSONAS_DIRS`. Recommended for secrets.
 2.  **`.env` File:** Place a `.env` file in your working directory.
 3.  **Magic Commands:** `%llm_config` allows runtime changes.
-
-For Jira integration, set `JIRA_URL`, `JIRA_USER_EMAIL`, and `JIRA_API_TOKEN` environment variables.
 
 *(See `config.py` or documentation for all options.)*
 
