@@ -63,6 +63,11 @@ jira = [
     "jira>=3.5.0",
     "python-dotenv>=1.0.0"
 ]
+gitlab = [
+    "python-gitlab>=3.15.0",
+    "python-dotenv>=1.0.0",
+    "tiktoken>=0.5.0"
+]
 dev = [
     "ruff",
     "mypy>=1.0,<2.0",

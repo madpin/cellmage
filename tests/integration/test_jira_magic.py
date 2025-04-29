@@ -11,14 +11,19 @@ from IPython.testing.globalipapp import start_ipython
 pytest.importorskip("jira")
 
 
-@pytest.fixture
-def ip():
-    """Start a test IPython kernel."""
-    return start_ipython()
+@pytest.fixture(scope="session")
+def ip_instance():
+    """Start a test IPython kernel and return the instance."""
+    ip = start_ipython()
+    if ip is None:
+        pytest.skip("IPython environment could not be initialized")
+    return ip
 
 
-def test_jira_magic_loads(ip):
+def test_jira_magic_loads(ip_instance):
     """Test that the Jira magic command loads correctly."""
+    ip = ip_instance
+
     # Load the extension
     ip.run_cell("%load_ext cellmage.integrations.jira_magic")
 
@@ -27,8 +32,10 @@ def test_jira_magic_loads(ip):
 
 
 @mock.patch("cellmage.integrations.jira_magic.JiraMagics._fetch_ticket")
-def test_jira_fetch_ticket(mock_fetch_ticket, ip):
+def test_jira_fetch_ticket(mock_fetch_ticket, ip_instance):
     """Test fetch_ticket functionality."""
+    ip = ip_instance
+
     # Mock the fetch_ticket method to return a dummy ticket
     mock_ticket = {
         "key": "TEST-123",
@@ -51,8 +58,10 @@ def test_jira_fetch_ticket(mock_fetch_ticket, ip):
 
 
 @mock.patch("cellmage.integrations.jira_magic.JiraMagics._fetch_tickets_by_jql")
-def test_jira_fetch_by_jql(mock_fetch_by_jql, ip):
+def test_jira_fetch_by_jql(mock_fetch_by_jql, ip_instance):
     """Test fetch_tickets_by_jql functionality."""
+    ip = ip_instance
+
     # Mock the fetch_tickets_by_jql method to return dummy tickets
     mock_tickets = [
         {
@@ -83,8 +92,10 @@ def test_jira_fetch_by_jql(mock_fetch_by_jql, ip):
 
 @mock.patch("cellmage.integrations.jira_magic.JiraMagics._add_ticket_to_history")
 @mock.patch("cellmage.integrations.jira_magic.JiraMagics._fetch_ticket")
-def test_jira_add_to_history(mock_fetch_ticket, mock_add_to_history, ip):
+def test_jira_add_to_history(mock_fetch_ticket, mock_add_to_history, ip_instance):
     """Test adding a ticket to history."""
+    ip = ip_instance
+
     # Mock the fetch_ticket method to return a dummy ticket
     mock_ticket = {
         "key": "TEST-123",

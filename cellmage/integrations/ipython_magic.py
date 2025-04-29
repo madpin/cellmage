@@ -1246,6 +1246,18 @@ def load_ipython_extension(ipython):
         except Exception as e:
             logger.warning(f"Failed to load Jira magic: {e}")
 
+        # Try to load GitLab magic if available
+        try:
+            from . import gitlab_magic
+
+            gitlab_magic.load_ipython_extension(ipython)
+        except ImportError:
+            logger.info(
+                "GitLab integration not available. Install with 'pip install cellmage[gitlab]' to enable."
+            )
+        except Exception as e:
+            logger.warning(f"Failed to load GitLab magic: {e}")
+
     except Exception as e:
         logger.exception("Failed to register NotebookLLM magics.")
         print(f"❌ Failed to load NotebookLLM Magics: {e}", file=sys.stderr)

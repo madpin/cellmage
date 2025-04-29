@@ -24,6 +24,7 @@ It's designed for **data scientists, software engineers, researchers, and studen
 *   **🏷️ Model Mapping:** Use short aliases (like `g4o`) for full model names (`gpt-4o`).
 *   **📊 Status & Cost Tracking:** Get immediate feedback on prompt execution time, token usage, and estimated cost.
 *   **🔄 Jira Integration:** Fetch Jira tickets directly into your notebook to use as context for your LLM queries.
+*   **🦊 GitLab Integration:** Import repositories and merge requests as context for your LLM prompts, with token size estimates.
 
 ---
 
@@ -244,6 +245,56 @@ Connect your notebooks directly to Jira tickets using the `%jira` magic command.
     # Then, reference it in your prompt
     %%llm
     Given the Jira ticket above, what are the key requirements I need to implement?
+    ```
+
+### 7. GitLab Integration
+
+Fetch GitLab repositories and merge requests directly into your notebook using the `%gitlab` magic command.
+
+*   **Installation:**
+    ```bash
+    pip install "cellmage[gitlab]"
+    ```
+
+*   **Configuration:**
+    Set these environment variables in a `.env` file or your environment:
+    ```
+    GITLAB_URL=https://gitlab.com
+    GITLAB_PAT=your_gitlab_personal_access_token
+    ```
+
+*   **Basic Usage:**
+    ```python
+    # Fetch a repository and add it to chat history
+    %gitlab namespace/project
+
+    # Fetch a repository and add as system context
+    %gitlab namespace/project --system
+
+    # Just display a repository without adding to history
+    %gitlab namespace/project --show
+
+    # Fetch a merge request and add to chat history
+    %gitlab namespace/project --mr 123
+
+    # Include full code content (may be very large)
+    %gitlab namespace/project --full-code
+    
+    # Get more detailed contributor information
+    %gitlab namespace/project --contributors-months 12
+    ```
+
+*   **Using with LLM Queries:**
+    ```python
+    # First, fetch the repository
+    %gitlab namespace/project
+    
+    # Check the estimated token size in the output
+    # "✅ Estimated token size: ~12,345 tokens (10,000 code, 2,345 metadata)"
+
+    # Then, reference it in your prompt
+    %%llm
+    Based on the GitLab repository above, can you explain the architecture of this project?
     ```
 
 ---
