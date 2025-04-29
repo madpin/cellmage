@@ -304,6 +304,7 @@ Fetch GitLab repositories and merge requests directly into your notebook using t
 Cellmage is configured via:
 
 1.  **Environment Variables:** (Prefix `CELLMAGE_`) - e.g., `CELLMAGE_API_KEY`, `CELLMAGE_DEFAULT_MODEL`, `CELLMAGE_PERSONAS_DIRS`. Recommended for secrets.
+    - **Custom Headers:** Set custom headers for LLM requests using the `CELLMAGE_HEADER_` prefix. For example, `CELLMAGE_HEADER_X_REDACT_ALLOW="LOCATION,PERSON"` will send the header `x-redact-allow: LOCATION,PERSON` with LLM requests. Header names are automatically converted from environment variable format to proper HTTP header format (lowercase with hyphens instead of underscores).
 2.  **`.env` File:** Place a `.env` file in your working directory.
 3.  **Magic Commands:** `%llm_config` allows runtime changes.
 
