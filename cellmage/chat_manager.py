@@ -834,6 +834,7 @@ class ChatManager:
         """
         Deduplicate messages to avoid sending duplicates to the LLM.
         Preserves system messages from different sources (e.g., persona vs GitLab).
+        Keeps the last occurrence of duplicate messages.
 
         Args:
             messages: List of messages to deduplicate
@@ -849,22 +850,22 @@ class ChatManager:
         non_system_messages = [m for m in messages if m.role != "system"]
 
         # Process non-system messages with standard deduplication
+        # Iterate through messages in reverse order to keep the last occurrence
         seen_non_system = {}
         deduplicated_non_system = []
 
-        for msg in non_system_messages:
+        for msg in reversed(non_system_messages):
             # Create a unique key based on role and content
             key = f"{msg.role}:{msg.content}"
 
             # If we haven't seen this message before, add it
             if key not in seen_non_system:
                 seen_non_system[key] = True
-                deduplicated_non_system.append(msg)
+                deduplicated_non_system.insert(0, msg)  # Insert at beginning to preserve original order
             else:
                 self.logger.debug(f"Skipping duplicate message with role '{msg.role}'")
 
-        # For system messages, prioritize persona system messages
-        # Find persona system message (typically the shortest one)
+        # For system messages, prioritize persona system messages but keep the last occurrence of duplicates
         persona_system = None
         content_system_messages = []
 
@@ -877,11 +878,13 @@ class ChatManager:
             # The shortest is likely the persona system message
             persona_system = sorted_system[0] if sorted_system else None
 
-            # Keep other system messages that aren't duplicates
+            # Keep other system messages that aren't duplicates, preferring later occurrences
             seen_content = {persona_system.content} if persona_system else set()
-            for msg in sorted_system[1:] if persona_system else sorted_system:
+            
+            # Process content system messages in reverse order to keep the last occurrence
+            for msg in reversed(sorted_system[1:] if persona_system else sorted_system):
                 if msg.content not in seen_content:
-                    content_system_messages.append(msg)
+                    content_system_messages.insert(0, msg)  # Insert at beginning to preserve order
                     seen_content.add(msg.content)
                 else:
                     self.logger.debug("Skipping duplicate system message")
