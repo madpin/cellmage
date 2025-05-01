@@ -89,7 +89,8 @@ def get_default_manager():
 
             # Auto-detect additional directories
             # First check the root of the project
-            root_snippets = "snippets"
+            # Only check for llm_snippets, not snippets
+            root_snippets = "llm_snippets"
             if os.path.isdir(root_snippets) and root_snippets not in snippet_dirs:
                 snippet_dirs.append(root_snippets)
 
@@ -105,13 +106,13 @@ def get_default_manager():
                     ):
                         persona_dirs.append(notebooks_personas_dir)
 
-                for subdir_name in ["llm_snippets", "snippets"]:
-                    notebooks_snippets_dir = os.path.join(notebook_dir, subdir_name)
-                    if (
-                        os.path.isdir(notebooks_snippets_dir)
-                        and notebooks_snippets_dir not in snippet_dirs
-                    ):
-                        snippet_dirs.append(notebooks_snippets_dir)
+                # Only use llm_snippets, not snippets
+                notebooks_snippets_dir = os.path.join(notebook_dir, "llm_snippets")
+                if (
+                    os.path.isdir(notebooks_snippets_dir)
+                    and notebooks_snippets_dir not in snippet_dirs
+                ):
+                    snippet_dirs.append(notebooks_snippets_dir)
 
                 # Check subdirectories: examples, tests, tutorials
                 for folder in ["examples", "tests", "tutorials"]:
@@ -126,14 +127,10 @@ def get_default_manager():
                             ):
                                 persona_dirs.append(sub_personas_dir)
 
-                        # Check for snippet directories
-                        for subdir_name in ["llm_snippets", "snippets"]:
-                            sub_snippets_dir = os.path.join(sub_dir, subdir_name)
-                            if (
-                                os.path.isdir(sub_snippets_dir)
-                                and sub_snippets_dir not in snippet_dirs
-                            ):
-                                snippet_dirs.append(sub_snippets_dir)
+                        # Only use llm_snippets, not snippets
+                        sub_snippets_dir = os.path.join(sub_dir, "llm_snippets")
+                        if os.path.isdir(sub_snippets_dir) and sub_snippets_dir not in snippet_dirs:
+                            snippet_dirs.append(sub_snippets_dir)
 
             # Log discovered directories
             logger = logging.getLogger(__name__)

@@ -31,7 +31,9 @@ def test_gitlab_magic_loads(ip_instance):
     ip = ip_instance
 
     # Load the extension
-    with mock.patch.dict("os.environ", {"GITLAB_URL": "https://gitlab.com", "GITLAB_PAT": "dummy_token"}):
+    with mock.patch.dict(
+        "os.environ", {"GITLAB_URL": "https://gitlab.com", "GITLAB_PAT": "dummy_token"}
+    ):
         with mock.patch("cellmage.utils.gitlab_utils.GitLabUtils"):
             ip.run_cell("%load_ext cellmage.integrations.gitlab_magic")
 
@@ -42,10 +44,10 @@ def test_gitlab_magic_loads(ip_instance):
 def test_gitlab_fetch_repository(ip_instance):
     """Test fetch_repository functionality."""
     ip = ip_instance
-    
+
     # Create a mock GitLabUtils instance
     mock_gitlab_utils = mock.MagicMock()
-    
+
     # Set up the mock to return appropriate data
     mock_repo = {
         "project_info": {
@@ -83,14 +85,16 @@ def test_gitlab_fetch_repository(ip_instance):
     mock_gitlab_utils.format_repository_for_llm.return_value = "Formatted Repository Content"
 
     # Set up the environment and mock class
-    with mock.patch.dict("os.environ", {"GITLAB_URL": "https://gitlab.com", "GITLAB_PAT": "dummy_token"}):
+    with mock.patch.dict(
+        "os.environ", {"GITLAB_URL": "https://gitlab.com", "GITLAB_PAT": "dummy_token"}
+    ):
         with mock.patch("cellmage.utils.gitlab_utils.GitLabUtils", return_value=mock_gitlab_utils):
             # Load the extension
             ip.run_cell("%reload_ext cellmage.integrations.gitlab_magic")
-            
+
             # Run the magic command
             ip.run_line_magic("gitlab", "test-namespace/test-project --show")
-            
+
             # Verify the call was made correctly
             mock_gitlab_utils.get_repository_summary.assert_called_once()
             args, kwargs = mock_gitlab_utils.get_repository_summary.call_args
@@ -100,14 +104,14 @@ def test_gitlab_fetch_repository(ip_instance):
 def test_gitlab_fetch_merge_request(ip_instance):
     """Test fetch_merge_request functionality."""
     ip = ip_instance
-    
+
     # Create a mock GitLabUtils instance
     mock_gitlab_utils = mock.MagicMock()
-    
+
     # Set up the mock to return appropriate data
     mock_project = mock.MagicMock()
     mock_gitlab_utils.get_project.return_value = mock_project
-    
+
     mock_mr = {
         "id": 123,
         "title": "Test merge request",
@@ -131,14 +135,16 @@ def test_gitlab_fetch_merge_request(ip_instance):
     mock_gitlab_utils.format_merge_request_for_llm.return_value = "Formatted MR Content"
 
     # Set up the environment and mock class
-    with mock.patch.dict("os.environ", {"GITLAB_URL": "https://gitlab.com", "GITLAB_PAT": "dummy_token"}):
+    with mock.patch.dict(
+        "os.environ", {"GITLAB_URL": "https://gitlab.com", "GITLAB_PAT": "dummy_token"}
+    ):
         with mock.patch("cellmage.utils.gitlab_utils.GitLabUtils", return_value=mock_gitlab_utils):
             # Load the extension
             ip.run_cell("%reload_ext cellmage.integrations.gitlab_magic")
-            
+
             # Run the magic command with MR
             ip.run_line_magic("gitlab", "test-namespace/test-project --mr 123 --show")
-            
+
             # Verify the calls were made correctly
             mock_gitlab_utils.get_project.assert_called_once_with("test-namespace/test-project")
             mock_gitlab_utils.get_merge_request.assert_called_once_with(mock_project, "123")
@@ -147,10 +153,10 @@ def test_gitlab_fetch_merge_request(ip_instance):
 def test_gitlab_add_to_history(ip_instance):
     """Test adding a repository to history."""
     ip = ip_instance
-    
+
     # Create a mock GitLabUtils instance
     mock_gitlab_utils = mock.MagicMock()
-    
+
     # Set up the mock to return appropriate data
     mock_repo = {
         "project_info": {
@@ -167,27 +173,31 @@ def test_gitlab_add_to_history(ip_instance):
     mock_gitlab_utils.format_repository_for_llm.return_value = "Formatted Repository Content"
 
     # Set up the environment and mock class
-    with mock.patch.dict("os.environ", {"GITLAB_URL": "https://gitlab.com", "GITLAB_PAT": "dummy_token"}):
+    with mock.patch.dict(
+        "os.environ", {"GITLAB_URL": "https://gitlab.com", "GITLAB_PAT": "dummy_token"}
+    ):
         with mock.patch("cellmage.utils.gitlab_utils.GitLabUtils", return_value=mock_gitlab_utils):
             # Need to patch at the module level where the function is called
-            with mock.patch("cellmage.integrations.ipython_magic.get_chat_manager") as mock_get_manager:
+            with mock.patch(
+                "cellmage.integrations.ipython_magic.get_chat_manager"
+            ) as mock_get_manager:
                 # Create the mock chat manager structure
                 mock_chat_manager = mock.MagicMock()
                 mock_history_manager = mock.MagicMock()
                 mock_chat_manager.history_manager = mock_history_manager
                 mock_get_manager.return_value = mock_chat_manager
-                
+
                 # Load the extension
                 ip.run_cell("%reload_ext cellmage.integrations.gitlab_magic")
-                
+
                 # Run the magic command with system flag
                 ip.run_line_magic("gitlab", "test-namespace/test-project --system")
-                
+
                 # Verify the calls were made correctly
                 mock_gitlab_utils.get_repository_summary.assert_called_once()
                 args, kwargs = mock_gitlab_utils.get_repository_summary.call_args
                 assert args[0] == "test-namespace/test-project"
-                
+
                 # Verify the message was added to history
                 mock_history_manager.add_message.assert_called_once()
                 args, kwargs = mock_history_manager.add_message.call_args
