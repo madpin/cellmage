@@ -196,8 +196,8 @@ class IPythonContextProvider(ContextProvider):
         model_text = f" {model_used}" if model_used else ""
         tokens_text = ""
         if tokens_in is not None or tokens_out is not None:
-            in_txt = f"{tokens_in}↓" if tokens_in is not None else "?"
-            out_txt = f"{tokens_out}↑" if tokens_out is not None else "?"
+            in_txt = f"{tokens_in}↑" if tokens_in is not None else "?"  # Changed from ↓ to ↑
+            out_txt = f"{tokens_out}↓" if tokens_out is not None else "?"  # Changed from ↑ to ↓
             tokens_text = f" • {in_txt}/{out_txt} tokens"
 
         cost_text = f" • ${cost_str}" if cost_str else ""
