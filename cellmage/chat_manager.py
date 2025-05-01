@@ -550,6 +550,7 @@ class ChatManager:
                     except Exception as e:
                         self.logger.warning(f"Failed to auto-save conversation: {e}")
 
+            # Update the call to display_status in the success case
             # Display status bar if context provider is available
             duration = time.time() - start_time
             if self.context_provider is not None and not stream:
@@ -563,6 +564,7 @@ class ChatManager:
                         "cost_str": cost_str,
                         "cost_mili_cents": cost_mili_cents,
                         "model": actual_model_used or model_name,
+                        "response_content": assistant_response_content
                     }
                 )
 
@@ -584,6 +586,7 @@ class ChatManager:
                         "cost_str": None,
                         "cost_mili_cents": None,
                         "model": None,
+                        "response_content": f"Error: {str(e)}"
                     }
                 )
 

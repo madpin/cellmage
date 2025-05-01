@@ -180,6 +180,10 @@ class IPythonContextProvider(ContextProvider):
             print(" | ".join(parts))
             return
 
+        # Store the content to copy in a variable that can be directly accessed
+        response_content = status_info.get("response_content", "")
+        
+        # Standard status info display
         duration = status_info.get("duration", 0.0)
         success = status_info.get("success", False)
         tokens_in = status_info.get("tokens_in")
@@ -201,6 +205,101 @@ class IPythonContextProvider(ContextProvider):
         # Single unified status text
         status_text = f"{icon}{model_text} • {duration:.2f}s{tokens_text}{cost_text}"
 
+        # Generate a unique ID for this status bar
+        status_id = f"cm_status_{uuid.uuid4().hex}"
+        
+        # Add copy button with JavaScript functionality - improved approach with isolated function for each instance
+        copy_button_html = f"""
+        <button id="{status_id}_button" 
+                onclick="{status_id}_copyContent(this)"
+                style="margin-left: 8px; border: none; background: none; cursor: pointer; 
+                       padding: 0px 4px; border-radius: 3px; font-size: 1em; opacity: 0.8;"
+                title="Copy response to clipboard">
+            📋
+        </button>
+        <script>
+        // Define the content as a string directly to avoid variable name collisions
+        const {status_id}_content = {repr(response_content)};
+        
+        // Use a uniquely named function for each button to avoid overwrites
+        function {status_id}_copyContent(button) {{
+            const text = {status_id}_content;
+            
+            // If no content found or it's empty
+            if (!text) {{
+                button.innerHTML = '❓';
+                button.title = 'No content found to copy';
+                setTimeout(() => {{
+                    button.innerHTML = '📋';
+                    button.title = 'Copy response to clipboard';
+                }}, 1500);
+                return;
+            }}
+            
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {{
+                navigator.clipboard.writeText(text)
+                    .then(() => {{
+                        // Show success indication on the button
+                        button.innerHTML = '✅';
+                        button.title = 'Copied!';
+                        
+                        // Reset button after a short delay
+                        setTimeout(() => {{
+                            button.innerHTML = '📋';
+                            button.title = 'Copy response to clipboard';
+                        }}, 1500);
+                    }})
+                    .catch(err => {{
+                        console.error('Failed to copy: ', err);
+                        // Try fallback approach
+                        {status_id}_fallbackCopy(button, text);
+                    }});
+            }} else {{
+                // Use fallback for browsers without clipboard API
+                {status_id}_fallbackCopy(button, text);
+            }}
+        }}
+        
+        // Also create a unique fallback function
+        function {status_id}_fallbackCopy(button, text) {{
+            // Create temporary element for copying
+            const tempElement = document.createElement('textarea');
+            tempElement.value = text;
+            tempElement.setAttribute('readonly', '');
+            tempElement.style.position = 'absolute';
+            tempElement.style.left = '-9999px';
+            document.body.appendChild(tempElement);
+            tempElement.select();
+            
+            try {{
+                // Copy text to clipboard using execCommand
+                const success = document.execCommand('copy');
+                button.innerHTML = success ? '✅' : '❌';
+                button.title = success ? 'Copied!' : 'Failed to copy';
+                
+                // Reset button after delay
+                setTimeout(() => {{
+                    button.innerHTML = '📋';
+                    button.title = 'Copy response to clipboard';
+                }}, 1500);
+            }} catch (err) {{
+                console.error('Failed to copy: ', err);
+                button.innerHTML = '❌';
+                button.title = 'Failed to copy';
+                
+                setTimeout(() => {{
+                    button.innerHTML = '📋';
+                    button.title = 'Copy response to clipboard';
+                }}, 1500);
+            }} finally {{
+                // Clean up
+                document.body.removeChild(tempElement);
+            }}
+        }}
+        </script>
+        """
+
         # Style based on success status
         if success:
             bg_color, text_color = "#f1f8e9", "#33691e"  # Light green bg, dark green text
@@ -210,10 +309,13 @@ class IPythonContextProvider(ContextProvider):
             border_color = "#ef9a9a"  # Light red border
 
         status_html = f"""
-        <div style="background-color: {bg_color}; border: 1px solid {border_color}; color: {text_color};
+        <div id="{status_id}" style="background-color: {bg_color}; border: 1px solid {border_color}; color: {text_color};
                     padding: 3px 6px; margin-top: 4px; border-radius: 3px; font-family: monospace; 
                     font-size: 0.75em; line-height: 1.2; display: inline-block; opacity: 0.85;">
-            {status_text}
+            <span style="display: flex; align-items: center;">
+                <span>{status_text}</span>
+                {copy_button_html}
+            </span>
         </div>
         """
         try:

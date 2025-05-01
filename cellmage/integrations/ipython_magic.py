@@ -208,6 +208,8 @@ class NotebookLLMMagics(Magics):
             # If result is successful, mark as success
             if result:
                 status_info["success"] = True
+                # Add the response content to status_info for copying
+                status_info["response_content"] = result
                 try:
                     history = manager.history_manager.get_history()
                     if len(history) >= 2:
@@ -232,6 +234,8 @@ class NotebookLLMMagics(Magics):
         except Exception as e:
             print(f"❌ LLM Error (Ambient Mode): {e}", file=sys.stderr)
             logger.error(f"Error during LLM call in ambient mode: {e}")
+            # Add error message to status_info for copying
+            status_info["response_content"] = f"Error: {str(e)}"
         finally:
             status_info["duration"] = time.time() - start_time
             # Display status bar
@@ -1520,6 +1524,8 @@ class NotebookLLMMagics(Magics):
             # If result is successful, mark as success and collect status info
             if result:
                 status_info["success"] = True
+                # Add the response content to status_info for copying
+                status_info["response_content"] = result
                 try:
                     history = manager.history_manager.get_history()
                     if len(history) >= 2:
@@ -1542,6 +1548,8 @@ class NotebookLLMMagics(Magics):
         except Exception as e:
             print(f"❌ LLM Error: {e}")
             logger.error(f"Error during LLM call: {e}")
+            # Add error message to status_info for copying
+            status_info["response_content"] = f"Error: {str(e)}"
 
             # Make sure to restore model override even on error
             if (
