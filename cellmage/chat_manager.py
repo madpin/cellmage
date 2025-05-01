@@ -785,6 +785,7 @@ class ChatManager:
     def _deduplicate_messages(self, messages: List[Message]) -> List[Message]:
         """
         Deduplicate messages to avoid sending duplicates to the LLM.
+        Preserves system messages from different sources (e.g., persona vs GitLab).
 
         Args:
             messages: List of messages to deduplicate
@@ -795,22 +796,56 @@ class ChatManager:
         if not messages:
             return []
 
-        # Track seen message contents by role to prevent duplicates
-        seen = {}
-        deduplicated = []
-
-        for msg in messages:
+        # Special handling for system messages
+        system_messages = [m for m in messages if m.role == "system"]
+        non_system_messages = [m for m in messages if m.role != "system"]
+        
+        # Process non-system messages with standard deduplication
+        seen_non_system = {}
+        deduplicated_non_system = []
+        
+        for msg in non_system_messages:
             # Create a unique key based on role and content
             key = f"{msg.role}:{msg.content}"
-
+            
             # If we haven't seen this message before, add it
-            if key not in seen:
-                seen[key] = True
-                deduplicated.append(msg)
+            if key not in seen_non_system:
+                seen_non_system[key] = True
+                deduplicated_non_system.append(msg)
             else:
                 self.logger.debug(f"Skipping duplicate message with role '{msg.role}'")
 
-        if len(deduplicated) < len(messages):
-            self.logger.info(f"Removed {len(messages) - len(deduplicated)} duplicate messages")
+        # For system messages, prioritize persona system messages
+        # Find persona system message (typically the shortest one)
+        persona_system = None
+        content_system_messages = []
+        
+        # Simple heuristic: persona system messages are typically shorter than content messages
+        # This keeps both persona messages and content (like GitLab data) as system messages
+        if system_messages:
+            # Sort by length, shortest first (likely the persona message)
+            sorted_system = sorted(system_messages, key=lambda m: len(m.content))
+            
+            # The shortest is likely the persona system message
+            persona_system = sorted_system[0] if sorted_system else None
+            
+            # Keep other system messages that aren't duplicates
+            seen_content = {persona_system.content} if persona_system else set()
+            for msg in sorted_system[1:] if persona_system else sorted_system:
+                if msg.content not in seen_content:
+                    content_system_messages.append(msg)
+                    seen_content.add(msg.content)
+                else:
+                    self.logger.debug("Skipping duplicate system message")
+        
+        # Combine messages in the correct order: system messages first, then non-system
+        result = []
+        if persona_system:
+            result.append(persona_system)
+        result.extend(content_system_messages)
+        result.extend(deduplicated_non_system)
+        
+        if len(result) < len(messages):
+            self.logger.info(f"Removed {len(messages) - len(result)} duplicate messages")
 
-        return deduplicated
+        return result
