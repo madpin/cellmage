@@ -702,36 +702,87 @@ class NotebookLLMMagics(Magics):
         if args.list_sessions:
             action_taken = True
             try:
-                # Check if list_saved_sessions or list_conversations method exists
+                # Check which method is available for listing sessions
+                sessions = []
+                method_used = None
+
                 if hasattr(manager, "list_saved_sessions"):
                     sessions = manager.list_saved_sessions()
+                    method_used = "list_saved_sessions"
                 elif hasattr(manager, "list_conversations"):
                     sessions = manager.list_conversations()
+                    method_used = "list_conversations"
+                elif hasattr(manager, "history_manager") and hasattr(
+                    manager.history_manager, "list_saved_conversations"
+                ):
+                    sessions = manager.history_manager.list_saved_conversations()
+                    method_used = "history_manager.list_saved_conversations"
                 else:
-                    # Fallback to checking if the history_manager has the method
-                    if hasattr(manager, "history_manager") and hasattr(
-                        manager.history_manager, "list_saved_conversations"
-                    ):
-                        sessions = manager.history_manager.list_saved_conversations()
-                    else:
-                        raise AttributeError(
-                            "No list_saved_sessions or list_conversations method found"
-                        )
+                    raise AttributeError(
+                        "No method found for listing sessions. Make sure a conversations directory exists."
+                    )
 
-                print(
-                    "Saved Sessions:", ", ".join(f"'{s}'" for s in sessions) if sessions else "None"
-                )
+                # Format the output in a user-friendly way
+                print("══════════════════════════════════════════════════════════")
+                print("  📋 Saved Sessions")
+                print("══════════════════════════════════════════════════════════")
+
+                if sessions:
+                    for session in sorted(sessions):
+                        print(f"  • {session}")
+                    print("──────────────────────────────────────────────────────────")
+                    print(f"  Total: {len(sessions)} session(s)")
+                    print("  Use: %llm_config --load SESSION_NAME to load a session")
+                else:
+                    print("  No saved sessions found.")
+                    if hasattr(manager, "settings") and hasattr(
+                        manager.settings, "conversations_dir"
+                    ):
+                        print(f"  Sessions directory: {manager.settings.conversations_dir}")
+                    print("  Use: %llm_config --save SESSION_NAME to save the current conversation")
+
+                print("══════════════════════════════════════════════════════════")
+                logger.debug(f"Listed {len(sessions)} sessions using {method_used}")
             except Exception as e:
                 print(f"❌ Error listing saved sessions: {e}")
+                if hasattr(manager, "settings") and hasattr(manager.settings, "conversations_dir"):
+                    conversations_dir = manager.settings.conversations_dir
+                    print(f"  Please make sure the directory exists: {conversations_dir}")
+                    # Try to check if the directory exists
+                    import os
+
+                    if not os.path.exists(conversations_dir):
+                        print(
+                            f"  ℹ️ The conversations directory does not exist. Creating it at: {conversations_dir}"
+                        )
+                        try:
+                            os.makedirs(conversations_dir, exist_ok=True)
+                            print("  ✅ Created conversations directory successfully.")
+                        except Exception as mkdir_error:
+                            print(f"  ❌ Failed to create conversations directory: {mkdir_error}")
 
         # Handle auto-save configuration
         if hasattr(args, "auto_save") and args.auto_save:
             action_taken = True
             try:
                 manager.settings.auto_save = True
-                print(
-                    f"✅ Auto-save enabled. Conversations will be saved to: {os.path.abspath(manager.settings.conversations_dir)}"
-                )
+                # Get absolute path for better user experience
+                conversations_dir = os.path.abspath(manager.settings.conversations_dir)
+                print("══════════════════════════════════════════════════════════")
+                print("  🔄 Auto-Save Enabled")
+                print("══════════════════════════════════════════════════════════")
+                print(f"  • Conversations will be saved to: {conversations_dir}")
+
+                # Check if directory exists, create if not
+                if not os.path.exists(conversations_dir):
+                    print("  • Directory doesn't exist, creating it now...")
+                    try:
+                        os.makedirs(conversations_dir, exist_ok=True)
+                        print("  ✅ Directory created successfully.")
+                    except Exception as mkdir_error:
+                        print(f"  ❌ Failed to create directory: {mkdir_error}")
+
+                print("══════════════════════════════════════════════════════════")
             except Exception as e:
                 print(f"❌ Error enabling auto-save: {e}")
 
@@ -739,28 +790,77 @@ class NotebookLLMMagics(Magics):
             action_taken = True
             try:
                 manager.settings.auto_save = False
-                print("✅ Auto-save disabled.")
+                print("══════════════════════════════════════════════════════════")
+                print("  🔄 Auto-Save Disabled")
+                print("══════════════════════════════════════════════════════════")
+                print("  • Conversations will not be saved automatically.")
+                print("  • Use %llm_config --save to manually save conversations.")
+                print("══════════════════════════════════════════════════════════")
             except Exception as e:
                 print(f"❌ Error disabling auto-save: {e}")
 
         if args.load:
             action_taken = True
             try:
-                # Check if load_conversation method exists (it might be named differently than load_session)
-                if hasattr(manager, "load_session"):
-                    manager.load_session(args.load)
-                elif hasattr(manager, "load_conversation"):
-                    manager.load_conversation(args.load)
-                else:
-                    raise AttributeError("No load_session or load_conversation method found")
+                # Check which method is available for loading sessions
+                session_id = args.load
 
-                print(f"✅ Session loaded from '{args.load}'.")
+                print("══════════════════════════════════════════════════════════")
+                print(f"  📂 Loading Session: {session_id}")
+                print("══════════════════════════════════════════════════════════")
+
+                if hasattr(manager, "load_session"):
+                    manager.load_session(session_id)
+                    method = "load_session"
+                elif hasattr(manager, "load_conversation"):
+                    manager.load_conversation(session_id)
+                    method = "load_conversation"
+                elif hasattr(manager, "history_manager") and hasattr(
+                    manager.history_manager, "load_conversation"
+                ):
+                    manager.history_manager.load_conversation(session_id)
+                    method = "history_manager.load_conversation"
+                else:
+                    raise AttributeError("No method found for loading sessions")
+
+                # Try to get history length after loading
+                try:
+                    history = manager.get_history()
+                    print(f"  ✅ Session loaded successfully using '{method}'")
+                    print(f"  • Messages: {len(history)}")
+                except Exception:
+                    print(f"  ✅ Session loaded successfully using '{method}'")
+
+                print("══════════════════════════════════════════════════════════")
+
             except ResourceNotFoundError:
-                print(f"❌ Error: Session '{args.load}' not found.")
+                print(f"  ❌ Session '{session_id}' not found.")
+                # Try to list available sessions for user convenience
+                if hasattr(manager, "list_saved_sessions") or hasattr(
+                    manager, "list_conversations"
+                ):
+                    print("  Available sessions:")
+                    try:
+                        if hasattr(manager, "list_saved_sessions"):
+                            sessions = manager.list_saved_sessions()
+                        elif hasattr(manager, "list_conversations"):
+                            sessions = manager.list_conversations()
+
+                        # Show up to 5 available sessions
+                        if sessions:
+                            for i, session in enumerate(sorted(sessions)[:5]):
+                                print(f"  • {session}")
+                            if len(sessions) > 5:
+                                print(f"  • ... and {len(sessions) - 5} more")
+                    except Exception:
+                        pass
+                print("══════════════════════════════════════════════════════════")
             except PersistenceError as e:
-                print(f"❌ Error loading session '{args.load}': {e}")
+                print(f"  ❌ Error loading session: {e}")
+                print("══════════════════════════════════════════════════════════")
             except Exception as e:
-                print(f"❌ Unexpected error loading session '{args.load}': {e}")
+                print(f"  ❌ Unexpected error: {e}")
+                print("══════════════════════════════════════════════════════════")
 
         # Save needs to be after load/clear etc.
         if args.save:
@@ -768,20 +868,66 @@ class NotebookLLMMagics(Magics):
             try:
                 from pathlib import Path
 
+                print("══════════════════════════════════════════════════════════")
+                print("  💾 Saving Session")
+                print("══════════════════════════════════════════════════════════")
+
+                # Convert True to None for default behavior if --save was used without argument
                 filename = args.save if isinstance(args.save, str) else None
-                # Check if save_conversation method exists (it might be named differently than save_session)
+                if filename is not None:
+                    print(f"  • Name: {filename}")
+
+                # Check which method is available for saving sessions
                 if hasattr(manager, "save_session"):
                     save_path = manager.save_session(identifier=filename)
+                    method = "save_session"
                 elif hasattr(manager, "save_conversation"):
                     save_path = manager.save_conversation(filename)
+                    method = "save_conversation"
+                elif hasattr(manager, "history_manager") and hasattr(
+                    manager.history_manager, "save_conversation"
+                ):
+                    save_path = manager.history_manager.save_conversation(filename)
+                    method = "history_manager.save_conversation"
                 else:
-                    raise AttributeError("No save_session or save_conversation method found")
+                    raise AttributeError("No method found for saving sessions")
 
-                print(f"✅ Session saved to '{Path(save_path).name}'.")  # Show only filename
+                # Make the path more user-friendly by showing relative path if inside conversations_dir
+                try:
+                    if hasattr(manager.settings, "conversations_dir"):
+                        conv_dir = Path(manager.settings.conversations_dir).resolve()
+                        file_path = Path(save_path).resolve()
+                        if str(file_path).startswith(str(conv_dir)):
+                            # Show path relative to conversations_dir
+                            rel_path = file_path.relative_to(conv_dir)
+                            display_path = f"{conv_dir.name}/{rel_path}"
+                        else:
+                            display_path = str(file_path)
+                    else:
+                        display_path = save_path
+                except Exception:
+                    # Fallback to just the filename if the above fails
+                    display_path = Path(save_path).name
+
+                print(f"  ✅ Session saved successfully using '{method}'")
+                print(f"  • Path: {display_path}")
+                print("══════════════════════════════════════════════════════════")
+
             except PersistenceError as e:
-                print(f"❌ Error saving session: {e}")
+                print(f"  ❌ Error saving session: {e}")
+                print("══════════════════════════════════════════════════════════")
             except Exception as e:
-                print(f"❌ Unexpected error saving session: {e}")
+                print(f"  ❌ Unexpected error: {e}")
+                # Check if conversations directory exists
+                if hasattr(manager, "settings") and hasattr(manager.settings, "conversations_dir"):
+                    if not os.path.exists(manager.settings.conversations_dir):
+                        print(
+                            f"  The conversations directory does not exist: {manager.settings.conversations_dir}"
+                        )
+                        print(
+                            "  Try creating it manually or use %llm_config --auto-save to create it automatically."
+                        )
+                print("══════════════════════════════════════════════════════════")
 
         return action_taken
 

@@ -203,9 +203,9 @@ class MarkdownStore(HistoryStore):
             yaml_part = parts[0].strip()
             metadata_dict = yaml.safe_load(yaml_part) or {}
 
-            # Create metadata object
+            # Create metadata object - Fix: Keep session_id as a string instead of converting to UUID
             metadata = ConversationMetadata(
-                session_id=uuid.UUID(metadata_dict.get("session_id", str(uuid.uuid4()))),
+                session_id=metadata_dict.get("session_id", str(uuid.uuid4())),  # Keep as string
                 saved_at=datetime.fromisoformat(
                     metadata_dict.get("saved_at", datetime.now().isoformat())
                 ),
