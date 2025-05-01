@@ -212,24 +212,26 @@ class NotebookLLMMagics(Magics):
                 status_info["response_content"] = result
                 try:
                     history = manager.history_manager.get_history()
-                    if len(history) >= 2:
-                        # Convert Any | None values to appropriate types that won't cause type errors
-                        tokens_in = history[-2].metadata.get("tokens_in", 0)
-                        status_info["tokens_in"] = (
-                            float(tokens_in) if tokens_in is not None else 0.0
-                        )
 
-                        tokens_out = history[-1].metadata.get("tokens_out", 0)
-                        status_info["tokens_out"] = (
-                            float(tokens_out) if tokens_out is not None else 0.0
-                        )
+                    # Calculate total tokens for the entire conversation
+                    total_tokens_in = 0
+                    total_tokens_out = 0
 
+                    for msg in history:
+                        if msg.metadata:
+                            total_tokens_in += msg.metadata.get("tokens_in", 0) or 0
+                            total_tokens_out += msg.metadata.get("tokens_out", 0) or 0
+
+                    # Set the total tokens for display in status bar
+                    status_info["tokens_in"] = float(total_tokens_in)
+                    status_info["tokens_out"] = float(total_tokens_out)
+
+                    # Add API-reported cost if available (from the most recent assistant message)
+                    if len(history) >= 1 and history[-1].role == "assistant":
                         status_info["cost_str"] = history[-1].metadata.get("cost_str", "")
                         status_info["model_used"] = history[-1].metadata.get("model_used", "")
                 except Exception as e:
-                    logger.warning(
-                        f"Error retrieving status info from history in ambient mode: {e}"
-                    )
+                    logger.warning(f"Error retrieving status info from history: {e}")
 
         except Exception as e:
             print(f"❌ LLM Error (Ambient Mode): {e}", file=sys.stderr)
@@ -1684,18 +1686,22 @@ class NotebookLLMMagics(Magics):
                 status_info["response_content"] = result
                 try:
                     history = manager.history_manager.get_history()
-                    if len(history) >= 2:
-                        # Convert Any | None values to appropriate types that won't cause type errors
-                        tokens_in = history[-2].metadata.get("tokens_in", 0)
-                        status_info["tokens_in"] = (
-                            float(tokens_in) if tokens_in is not None else 0.0
-                        )
 
-                        tokens_out = history[-1].metadata.get("tokens_out", 0)
-                        status_info["tokens_out"] = (
-                            float(tokens_out) if tokens_out is not None else 0.0
-                        )
+                    # Calculate total tokens for the entire conversation
+                    total_tokens_in = 0
+                    total_tokens_out = 0
 
+                    for msg in history:
+                        if msg.metadata:
+                            total_tokens_in += msg.metadata.get("tokens_in", 0) or 0
+                            total_tokens_out += msg.metadata.get("tokens_out", 0) or 0
+
+                    # Set the total tokens for display in status bar
+                    status_info["tokens_in"] = float(total_tokens_in)
+                    status_info["tokens_out"] = float(total_tokens_out)
+
+                    # Add API-reported cost if available (from the most recent assistant message)
+                    if len(history) >= 1 and history[-1].role == "assistant":
                         status_info["cost_str"] = history[-1].metadata.get("cost_str", "")
                         status_info["model_used"] = history[-1].metadata.get("model_used", "")
                 except Exception as e:

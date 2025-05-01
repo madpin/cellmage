@@ -278,6 +278,7 @@ class JiraMagics(Magics):
         import uuid
 
         from ..models import Message
+        from ..utils.token_utils import count_tokens
 
         manager = self._get_chat_manager()
         if not manager:
@@ -298,19 +299,26 @@ class JiraMagics(Magics):
                 # Basic formatting
                 content = self._format_ticket_for_display(ticket_data)
 
+            # Count tokens in the ticket content
+            tokens_count = count_tokens(content)
+
             # Create message
             role = "system" if as_system_msg else "user"
             message = Message(
                 role=role,
                 content=content,
                 id=str(uuid.uuid4()),
-                metadata={"source": "jira", "jira_key": ticket_data.get("key", "")},
+                metadata={
+                    "source": "jira",
+                    "jira_key": ticket_data.get("key", ""),
+                    "tokens_in": tokens_count,
+                },
             )
 
             # Add to history
             manager.history_manager.add_message(message)
             print(
-                f"✅ Added Jira ticket {ticket_data.get('key', '')} as {role} message to chat history"
+                f"✅ Added Jira ticket {ticket_data.get('key', '')} as {role} message to chat history ({tokens_count} tokens)"
             )
             return True
 
