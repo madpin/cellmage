@@ -257,6 +257,9 @@ class ChatManager:
         # Start timing the call for performance tracking
         start_time = time.time()
 
+        # DEBUG: Log requested persona name
+        self.logger.info(f"PERSONA DEBUG: Request made with persona_name='{persona_name}'")
+
         # Get execution context
         exec_count, cell_id = None, None
         if execution_context is not None:
@@ -285,8 +288,27 @@ class ChatManager:
                         self.logger.warning(
                             f"Persona '{persona_name}' not found, using active persona instead."
                         )
+                        # DEBUG: Log persona not found
+                        self.logger.info(
+                            f"PERSONA DEBUG: '{persona_name}' not found in available personas"
+                        )
+                        # List available personas for debugging
+                        available_personas = self.persona_loader.list_personas()
+                        self.logger.info(f"PERSONA DEBUG: Available personas: {available_personas}")
                     else:
                         self.logger.info(f"Using persona '{persona_name}' for this request")
+                        # DEBUG: Log found persona and its system message
+                        self.logger.info(
+                            f"PERSONA DEBUG: Successfully loaded persona '{persona_name}'"
+                        )
+                        system_msg = (
+                            temp_persona.system_message[:50] + "..."
+                            if temp_persona.system_message and len(temp_persona.system_message) > 50
+                            else temp_persona.system_message
+                        )
+                        self.logger.info(
+                            f"PERSONA DEBUG: System message (truncated): '{system_msg}'"
+                        )
                 else:
                     self.logger.warning(
                         "No persona loader configured, ignoring persona_name parameter."
@@ -295,30 +317,53 @@ class ChatManager:
             # Get all message history
             history_messages = self.history_manager.get_history() if self.history_manager else []
 
-            # Extract any system messages from history
-            system_messages = [m for m in history_messages if m.role == "system"]
+            # Extract non-system messages from history - we'll always keep these
             non_system_messages = [m for m in history_messages if m.role != "system"]
 
             # Prepare the messages list with system message(s) first, then other messages
             messages = []
 
-            # If we have system messages in history, add them first
-            if system_messages:
-                messages.extend(system_messages)
-            # If no system messages in history but we have an active persona, add its system message
-            elif temp_persona and temp_persona.system_message:
-                # Use the temp persona's system message if provided
+            # FIXED: Handle system messages differently when using a temporary persona
+            # Instead of keeping existing system messages from history when temp_persona is used,
+            # use ONLY the temp_persona's system message for this request
+            if temp_persona and temp_persona.system_message:
+                # Use ONLY the temp persona's system message, replacing any existing ones just for this request
                 system_message = Message(
                     role="system", content=temp_persona.system_message, id=str(uuid.uuid4())
                 )
                 messages.append(system_message)
-                self.logger.debug("Added system message from temporary persona")
-            elif self._active_persona and self._active_persona.system_message:
-                system_message = Message(
-                    role="system", content=self._active_persona.system_message, id=str(uuid.uuid4())
+                self.logger.debug(
+                    f"Using system message from temporary persona '{persona_name}' for this request only"
                 )
-                messages.append(system_message)
-                self.logger.debug("Added system message from active persona")
+                # DEBUG: Record system message being used for this request
+                self.logger.info(
+                    f"PERSONA DEBUG: Using '{persona_name}' system message for this request"
+                )
+            else:
+                # If no temp_persona, use system messages from history or active persona
+                system_messages = [m for m in history_messages if m.role == "system"]
+                if system_messages:
+                    messages.extend(system_messages)
+                    # DEBUG: Log which system messages are being used
+                    for i, msg in enumerate(system_messages):
+                        content_sample = (
+                            msg.content[:50] + "..." if len(msg.content) > 50 else msg.content
+                        )
+                        self.logger.info(
+                            f"PERSONA DEBUG: Using system message {i+1} from history: '{content_sample}'"
+                        )
+                elif self._active_persona and self._active_persona.system_message:
+                    system_message = Message(
+                        role="system",
+                        content=self._active_persona.system_message,
+                        id=str(uuid.uuid4()),
+                    )
+                    messages.append(system_message)
+                    self.logger.debug("Added system message from active persona")
+                    # DEBUG: Log active persona being used
+                    self.logger.info(
+                        f"PERSONA DEBUG: Using system message from active persona '{self._active_persona.name}'"
+                    )
 
             # Now add all non-system messages
             messages.extend(non_system_messages)

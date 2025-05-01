@@ -1415,46 +1415,56 @@ class NotebookLLMMagics(Magics):
 
         # Check if the persona exists if one was specified
         temp_persona = None
-        if args.persona and manager.persona_loader is not None:
-            temp_persona = manager.persona_loader.get_persona(args.persona)
-            if not temp_persona:
+        if args.persona:
+            # Check if persona exists
+            logger.info(f"DEBUG: Checking for persona '{args.persona}'")
+            if manager.persona_loader and manager.persona_loader.get_persona(args.persona):
+                temp_persona = manager.persona_loader.get_persona(args.persona)
+                print(f"Using persona: {args.persona} for this request only")
+                logger.info(f"DEBUG: Successfully loaded persona '{args.persona}'")
+
+                # If using an external persona (starts with / or .), ensure its system message is added
+                # and it's the first system message
+                if (
+                    args.persona.startswith("/") or args.persona.startswith(".")
+                ) and temp_persona.system_message:
+                    logger.info(f"Using external file persona: {args.persona}")
+
+                    # Get current history
+                    current_history = manager.history_manager.get_history()
+
+                    # Extract system and non-system messages
+                    system_messages = [m for m in current_history if m.role == "system"]
+                    non_system_messages = [m for m in current_history if m.role != "system"]
+
+                    # Clear the history
+                    manager.history_manager.clear_history(keep_system=False)
+
+                    # Add persona system message first
+                    manager.history_manager.add_message(
+                        Message(
+                            role="system", content=temp_persona.system_message, id=str(uuid.uuid4())
+                        )
+                    )
+
+                    # Re-add all existing system messages
+                    for msg in system_messages:
+                        manager.history_manager.add_message(msg)
+
+                    # Re-add all non-system messages
+                    for msg in non_system_messages:
+                        manager.history_manager.add_message(msg)
+            else:
+                # If persona not found, log available personas and warn the user
+                available_personas = (
+                    manager.list_personas() if hasattr(manager, "list_personas") else []
+                )
+                logger.info(f"DEBUG: Available personas: {available_personas}")
                 print(f"❌ Error: Persona '{args.persona}' not found.")
                 print("  To list available personas, use: %llm_config --list-personas")
                 status_info["duration"] = time.time() - start_time
                 context_provider.display_status(status_info)
                 return
-
-            # If using an external persona (starts with / or .), ensure its system message is added
-            # and it's the first system message
-            if (
-                args.persona.startswith("/") or args.persona.startswith(".")
-            ) and temp_persona.system_message:
-                logger.info(f"Adding system message from external persona: {args.persona}")
-
-                # Get current history
-                current_history = manager.history_manager.get_history()
-
-                # Extract system and non-system messages
-                system_messages = [m for m in current_history if m.role == "system"]
-                non_system_messages = [m for m in current_history if m.role != "system"]
-
-                # Clear the history
-                manager.history_manager.clear_history(keep_system=False)
-
-                # Add persona system message first
-                manager.history_manager.add_message(
-                    Message(
-                        role="system", content=temp_persona.system_message, id=str(uuid.uuid4())
-                    )
-                )
-
-                # Re-add all existing system messages (if any)
-                for msg in system_messages:
-                    manager.history_manager.add_message(msg)
-
-                # Re-add all non-system messages
-                for msg in non_system_messages:
-                    manager.history_manager.add_message(msg)
 
         # Rest of the method remains the same
         prompt = cell.strip()
