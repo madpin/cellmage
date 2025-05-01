@@ -182,7 +182,7 @@ class IPythonContextProvider(ContextProvider):
 
         # Store the content to copy in a variable that can be directly accessed
         response_content = status_info.get("response_content", "")
-        
+
         # Standard status info display
         duration = status_info.get("duration", 0.0)
         success = status_info.get("success", False)
@@ -207,7 +207,7 @@ class IPythonContextProvider(ContextProvider):
 
         # Generate a unique ID for this status bar
         status_id = f"cm_status_{uuid.uuid4().hex}"
-        
+
         # Add copy button with JavaScript functionality - improved approach with isolated function for each instance
         copy_button_html = f"""
         <button id="{status_id}_button" 
