@@ -861,7 +861,9 @@ class ChatManager:
             # If we haven't seen this message before, add it
             if key not in seen_non_system:
                 seen_non_system[key] = True
-                deduplicated_non_system.insert(0, msg)  # Insert at beginning to preserve original order
+                deduplicated_non_system.insert(
+                    0, msg
+                )  # Insert at beginning to preserve original order
             else:
                 self.logger.debug(f"Skipping duplicate message with role '{msg.role}'")
 
@@ -880,7 +882,7 @@ class ChatManager:
 
             # Keep other system messages that aren't duplicates, preferring later occurrences
             seen_content = {persona_system.content} if persona_system else set()
-            
+
             # Process content system messages in reverse order to keep the last occurrence
             for msg in reversed(sorted_system[1:] if persona_system else sorted_system):
                 if msg.content not in seen_content:
