@@ -50,6 +50,12 @@ class Settings(BaseSettings):
     conversations_dir: str = Field(
         default="llm_conversations", description="Directory for saved conversations"
     )
+    storage_type: str = Field(
+        default="sqlite", description="Storage backend type ('sqlite', 'memory', or 'file')"
+    )
+    store_raw_responses: bool = Field(
+        default=False, description="Whether to store raw API request/response data"
+    )
 
     # Model mapping settings
     model_mappings_file: Optional[str] = Field(

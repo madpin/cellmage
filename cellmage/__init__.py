@@ -1,185 +1,156 @@
-# Configure logging as early as possible
-from .utils.logging import setup_logging
+"""
+CellMage - An intuitive LLM interface for Jupyter notebooks and IPython environments.
 
+This package provides magic commands, conversation management, and utilities
+for interacting with LLMs in Jupyter/IPython environments.
+"""
+
+import os
+import logging
+import importlib
+from typing import Optional
+
+# Version import
+from .version import __version__
+
+# Core components
+from .models import Message
+from .config import settings  # Import settings object instead of non-existent functions
+from .exceptions import ConfigurationError, ResourceNotFoundError, PersistenceError
+
+# Main managers
+from .conversation_manager import ConversationManager
+from .chat_manager import ChatManager
+from .history_manager import HistoryManager
+
+# Storage managers
+from .storage import sqlite_store, memory_store, markdown_store
+
+# Setup logging early
+from .utils.logging import setup_logging
 setup_logging()
 
-# Import required Python libraries
-import logging  # noqa: E402
-import os  # noqa: E402
+# Initialize logger
+logger = logging.getLogger(__name__)
 
-# Expose key classes and exceptions for easier import by users
-from .chat_manager import ChatManager  # noqa: E402
-from .exceptions import (  # noqa: E402
-    ConfigurationError,
-    HistoryManagementError,
-    LLMInteractionError,
-    NotebookLLMError,
-    PersistenceError,
-    ResourceNotFoundError,
-    SnippetError,
-)
-
-# Expose interfaces if they are intended for external implementation/type hinting
-from .interfaces import (  # noqa: E402
-    ContextProvider,
-    HistoryStore,
-    LLMClientInterface,
-    PersonaLoader,
-    SnippetProvider,
-    StreamCallbackHandler,
-)
-
-# Expose core models
-from .models import ConversationMetadata, Message, PersonaConfig  # noqa: E402
-
-# Import IPython extension entry points
-try:
-    from .integrations.ipython_magic import (
-        load_ipython_extension,
-        unload_ipython_extension,
-    )
-
-    _IPYTHON_AVAILABLE = True
-except ImportError:
-    _IPYTHON_AVAILABLE = False
-
-# --- Optional: Provide a default factory function ---
-# This simplifies setup for basic use cases
-
-_default_manager_instance = None
-
-
-def get_default_manager():
+# Default SQLite-backed storage
+def get_default_conversation_manager() -> ConversationManager:
     """
-    Gets or creates a default ChatManager instance with standard file-based components.
-    Requires IPython for default context provider.
+    Returns a default conversation manager, using SQLite storage.
+    
+    This is the preferred way to get a conversation manager as it
+    ensures that SQLite storage is used by default.
     """
-    global _default_manager_instance
-    if _default_manager_instance is None:
+    from .context_providers.ipython_context_provider import get_ipython_context_provider
+    
+    # Default to SQLite storage unless explicitly disabled
+    use_file_storage = os.environ.get("CELLMAGE_USE_FILE_STORAGE", "0") == "1"
+    
+    if not use_file_storage:
         try:
-            # Import components needed for the default setup
-            from .config import settings
-
-            # Import DirectLLMAdapter - no fallback to LiteLLMAdapter
-            try:
-                from .adapters.direct_client import DirectLLMAdapter
-
-                adapter_class = DirectLLMAdapter
-            except ImportError:
-                raise ConfigurationError(
-                    "DirectLLMAdapter is not available. Please check your installation."
-                )
-
-            from .resources.file_loader import MultiFileLoader
-            from .storage.markdown_store import MarkdownStore
-
-            try:
-                from .context_providers.ipython_context_provider import (
-                    IPythonContextProvider,
-                )
-
-                context_provider = IPythonContextProvider()
-            except ImportError:
-                # IPython not available, use None for context
-                context_provider = None
-
-            # Set up multiple folders for personas and snippets
-            persona_dirs = settings.all_personas_dirs.copy()  # Start with configured dirs
-            snippet_dirs = settings.all_snippets_dirs.copy()
-
-            # Auto-detect additional directories
-            # First check the root of the project
-            # Only check for llm_snippets, not snippets
-            root_snippets = "llm_snippets"
-            if os.path.isdir(root_snippets) and root_snippets not in snippet_dirs:
-                snippet_dirs.append(root_snippets)
-
-            # Check for notebook directories
-            notebook_dir = os.path.abspath("notebooks")
-            if os.path.isdir(notebook_dir):
-                # Add notebook-specific directories
-                for subdir_name in ["llm_personas", "personas"]:
-                    notebooks_personas_dir = os.path.join(notebook_dir, subdir_name)
-                    if (
-                        os.path.isdir(notebooks_personas_dir)
-                        and notebooks_personas_dir not in persona_dirs
-                    ):
-                        persona_dirs.append(notebooks_personas_dir)
-
-                # Only use llm_snippets, not snippets
-                notebooks_snippets_dir = os.path.join(notebook_dir, "llm_snippets")
-                if (
-                    os.path.isdir(notebooks_snippets_dir)
-                    and notebooks_snippets_dir not in snippet_dirs
-                ):
-                    snippet_dirs.append(notebooks_snippets_dir)
-
-                # Check subdirectories: examples, tests, tutorials
-                for folder in ["examples", "tests", "tutorials"]:
-                    sub_dir = os.path.join(notebook_dir, folder)
-                    if os.path.isdir(sub_dir):
-                        # Check for persona directories
-                        for subdir_name in ["llm_personas", "personas"]:
-                            sub_personas_dir = os.path.join(sub_dir, subdir_name)
-                            if (
-                                os.path.isdir(sub_personas_dir)
-                                and sub_personas_dir not in persona_dirs
-                            ):
-                                persona_dirs.append(sub_personas_dir)
-
-                        # Only use llm_snippets, not snippets
-                        sub_snippets_dir = os.path.join(sub_dir, "llm_snippets")
-                        if os.path.isdir(sub_snippets_dir) and sub_snippets_dir not in snippet_dirs:
-                            snippet_dirs.append(sub_snippets_dir)
-
-            # Log discovered directories
-            logger = logging.getLogger(__name__)
-            logger.info(f"Using persona directories: {persona_dirs}")
-            logger.info(f"Using snippet directories: {snippet_dirs}")
-
-            # Create MultiFileLoader with all directories
-            loader = MultiFileLoader(personas_dirs=persona_dirs, snippets_dirs=snippet_dirs)
-            store = MarkdownStore(settings.conversations_dir)
-            client = adapter_class()
-
-            _default_manager_instance = ChatManager(
-                settings=settings,
-                llm_client=client,
-                persona_loader=loader,
-                snippet_provider=loader,
-                history_store=store,
+            # Create SQLite-backed conversation manager
+            context_provider = get_ipython_context_provider()
+            manager = ConversationManager(
                 context_provider=context_provider,
+                storage_type='sqlite'  # Explicitly request SQLite storage
             )
+            logger.info("Created default SQLite-backed conversation manager")
+            return manager
         except Exception as e:
-            # Log or raise a more specific setup error
-            raise NotebookLLMError(f"Failed to create default ChatManager: {e}") from e
-    return _default_manager_instance
+            logger.warning(f"Failed to create SQLite conversation manager: {e}")
+            logger.warning("Falling back to memory-based storage")
+    
+    # Fallback to memory-based storage
+    context_provider = get_ipython_context_provider()
+    manager = ConversationManager(context_provider=context_provider)
+    logger.info("Created memory-backed conversation manager (fallback)")
+    return manager
 
 
-__all__ = [
-    "ChatManager",
-    "get_default_manager",
-    # Exceptions
-    "NotebookLLMError",
-    "ConfigurationError",
-    "ResourceNotFoundError",
-    "LLMInteractionError",
-    "HistoryManagementError",
-    "PersistenceError",
-    "SnippetError",
-    # Interfaces
-    "LLMClientInterface",
-    "PersonaLoader",
-    "SnippetProvider",
-    "HistoryStore",
-    "ContextProvider",
-    "StreamCallbackHandler",
-    # Models
-    "Message",
-    "PersonaConfig",
-    "ConversationMetadata",
-]
+# This function ensures backwards compatibility
+def load_ipython_extension(ipython):
+    """
+    Registers the magics with the IPython runtime.
+    
+    By default, this now loads the SQLite-backed implementation for improved
+    conversation management. For legacy file-based storage, set the 
+    CELLMAGE_USE_FILE_STORAGE=1 environment variable.
+    
+    This also loads all available integrations (Jira, GitLab, etc.)
+    """
+    try:
+        # Check if we should prefer the SQLite implementation
+        use_sqlite = os.environ.get("CELLMAGE_USE_SQLITE", "1") == "1"
+        
+        primary_extension_loaded = False
+        
+        if use_sqlite:
+            # Try to load the SQLite implementation first
+            try:
+                from .integrations.sqlite_magic import load_ipython_extension as load_sqlite
+                load_sqlite(ipython)
+                logger.info("Loaded CellMage with SQLite-based storage")
+                primary_extension_loaded = True
+            except Exception as e:
+                logger.warning(f"Failed to load SQLite extension: {e}")
+                logger.warning("Falling back to legacy implementation")
+        
+        # Load legacy implementation if SQLite failed or not requested
+        if not primary_extension_loaded:
+            try:
+                from .integrations.ipython_magic import load_ipython_extension as load_legacy
+                load_legacy(ipython)
+                logger.info("Loaded CellMage with legacy storage")
+                primary_extension_loaded = True
+            except Exception as e:
+                logger.error(f"Failed to load legacy implementation: {e}")
+                print(f"❌ Failed to load CellMage core functionality: {e}")
+        
+        # Now load additional integrations if available
+        
+        # 1. Try to load Jira integration
+        try:
+            from .integrations.jira_magic import load_ipython_extension as load_jira
+            load_jira(ipython)
+            logger.info("Loaded Jira integration")
+        except ImportError:
+            logger.info("Jira package not available. Jira integration not loaded.")
+        except Exception as e:
+            logger.warning(f"Failed to load Jira integration: {e}")
+            
+        # 2. Try to load GitLab integration
+        try:
+            from .integrations.gitlab_magic import load_ipython_extension as load_gitlab
+            load_gitlab(ipython)
+            logger.info("Loaded GitLab integration")
+        except ImportError:
+            logger.info("GitLab package not available. GitLab integration not loaded.")
+        except Exception as e:
+            logger.warning(f"Failed to load GitLab integration: {e}")
+        
+        if not primary_extension_loaded:
+            print("⚠️ CellMage core functionality could not be loaded")
+            
+    except Exception as e:
+        logger.error(f"Error loading CellMage extension: {e}")
+        # Try to show something to the user
+        print(f"⚠️ Error loading CellMage extension: {e}")
 
-# Add IPython extension entry points to __all__ if available
-if _IPYTHON_AVAILABLE:
-    __all__ += ["load_ipython_extension", "unload_ipython_extension"]
+
+# Unload extension
+def unload_ipython_extension(ipython):
+    """Unregisters the magics from the IPython runtime."""
+    try:
+        # Try to unload SQLite extension first
+        try:
+            from .integrations.sqlite_magic import unload_ipython_extension as unload_sqlite
+            unload_sqlite(ipython)
+            return
+        except (ImportError, AttributeError):
+            pass
+            
+        # Fall back to legacy unload
+        from .integrations.ipython_magic import unload_ipython_extension as unload_legacy
+        unload_legacy(ipython)
+    except Exception as e:
+        logger.error(f"Error unloading CellMage extension: {e}")
