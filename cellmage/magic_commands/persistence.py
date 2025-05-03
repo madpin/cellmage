@@ -156,7 +156,7 @@ def export_conversation_to_markdown(
                 "assistant": "🤖 Assistant",
             }.get(msg.role, "❓ Unknown")
 
-            md_content.append(f"## {role_prefix} Message {i+1}\n")
+            md_content.append(f"## {role_prefix} Message {i + 1}\n")
 
             # Add message content
             md_content.append("```")

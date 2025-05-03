@@ -150,6 +150,19 @@ def load_ipython_extension(ipython):
         except Exception as e:
             logger.warning(f"Failed to load GitHub integration: {e}")
 
+        # 4. Try to load Confluence integration
+        try:
+            from .integrations.confluence_magic import (
+                load_ipython_extension as load_confluence,
+            )
+
+            load_confluence(ipython)
+            logger.info("Loaded Confluence integration")
+        except ImportError:
+            logger.info("Confluence package not available. Confluence integration not loaded.")
+        except Exception as e:
+            logger.warning(f"Failed to load Confluence integration: {e}")
+
         if not primary_extension_loaded:
             print("⚠️ CellMage core functionality could not be loaded")
 

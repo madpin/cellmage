@@ -5,16 +5,13 @@ This module provides magic commands for using CellMage with SQLite storage in IP
 """
 
 import logging
-import os
 import sys
 import time
-import uuid
-from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 # IPython imports with fallback handling
 try:
-    from IPython.core.magic import Magics, cell_magic, line_magic, magics_class
+    from IPython.core.magic import cell_magic, line_magic, magics_class
     from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
 
     _IPYTHON_AVAILABLE = True
@@ -37,22 +34,26 @@ except ImportError:
     def argument(*args, **kwargs):
         return lambda func: func
 
-    class DummyMagics:
-        pass  # Dummy base class
 
-    Magics = DummyMagics  # Type alias for compatibility
+# Import the base magic class
+from .base_magic import BaseMagics
 
-from ..ambient_mode import disable_ambient_mode, is_ambient_mode_enabled
-from ..chat_manager import ChatManager
-from ..context_providers.ipython_context_provider import get_ipython_context_provider
-from ..conversation_manager import ConversationManager
-
-# Import magic command modules
-from ..magic_commands import history, persistence
-from ..models import Message
-
-# Logging setup
+# Create a global logger
 logger = logging.getLogger(__name__)
+
+# Check if SQLite storage components are available
+try:
+    from ..ambient_mode import disable_ambient_mode, is_ambient_mode_enabled
+    from ..chat_manager import ChatManager
+    from ..context_providers.ipython_context_provider import (
+        get_ipython_context_provider,
+    )
+    from ..conversation_manager import ConversationManager
+    from ..magic_commands import history, persistence
+
+    _SQLITE_AVAILABLE = True
+except ImportError:
+    _SQLITE_AVAILABLE = False
 
 
 def get_chat_manager():
@@ -70,10 +71,11 @@ def get_chat_manager():
 
 
 @magics_class
-class SQLiteCellMagics(Magics):
+class SQLiteCellMagics(BaseMagics):
     """IPython magic commands for interacting with CellMage using SQLite storage."""
 
     def __init__(self, shell):
+        """Initialize the SQLite magic utility."""
         if not _IPYTHON_AVAILABLE:
             logger.warning("IPython not found. CellMage SQLite magics are disabled.")
             return
@@ -129,6 +131,41 @@ class SQLiteCellMagics(Magics):
                 file=sys.stderr,
             )
             return None
+
+    def _add_to_history(
+        self, content: str, source_type: str, source_id: str, as_system_msg: bool = False
+    ) -> bool:
+        """Add the content to the chat history as a user or system message."""
+        return super()._add_to_history(
+            content=content,
+            source_type=source_type,
+            source_id=source_id,
+            source_name="sqlite",
+            id_key="sqlite_id",
+            as_system_msg=as_system_msg,
+        )
+
+    def _find_messages_to_remove(
+        self, history: List, source_name: str, source_type: str, source_id: str, id_key: str
+    ) -> List[int]:
+        """
+        Find messages to remove from history based on SQLite-specific rules.
+
+        Remove previous messages with the same source type and ID.
+        """
+        indices_to_remove = []
+
+        # Match by source type and ID
+        for i, msg in enumerate(history):
+            if (
+                msg.metadata
+                and msg.metadata.get("source") == source_name
+                and msg.metadata.get("type") == source_type
+                and msg.metadata.get(id_key) == source_id
+            ):
+                indices_to_remove.append(i)
+
+        return indices_to_remove
 
     def _show_status(self) -> None:
         """Show current SQLite storage status."""
@@ -193,24 +230,17 @@ class SQLiteCellMagics(Magics):
         logger.debug(f"Processing cell as prompt in ambient mode: '{prompt[:50]}...'")
 
         try:
-            # Get execution context
+            # Get execution context for cell identification
             exec_count, cell_id = context_provider.get_execution_context()
 
             # Check for cell rerun and perform rollback if needed
             manager.perform_rollback(cell_id)
 
-            # Add user message
-            user_message = Message(
-                role="user",
-                content=prompt,
-                execution_count=exec_count,
-                cell_id=cell_id,
-                id=str(uuid.uuid4()),
-            )
-            manager.add_message(user_message)
+            # Add user message using _add_to_history
+            unique_id = f"ambient_{cell_id}_{exec_count}"
+            self._add_to_history(prompt, "ambient_prompt", unique_id, as_system_msg=False)
 
             # Call the ChatManager's chat method with default settings
-            # This is a temporary solution until we fully decouple LLM functionality
             result = chat_manager.chat(
                 prompt=prompt,
                 persona_name=None,  # Use default persona
@@ -235,16 +265,28 @@ class SQLiteCellMagics(Magics):
                 except Exception as e:
                     logger.warning(f"Error extracting metadata from chat history: {e}")
 
-                # Create assistant message with the result
-                assistant_message = Message(
-                    role="assistant",
-                    content=result,
-                    execution_count=exec_count,
-                    cell_id=cell_id,
-                    id=str(uuid.uuid4()),
-                    metadata=metadata,
+                # Add assistant message with the extracted metadata
+                response_id = f"ambient_response_{cell_id}_{exec_count}"
+
+                # Store the response content with metadata
+                assistant_content = result
+
+                # Add assistant message using _add_to_history
+                self._add_to_history(
+                    assistant_content, "ambient_response", response_id, as_system_msg=False
                 )
-                manager.add_message(assistant_message)
+
+                # Update the metadata directly for the message we just added
+                if metadata:
+                    for msg in reversed(manager.messages):
+                        if (
+                            msg.role == "assistant"
+                            and msg.metadata
+                            and msg.metadata.get("source") == "sqlite"
+                            and msg.metadata.get("sqlite_id") == response_id
+                        ):
+                            msg.metadata.update(metadata)
+                            break
 
                 # Collect token counts for status bar
                 tokens_in = metadata.get("tokens_in", 0) or 0
@@ -264,202 +306,6 @@ class SQLiteCellMagics(Magics):
             status_info["duration"] = time.time() - start_time
             # Display status bar
             context_provider.display_status(status_info)
-
-    @magic_arguments()
-    @argument("--export", type=str, help="Export conversations to markdown files")
-    @argument("--import-md", type=str, help="Import a markdown conversation file into SQLite")
-    @argument("--stats", action="store_true", help="Show statistics about stored conversations")
-    @argument("--list", action="store_true", help="List all stored conversations")
-    @argument("--search", type=str, help="Search conversations by content")
-    @argument("--load", type=str, help="Load a specific conversation by ID")
-    @argument("--delete", type=str, help="Delete a conversation by ID")
-    @argument("--tag", nargs=2, metavar=("ID", "TAG"), help="Add a tag to a conversation")
-    @argument("--new", action="store_true", help="Start a new conversation")
-    @argument("--status", action="store_true", help="Show current SQLite storage status")
-    @line_magic("sqlite")
-    def sqlite_config(self, line):
-        """Configure and manage SQLite storage for CellMage conversations."""
-        try:
-            args = parse_argstring(self.sqlite_config, line)
-            manager = self._get_manager()
-
-            if not manager:
-                print("❌ Conversation manager not available")
-                return
-
-            # Track if any action was performed
-            action_taken = False
-
-            # Handle export
-            if args.export:
-                action_taken = True
-                path = persistence.export_conversation_to_markdown(manager, filepath=args.export)
-                if path:
-                    print("✅ Conversation exported successfully")
-                    print(f"  • Saved to: {path}")
-                else:
-                    print("❌ Failed to export conversation")
-
-            # Handle import
-            if args.import_md:
-                action_taken = True
-                if not os.path.exists(args.import_md):
-                    print(f"❌ File not found: {args.import_md}")
-                else:
-                    success = persistence.import_markdown_to_sqlite(manager, args.import_md)
-                    if success:
-                        print("✅ Conversation imported successfully")
-                        print(f"  • Messages: {len(manager.messages)}")
-                    else:
-                        print("❌ Failed to import conversation")
-
-            # Handle stats
-            if args.stats:
-                action_taken = True
-                stats = history.get_conversation_statistics(manager)
-                if stats:
-                    print("══════════════════════════════════════════════════════════")
-                    print("  📊 Conversation Statistics")
-                    print("══════════════════════════════════════════════════════════")
-                    print(f"  • Total conversations: {stats.get('total_conversations', 0)}")
-                    print(f"  • Total messages: {stats.get('total_messages', 0)}")
-
-                    if "total_tokens" in stats:
-                        print(f"  • Total tokens: {stats.get('total_tokens', 0):,}")
-
-                    if "messages_by_role" in stats:
-                        print("  • Messages by role:")
-                        for role, count in stats["messages_by_role"].items():
-                            print(f"    - {role}: {count}")
-
-                    if "most_used_model" in stats and stats["most_used_model"]:
-                        model_info = stats["most_used_model"]
-                        print(
-                            f"  • Most used model: {model_info.get('model', 'unknown')} ({model_info.get('count', 0)} times)"
-                        )
-
-                    if "most_active_day" in stats and stats["most_active_day"]:
-                        activity = stats["most_active_day"]
-                        print(
-                            f"  • Most active day: {activity.get('date')} with {activity.get('message_count', 0)} messages"
-                        )
-
-                    print("══════════════════════════════════════════════════════════")
-                else:
-                    print("❌ Failed to get conversation statistics")
-
-            # Handle list
-            if args.list:
-                action_taken = True
-                conversations = persistence.list_sqlite_conversations()
-                if conversations:
-                    print("══════════════════════════════════════════════════════════")
-                    print("  📋 Conversations in SQLite Storage")
-                    print("══════════════════════════════════════════════════════════")
-                    for i, conv in enumerate(conversations):
-                        # Create a short summary of each conversation
-                        print(
-                            f"  {i+1}. {conv.get('name', 'Unnamed')} (ID: {conv.get('id', 'unknown')[:8]}...)"
-                        )
-                        print(
-                            f"     Date: {datetime.fromtimestamp(conv.get('timestamp', 0)).strftime('%Y-%m-%d %H:%M') if 'timestamp' in conv else 'unknown'}"
-                        )
-                        print(f"     Messages: {conv.get('message_count', 0)}")
-                        if conv.get("model_name"):
-                            print(f"     Model: {conv.get('model_name')}")
-                        if conv.get("tags"):
-                            print(f"     Tags: {', '.join(conv.get('tags', []))}")
-                        print()
-                    print(f"  Total: {len(conversations)} conversation(s)")
-                    print("══════════════════════════════════════════════════════════")
-                else:
-                    print("  No conversations found in SQLite storage")
-
-            # Handle search
-            if args.search:
-                action_taken = True
-                results = persistence.search_sqlite_conversations(args.search, limit=20)
-                if results:
-                    print("══════════════════════════════════════════════════════════")
-                    print(f"  🔍 Search Results for '{args.search}'")
-                    print("══════════════════════════════════════════════════════════")
-                    for i, conv in enumerate(results):
-                        print(
-                            f"  {i+1}. {conv.get('name', 'Unnamed')} (ID: {conv.get('id', 'unknown')[:8]}...)"
-                        )
-                        print(f"     Messages: {conv.get('message_count', 0)}")
-                        if "timestamp" in conv:
-                            print(
-                                f"     Date: {datetime.fromtimestamp(conv.get('timestamp', 0)).strftime('%Y-%m-%d %H:%M')}"
-                            )
-                        print()
-                    print(f"  Found {len(results)} conversation(s)")
-                    print("══════════════════════════════════════════════════════════")
-                else:
-                    print(f"  No conversations found matching '{args.search}'")
-
-            # Handle load
-            if args.load:
-                action_taken = True
-                success = manager.load_conversation(args.load)
-                if success:
-                    print("══════════════════════════════════════════════════════════")
-                    print(f"  ✅ Loaded conversation '{args.load}'")
-                    print("══════════════════════════════════════════════════════════")
-                    print(f"  • Messages: {len(manager.messages)}")
-
-                    # Show the first few messages as preview
-                    if manager.messages:
-                        print("  • Preview:")
-                        for i, msg in enumerate(manager.messages[:3]):
-                            if i >= 3:
-                                break
-                            preview = msg.content.replace("\n", " ")[:60]
-                            if len(preview) < len(msg.content):
-                                preview += "..."
-                            print(f"    - [{msg.role}] {preview}")
-                        if len(manager.messages) > 3:
-                            print(f"    - ... and {len(manager.messages) - 3} more messages")
-
-                    print("══════════════════════════════════════════════════════════")
-                else:
-                    print(f"❌ Failed to load conversation '{args.load}'")
-
-            # Handle delete
-            if args.delete:
-                action_taken = True
-                success = manager.delete_conversation(args.delete)
-                if success:
-                    print(f"✅ Deleted conversation '{args.delete}'")
-                else:
-                    print(f"❌ Failed to delete conversation '{args.delete}'")
-
-            # Handle tag
-            if args.tag:
-                action_taken = True
-                conv_id, tag = args.tag
-                success = persistence.tag_sqlite_conversation(conv_id, tag)
-                if success:
-                    print(f"✅ Added tag '{tag}' to conversation '{conv_id}'")
-                else:
-                    print(f"❌ Failed to add tag '{tag}' to conversation '{conv_id}'")
-
-            # Handle new conversation
-            if args.new:
-                action_taken = True
-                new_id = manager.create_new_conversation()
-                print(f"✅ Created new conversation with ID: {new_id}")
-
-            # Handle status display
-            if args.status or not action_taken:
-                self._show_status()
-
-        except Exception as e:
-            print(f"❌ Error in SQLite command: {e}")
-            import traceback
-
-            traceback.print_exc()
-            logger.exception(f"Error in SQLite command: {e}")
 
     @magic_arguments()
     @argument("-p", "--persona", type=str, help="Use specific persona for THIS call only.")
@@ -524,15 +370,9 @@ class SQLiteCellMagics(Magics):
         # Check for cell rerun and perform rollback if needed
         manager.perform_rollback(cell_id)
 
-        # Add user message
-        user_message = Message(
-            role="user",
-            content=prompt,
-            execution_count=exec_count,
-            cell_id=cell_id,
-            id=str(uuid.uuid4()),
-        )
-        manager.add_message(user_message)
+        # Add user message using _add_to_history
+        prompt_id = f"prompt_{cell_id}_{exec_count}"
+        self._add_to_history(prompt, "prompt", prompt_id, as_system_msg=False)
 
         # Prepare runtime params
         runtime_params = {}
@@ -564,7 +404,7 @@ class SQLiteCellMagics(Magics):
 
         # Handle model override
         original_model = None
-        if args.model:
+        if hasattr(args, "model") and args.model:
             # Temporarily set model override for this call
             if chat_manager.llm_client and hasattr(chat_manager.llm_client, "set_override"):
                 original_model = chat_manager.llm_client.get_overrides().get("model")
@@ -586,7 +426,8 @@ class SQLiteCellMagics(Magics):
 
             # If original model was overridden, restore it
             if (
-                args.model
+                hasattr(args, "model")
+                and args.model
                 and chat_manager.llm_client
                 and hasattr(chat_manager.llm_client, "set_override")
             ):
@@ -611,16 +452,21 @@ class SQLiteCellMagics(Magics):
                 except Exception as e:
                     logger.warning(f"Error extracting metadata from chat history: {e}")
 
-                # Create assistant message with the result
-                assistant_message = Message(
-                    role="assistant",
-                    content=result,
-                    execution_count=exec_count,
-                    cell_id=cell_id,
-                    id=str(uuid.uuid4()),
-                    metadata=metadata,
-                )
-                manager.add_message(assistant_message)
+                # Add assistant message with the result using _add_to_history
+                response_id = f"response_{cell_id}_{exec_count}"
+                self._add_to_history(result, "response", response_id, as_system_msg=False)
+
+                # Update the metadata directly for the message we just added
+                if metadata:
+                    for msg in reversed(manager.messages):
+                        if (
+                            msg.role == "assistant"
+                            and msg.metadata
+                            and msg.metadata.get("source") == "sqlite"
+                            and msg.metadata.get("sqlite_id") == response_id
+                        ):
+                            msg.metadata.update(metadata)
+                            break
 
                 # Collect token counts for status bar
                 tokens_in = metadata.get("tokens_in", 0) or 0
@@ -639,7 +485,8 @@ class SQLiteCellMagics(Magics):
 
             # Make sure to restore model override even on error
             if (
-                args.model
+                hasattr(args, "model")
+                and args.model
                 and chat_manager.llm_client
                 and hasattr(chat_manager.llm_client, "set_override")
             ):
@@ -678,11 +525,15 @@ def llm_magic(ip, line, cell):
 
 # --- Extension Loading ---
 def load_ipython_extension(ipython):
-    """
-    Registers the SQLite magics with the IPython runtime.
-    """
+    """Register the SQLite magics with the IPython runtime."""
     if not _IPYTHON_AVAILABLE:
         print("IPython is not available. Cannot load extension.", file=sys.stderr)
+        return
+
+    if not _SQLITE_AVAILABLE:
+        print(
+            "SQLite storage components are not available. Cannot load extension.", file=sys.stderr
+        )
         return
 
     try:
@@ -736,12 +587,15 @@ def load_ipython_extension(ipython):
 
 
 def unload_ipython_extension(ipython):
-    """Unregisters the magics when the extension is unloaded."""
+    """Unregister the magics when the extension is unloaded."""
     if not _IPYTHON_AVAILABLE:
         return
 
     # Disable ambient mode if it's active
-    if is_ambient_mode_enabled():
-        disable_ambient_mode(ipython)
+    try:
+        if is_ambient_mode_enabled():
+            disable_ambient_mode(ipython)
+    except Exception:
+        pass  # Not critical if this fails
 
     logger.info("SQLite extension unloaded")

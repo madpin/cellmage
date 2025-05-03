@@ -31,10 +31,9 @@ except ImportError:
     def argument(*args, **kwargs):
         return lambda func: func
 
-    class DummyMagics:
-        pass  # Dummy base class
 
-    Magics = DummyMagics  # Type alias for compatibility
+# Import the base magic class
+from .base_magic import BaseMagics
 
 # Create a global logger
 logger = logging.getLogger(__name__)
@@ -48,17 +47,19 @@ except ImportError:
     _GITLAB_AVAILABLE = False
 
 
-# Define GitLabMagics as a regular class (NOT using the @magics_class decorator)
-# This avoids the automatic registration of magic methods that the decorator does
-class GitLabMagics:
-    """GitLab repository and merge request fetching utility for IPython."""
+@magics_class
+class GitLabMagics(BaseMagics):
+    """IPython magic commands for fetching and using GitLab repositories and merge requests as context."""
 
-    def __init__(self, shell=None):
+    def __init__(self, shell):
         """Initialize the GitLab magic utility."""
-        self.shell = shell
+        if not _IPYTHON_AVAILABLE:
+            logger.warning("IPython not found. GitLab magics are disabled.")
+            return
+
+        super().__init__(shell)
         self.gitlab_utils = None
-        if _IPYTHON_AVAILABLE:
-            self._init_gitlab_client()
+        self._init_gitlab_client()
 
     def _init_gitlab_client(self) -> None:
         """Initialize the GitLab client if possible."""
@@ -169,34 +170,52 @@ class GitLabMagics:
         self, content: str, source_type: str, source_id: str, as_system_msg: bool = False
     ) -> bool:
         """Add the content to the chat history as a user or system message."""
-        import uuid
+        return super()._add_to_history(
+            content=content,
+            source_type=source_type,
+            source_id=source_id,
+            source_name="gitlab",
+            id_key="gitlab_id",
+            as_system_msg=as_system_msg,
+        )
 
-        from ..models import Message
+    def _find_messages_to_remove(
+        self, history: List, source_name: str, source_type: str, source_id: str, id_key: str
+    ) -> List[int]:
+        """
+        Find messages to remove from history based on GitLab-specific rules.
 
-        manager = self._get_chat_manager()
-        if not manager:
-            print("❌ ChatManager not available")
-            return False
+        For merge requests, we want to remove all merge requests from the same repository.
+        For other content types, we use exact matching.
+        """
+        indices_to_remove = []
 
-        try:
-            # Create message
-            role = "system" if as_system_msg else "user"
-            message = Message(
-                role=role,
-                content=content,
-                id=str(uuid.uuid4()),
-                metadata={"source": "gitlab", "gitlab_id": source_id, "type": source_type},
+        if source_type == "merge_request":
+            # For merge requests, extract the repository name from source_id
+            # Format is typically "repo_name!mr_number"
+            repo_name = source_id.split("!")[0] if "!" in source_id else source_id
+
+            # Remove ANY merge request from the same repository
+            for i, msg in enumerate(history):
+                if (
+                    msg.metadata
+                    and msg.metadata.get("source") == source_name
+                    and msg.metadata.get("type") == "merge_request"
+                    and msg.metadata.get(id_key, "").startswith(repo_name + "!")
+                ):
+                    indices_to_remove.append(i)
+
+            if indices_to_remove:
+                logger.info(
+                    f"Found {len(indices_to_remove)} previous merge requests from repository {repo_name} to remove"
+                )
+        else:
+            # For other content types, use the standard exact match approach
+            indices_to_remove = super()._find_messages_to_remove(
+                history, source_name, source_type, source_id, id_key
             )
 
-            # Add to history
-            manager.history_manager.add_message(message)
-            print(f"✅ Added GitLab {source_type} {source_id} as {role} message to chat history")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error adding GitLab content to history: {e}")
-            print(f"❌ Error adding GitLab content to history: {e}")
-            return False
+        return indices_to_remove
 
     @magic_arguments()
     @argument(
@@ -253,6 +272,7 @@ class GitLabMagics:
         default=6,
         help="Include contributors from the last N months (default: 6)",
     )
+    @line_magic("gitlab")
     def gitlab_magic(self, line):
         """Fetch GitLab repository or merge request and add to the chat context.
 
@@ -421,14 +441,9 @@ def load_ipython_extension(ipython):
         return
 
     try:
-        # Create the magic class instance (not using the magics_class decorator)
-        magic_handler = GitLabMagics(ipython)
-
-        # Register only the gitlab magic function directly
-        ipython.register_magic_function(
-            magic_handler.gitlab_magic, magic_kind="line", magic_name="gitlab"
-        )
-
+        # Create and register the magic class
+        magic_class = GitLabMagics(ipython)
+        ipython.register_magics(magic_class)
         print("✅ GitLab Magics loaded. Use %gitlab namespace/project to fetch repositories.")
     except Exception as e:
         logger.exception("Failed to register GitLab magics.")

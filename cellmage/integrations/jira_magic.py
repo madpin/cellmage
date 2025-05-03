@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 # IPython imports with fallback handling
 try:
-    from IPython.core.magic import Magics, line_magic, magics_class
+    from IPython.core.magic import line_magic, magics_class
     from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
 
     _IPYTHON_AVAILABLE = True
@@ -30,18 +30,15 @@ except ImportError:
     def argument(*args, **kwargs):
         return lambda func: func
 
-    class DummyMagics:
-        pass  # Dummy base class
 
-    Magics = DummyMagics  # Type alias for compatibility
+# Import the base magic class
+from .base_magic import BaseMagics
 
 # Create a global logger
 logger = logging.getLogger(__name__)
 
 # Attempt to import Jira utils
 try:
-    # from functools import lru_cache
-
     from jira import JIRA
 
     _JIRA_AVAILABLE = True
@@ -50,10 +47,11 @@ except ImportError:
 
 
 @magics_class
-class JiraMagics(Magics):
+class JiraMagics(BaseMagics):
     """IPython magic commands for fetching and using Jira tickets as context."""
 
     def __init__(self, shell):
+        """Initialize the Jira magic utility."""
         if not _IPYTHON_AVAILABLE:
             logger.warning("IPython not found. Jira magics are disabled.")
             return
@@ -271,61 +269,59 @@ class JiraMagics(Magics):
             print(f"❌ Error getting ChatManager: {e}")
             return None
 
-    def _add_ticket_to_history(
-        self, ticket_data: Dict[str, Any], as_system_msg: bool = False
+    def _add_to_history(
+        self, content: str, source_type: str, source_id: str, as_system_msg: bool = False
     ) -> bool:
-        """Add the ticket data to the chat history as a user or system message."""
-        import uuid
+        """Add the content to the chat history as a user or system message."""
+        return super()._add_to_history(
+            content=content,
+            source_type=source_type,
+            source_id=source_id,
+            source_name="jira",
+            id_key="jira_id",
+            as_system_msg=as_system_msg,
+        )
 
-        from ..models import Message
-        from ..utils.token_utils import count_tokens
+    def _find_messages_to_remove(
+        self, history: List, source_name: str, source_type: str, source_id: str, id_key: str
+    ) -> List[int]:
+        """
+        Find messages to remove from history based on Jira-specific rules.
 
-        manager = self._get_chat_manager()
-        if not manager:
-            print("❌ ChatManager not available")
-            return False
+        For tickets, remove any previous ticket with the same ID.
+        For search results, remove all previous JQL search results.
+        """
+        indices_to_remove = []
 
-        try:
-            # Format ticket for LLM
-            if (
-                hasattr(self, "jira_utils")
-                and self.jira_utils is not None
-                and hasattr(self.jira_utils, "format_tickets_for_llm")
-            ):
-                content = self.jira_utils.format_tickets_for_llm(
-                    [ticket_data], include_description=True, include_comments=True
-                )
-            else:
-                # Basic formatting
-                content = self._format_ticket_for_display(ticket_data)
+        if source_type == "ticket":
+            # For tickets, remove any previous ticket with the same ID
+            for i, msg in enumerate(history):
+                if (
+                    msg.metadata
+                    and msg.metadata.get("source") == source_name
+                    and msg.metadata.get("type") == "ticket"
+                    and msg.metadata.get(id_key) == source_id
+                ):
+                    indices_to_remove.append(i)
 
-            # Count tokens in the ticket content
-            tokens_count = count_tokens(content)
+        elif source_type == "search":
+            # For search results, remove all previous JQL search results
+            # This ensures fresh results replace old ones
+            for i, msg in enumerate(history):
+                if (
+                    msg.metadata
+                    and msg.metadata.get("source") == source_name
+                    and msg.metadata.get("type") == "search"
+                ):
+                    indices_to_remove.append(i)
 
-            # Create message
-            role = "system" if as_system_msg else "user"
-            message = Message(
-                role=role,
-                content=content,
-                id=str(uuid.uuid4()),
-                metadata={
-                    "source": "jira",
-                    "jira_key": ticket_data.get("key", ""),
-                    "tokens_in": tokens_count,
-                },
+        # For other types, use the standard approach
+        else:
+            indices_to_remove = super()._find_messages_to_remove(
+                history, source_name, source_type, source_id, id_key
             )
 
-            # Add to history
-            manager.history_manager.add_message(message)
-            print(
-                f"✅ Added Jira ticket {ticket_data.get('key', '')} as {role} message to chat history ({tokens_count} tokens)"
-            )
-            return True
-
-        except Exception as e:
-            logger.error(f"Error adding ticket to history: {e}")
-            print(f"❌ Error adding ticket to history: {e}")
-            return False
+        return indices_to_remove
 
     @magic_arguments()
     @argument("ticket", type=str, nargs="?", help="Jira ticket key (e.g., PROJECT-123)")
@@ -392,7 +388,13 @@ class JiraMagics(Magics):
                     if args.show:
                         print("\n" + self._format_ticket_for_display(ticket))
                     else:
-                        self._add_ticket_to_history(ticket, as_system_msg=args.system)
+                        content = self._format_ticket_for_display(ticket)
+                        self._add_to_history(
+                            content=content,
+                            source_type="ticket",
+                            source_id=ticket.get("key", ""),
+                            as_system_msg=args.system,
+                        )
 
             elif args.ticket:
                 # Clean up ticket key - remove quotes if present
@@ -409,10 +411,16 @@ class JiraMagics(Magics):
                     print(f"No ticket found with key: {cleaned_ticket}")
                     return
 
+                content = self._format_ticket_for_display(ticket)
                 if args.show:
-                    print("\n" + self._format_ticket_for_display(ticket))
+                    print("\n" + content)
                 else:
-                    self._add_ticket_to_history(ticket, as_system_msg=args.system)
+                    self._add_to_history(
+                        content=content,
+                        source_type="ticket",
+                        source_id=ticket.get("key", ""),
+                        as_system_msg=args.system,
+                    )
 
             else:
                 print("❌ Please provide either a ticket key or a JQL query.")
