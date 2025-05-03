@@ -326,7 +326,11 @@ class GitHubUtils:
                     break
 
                 change_info = {
-                    "old_path": file.previous_filename if hasattr(file, "previous_filename") else file.filename,
+                    "old_path": (
+                        file.previous_filename
+                        if hasattr(file, "previous_filename")
+                        else file.filename
+                    ),
                     "new_path": file.filename,
                     "status": file.status,  # added, modified, removed, renamed
                     "additions": file.additions,

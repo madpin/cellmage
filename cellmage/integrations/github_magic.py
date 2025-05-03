@@ -61,6 +61,13 @@ class GitHubMagics(Magics):
         self.github_utils = None
         self._init_github_client()
 
+    # Add placeholder for llm_magic to fix initialization error
+    @line_magic("llm")
+    def llm_magic(self, line):
+        """Placeholder for LLM magic command."""
+        print("LLM magic command is not implemented in GitHub magics")
+        pass
+
     def _init_github_client(self) -> None:
         """Initialize the GitHub client if possible."""
         if not _GITHUB_AVAILABLE:
