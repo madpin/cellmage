@@ -151,7 +151,16 @@ class ChatManager:
 
                 # Add persona system message first
                 self.history_manager.add_message(
-                    Message(role="system", content=persona.system_message, id=str(uuid.uuid4()))
+                    Message(
+                        role="system",
+                        content=persona.system_message,
+                        id=Message.generate_message_id(
+                            role="system",
+                            content=persona.system_message,
+                            cell_id=None,
+                            execution_count=None,
+                        ),
+                    )
                 )
 
                 # Re-add all existing system messages
@@ -164,7 +173,16 @@ class ChatManager:
             else:
                 # No existing system messages, just add the persona's system message
                 self.history_manager.add_message(
-                    Message(role="system", content=persona.system_message, id=str(uuid.uuid4()))
+                    Message(
+                        role="system",
+                        content=persona.system_message,
+                        id=Message.generate_message_id(
+                            role="system",
+                            content=persona.system_message,
+                            cell_id=None,
+                            execution_count=None,
+                        ),
+                    )
                 )
 
         # Set client overrides if specified in persona config
@@ -221,7 +239,17 @@ class ChatManager:
 
         # Add to history
         self.history_manager.add_message(
-            Message(role=role, content=snippet_content, id=str(uuid.uuid4()), is_snippet=True)
+            Message(
+                role=role,
+                content=snippet_content,
+                id=Message.generate_message_id(
+                    role=role,
+                    content=snippet_content,
+                    cell_id=None,
+                    execution_count=None,
+                ),
+                is_snippet=True,
+            )
         )
 
         self.logger.info(f"Added snippet '{name}' as {role} message")
@@ -239,25 +267,22 @@ class ChatManager:
         **kwargs,
     ) -> Optional[str]:
         """
-        Send a message to the LLM.
+        Send a message to the LLM and get a response.
 
         Args:
-            prompt: The user's message
-            persona_name: Optional persona name to use for this call
-            model: Optional model name to use for this call
-            stream: Whether to stream the response
-            add_to_history: Whether to add the messages to history
-            auto_rollback: Whether to automatically rollback on cell re-execution
-            execution_context: Optional execution context information
-            **kwargs: Additional parameters to pass to the LLM client
+            prompt: The message to send
+            persona_name: Optional persona to use for this message only
+            model: Optional model to use for this message only
+            stream: Whether to stream the response (default: True)
+            add_to_history: Whether to add the message to conversation history
+            auto_rollback: Whether to perform automatic rollback on cell re-execution
+            execution_context: Optional explicit execution context (execution_count, cell_id)
+            **kwargs: Additional parameters to pass to the LLM
 
         Returns:
-            Assistant's response or None on error
+            The LLM response text
         """
-        # Start timing the call for performance tracking
         start_time = time.time()
-
-        # DEBUG: Log requested persona name
         self.logger.info(f"PERSONA DEBUG: Request made with persona_name='{persona_name}'")
 
         # Get execution context
@@ -329,7 +354,14 @@ class ChatManager:
             if temp_persona and temp_persona.system_message:
                 # Use ONLY the temp persona's system message, replacing any existing ones just for this request
                 system_message = Message(
-                    role="system", content=temp_persona.system_message, id=str(uuid.uuid4())
+                    role="system",
+                    content=temp_persona.system_message,
+                    id=Message.generate_message_id(
+                        role="system",
+                        content=temp_persona.system_message,
+                        cell_id=cell_id,
+                        execution_count=exec_count,
+                    ),
                 )
                 messages.append(system_message)
                 self.logger.debug(
@@ -356,7 +388,12 @@ class ChatManager:
                     system_message = Message(
                         role="system",
                         content=self._active_persona.system_message,
-                        id=str(uuid.uuid4()),
+                        id=Message.generate_message_id(
+                            role="system",
+                            content=self._active_persona.system_message,
+                            cell_id=cell_id,
+                            execution_count=exec_count,
+                        ),
                     )
                     messages.append(system_message)
                     self.logger.debug("Added system message from active persona")
@@ -388,7 +425,9 @@ class ChatManager:
             user_message = Message(
                 role="user",
                 content=prompt,
-                id=str(uuid.uuid4()),
+                id=Message.generate_message_id(
+                    role="user", content=prompt, cell_id=cell_id, execution_count=exec_count
+                ),
                 execution_count=exec_count,
                 cell_id=cell_id,
             )
@@ -537,6 +576,7 @@ class ChatManager:
                 cost_output = tokens_out * 0.02 / 1000  # $0.02 per 1K tokens
 
             cost_dollars = cost_input + cost_output
+
             # Convert to millicents (1/100,000 of a dollar) for consistent display
             cost_mili_cents = int(cost_dollars * 100000)
 
@@ -568,7 +608,12 @@ class ChatManager:
                 assistant_message = Message(
                     role="assistant",
                     content=assistant_response_content,
-                    id=str(uuid.uuid4()),
+                    id=Message.generate_message_id(
+                        role="assistant",
+                        content=assistant_response_content,
+                        cell_id=cell_id,
+                        execution_count=exec_count,
+                    ),
                     metadata={
                         "tokens_in": tokens_in,
                         "tokens_out": tokens_out,
@@ -577,7 +622,12 @@ class ChatManager:
                         "cost_mili_cents": cost_mili_cents,
                         "model_used": actual_model_used or model_name,
                     },
+                    execution_count=exec_count,
+                    cell_id=cell_id,
                 )
+
+                # Remove redundant display_status call - we'll call it once at the end
+                # This prevents showing two status bars with different token counts
 
                 if self.history_manager:
                     self.history_manager.add_message(assistant_message)

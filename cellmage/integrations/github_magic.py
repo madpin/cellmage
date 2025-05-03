@@ -1,7 +1,7 @@
 """
-IPython magic command for GitLab integration with CellMage.
+IPython magic command for GitHub integration with CellMage.
 
-This module provides magic commands for fetching GitLab repositories and merge requests
+This module provides magic commands for fetching GitHub repositories and pull requests
 to use as context in LLM prompts.
 """
 
@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Union
 
 # IPython imports with fallback handling
 try:
-    from IPython.core.magic import line_magic, magics_class
+    from IPython.core.magic import Magics, line_magic, magics_class
     from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
 
     _IPYTHON_AVAILABLE = True
@@ -39,73 +39,76 @@ except ImportError:
 # Create a global logger
 logger = logging.getLogger(__name__)
 
-# Attempt to import GitLab utils
+# Attempt to import GitHub utils
 try:
     import os
 
-    _GITLAB_AVAILABLE = True
+    _GITHUB_AVAILABLE = True
 except ImportError:
-    _GITLAB_AVAILABLE = False
+    _GITHUB_AVAILABLE = False
 
 
-# Define GitLabMagics as a regular class (NOT using the @magics_class decorator)
-# This avoids the automatic registration of magic methods that the decorator does
-class GitLabMagics:
-    """GitLab repository and merge request fetching utility for IPython."""
+@magics_class
+class GitHubMagics(Magics):
+    """IPython magic commands for fetching and using GitHub repositories and pull requests as context."""
 
-    def __init__(self, shell=None):
-        """Initialize the GitLab magic utility."""
-        self.shell = shell
-        self.gitlab_utils = None
-        if _IPYTHON_AVAILABLE:
-            self._init_gitlab_client()
+    def __init__(self, shell):
+        if not _IPYTHON_AVAILABLE:
+            logger.warning("IPython not found. GitHub magics are disabled.")
+            return
 
-    def _init_gitlab_client(self) -> None:
-        """Initialize the GitLab client if possible."""
-        if not _GITLAB_AVAILABLE:
-            logger.warning(
-                "GitLab package not available. Please install the python-gitlab package."
-            )
+        super().__init__(shell)
+        self.github_utils = None
+        self._init_github_client()
+
+    # Add placeholder for llm_magic to fix initialization error
+    @line_magic("llm")
+    def llm_magic(self, line):
+        """Placeholder for LLM magic command."""
+        print("LLM magic command is not implemented in GitHub magics")
+        pass
+
+    def _init_github_client(self) -> None:
+        """Initialize the GitHub client if possible."""
+        if not _GITHUB_AVAILABLE:
+            logger.warning("GitHub package not available. Please install the PyGithub package.")
             return
 
         try:
-            # Import required modules for GitLab utils
+            # Import required modules for GitHub utils
             from dotenv import load_dotenv
 
             # Load environment variables
             load_dotenv()
 
             # Check for required environment variables
-            gitlab_url = os.getenv("GITLAB_URL")
-            gitlab_token = os.getenv("GITLAB_PAT") or os.getenv("GITLAB_PRIVATE_TOKEN")
+            github_token = os.getenv("GITHUB_TOKEN")
 
-            if not gitlab_url or not gitlab_token:
-                logger.warning(
-                    "Missing GitLab environment variables. Please set GITLAB_URL and GITLAB_PAT."
-                )
+            if not github_token:
+                logger.warning("Missing GitHub environment variables. Please set GITHUB_TOKEN.")
                 return
 
-            # Try to initialize GitLabUtils
+            # Try to initialize GitHubUtils
             try:
-                from ..utils.gitlab_utils import GitLabUtils
+                from ..utils.github_utils import GitHubUtils
 
-                self.gitlab_utils = GitLabUtils(private_token=gitlab_token, gitlab_url=gitlab_url)
-                logger.info(f"GitLabUtils initialized successfully for {gitlab_url}")
+                self.github_utils = GitHubUtils(token=github_token)
+                logger.info("GitHubUtils initialized successfully")
             except Exception as e:
-                logger.error(f"Failed to initialize GitLabUtils: {e}")
+                logger.error(f"Failed to initialize GitHubUtils: {e}")
         except Exception as e:
-            logger.error(f"Error during GitLab client initialization: {e}")
+            logger.error(f"Error during GitHub client initialization: {e}")
 
     def _fetch_repository(
         self,
-        project_identifier: str,
+        repository_identifier: str,
         full_code: bool = False,
         contributors_months: int = 6,
         exclusion_patterns: Optional[Dict[str, List[str]]] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Fetch a GitLab repository by project identifier and return processed data."""
-        if self.gitlab_utils is None:
-            print("❌ GitLab client not available")
+        """Fetch a GitHub repository by repository identifier and return processed data."""
+        if self.github_utils is None:
+            print("❌ GitHub client not available")
             return None
 
         try:
@@ -114,29 +117,31 @@ class GitLabMagics:
             if exclusion_patterns:
                 kwargs["exclusion_patterns"] = exclusion_patterns
 
-            repo_summary = self.gitlab_utils.get_repository_summary(project_identifier, **kwargs)
+            repo_summary = self.github_utils.get_repository_summary(repository_identifier, **kwargs)
             return repo_summary
         except Exception as e:
-            print(f"❌ Error fetching GitLab repository {project_identifier}: {e}")
-            logger.error(f"Error fetching GitLab repository {project_identifier}: {e}")
+            print(f"❌ Error fetching GitHub repository {repository_identifier}: {e}")
+            logger.error(f"Error fetching GitHub repository {repository_identifier}: {e}")
             return None
 
-    def _fetch_merge_request(
-        self, project_identifier: str, mr_id: Union[int, str]
+    def _fetch_pull_request(
+        self, repository_identifier: str, pr_number: Union[int, str]
     ) -> Optional[Dict[str, Any]]:
-        """Fetch a GitLab merge request by ID and return processed data."""
-        if self.gitlab_utils is None:
-            print("❌ GitLab client not available")
+        """Fetch a GitHub pull request by number and return processed data."""
+        if self.github_utils is None:
+            print("❌ GitHub client not available")
             return None
 
         try:
-            project = self.gitlab_utils.get_project(project_identifier)
-            mr_data = self.gitlab_utils.get_merge_request(project, mr_id)
-            return mr_data
+            repo = self.github_utils.get_repository(repository_identifier)
+            pr_data = self.github_utils.get_pull_request(repo, pr_number)
+            return pr_data
         except Exception as e:
-            print(f"❌ Error fetching GitLab merge request {mr_id} from {project_identifier}: {e}")
+            print(
+                f"❌ Error fetching GitHub pull request {pr_number} from {repository_identifier}: {e}"
+            )
             logger.error(
-                f"Error fetching GitLab merge request {mr_id} from {project_identifier}: {e}"
+                f"Error fetching GitHub pull request {pr_number} from {repository_identifier}: {e}"
             )
             return None
 
@@ -145,14 +150,14 @@ class GitLabMagics:
         if not repo_data:
             return "No repository data available"
 
-        return self.gitlab_utils.format_repository_for_llm(repo_data)
+        return self.github_utils.format_repository_for_llm(repo_data)
 
-    def _format_mr_for_display(self, mr_data: Dict[str, Any]) -> str:
-        """Format merge request data for terminal display."""
-        if not mr_data:
-            return "No merge request data available"
+    def _format_pr_for_display(self, pr_data: Dict[str, Any]) -> str:
+        """Format pull request data for terminal display."""
+        if not pr_data:
+            return "No pull request data available"
 
-        return self.gitlab_utils.format_merge_request_for_llm(mr_data)
+        return self.github_utils.format_pull_request_for_llm(pr_data)
 
     def _get_chat_manager(self):
         """Get the ChatManager instance."""
@@ -185,24 +190,24 @@ class GitLabMagics:
                 role=role,
                 content=content,
                 id=str(uuid.uuid4()),
-                metadata={"source": "gitlab", "gitlab_id": source_id, "type": source_type},
+                metadata={"source": "github", "github_id": source_id, "type": source_type},
             )
 
             # Add to history
             manager.history_manager.add_message(message)
-            print(f"✅ Added GitLab {source_type} {source_id} as {role} message to chat history")
+            print(f"✅ Added GitHub {source_type} {source_id} as {role} message to chat history")
             return True
 
         except Exception as e:
-            logger.error(f"Error adding GitLab content to history: {e}")
-            print(f"❌ Error adding GitLab content to history: {e}")
+            logger.error(f"Error adding GitHub content to history: {e}")
+            print(f"❌ Error adding GitHub content to history: {e}")
             return False
 
     @magic_arguments()
     @argument(
-        "repo", type=str, nargs="?", help="GitLab repository identifier (e.g., namespace/project)"
+        "repo", type=str, nargs="?", help="GitHub repository identifier (e.g., username/repo)"
     )
-    @argument("--mr", type=str, help="Merge request ID to fetch")
+    @argument("--pr", type=str, help="Pull request number to fetch")
     @argument(
         "--system",
         action="store_true",
@@ -253,43 +258,44 @@ class GitLabMagics:
         default=6,
         help="Include contributors from the last N months (default: 6)",
     )
-    def gitlab_magic(self, line):
-        """Fetch GitLab repository or merge request and add to the chat context.
+    @line_magic("github")
+    def github_magic(self, line):
+        """Fetch GitHub repository or pull request and add to the chat context.
 
         Examples:
-            %gitlab namespace/project
-            %gitlab namespace/project --system
-            %gitlab namespace/project --mr 123
-            %gitlab namespace/project --mr 123 --show
-            %gitlab namespace/project --clean
-            %gitlab namespace/project --full-code
-            %gitlab namespace/project --contributors-months 12
+            %github username/repo
+            %github username/repo --system
+            %github username/repo --pr 123
+            %github username/repo --pr 123 --show
+            %github username/repo --clean
+            %github username/repo --full-code
+            %github username/repo --contributors-months 12
         """
         if not _IPYTHON_AVAILABLE:
-            print("❌ IPython is not available. Cannot use %gitlab magic.")
+            print("❌ IPython is not available. Cannot use %github magic.")
             return
 
-        if not _GITLAB_AVAILABLE:
+        if not _GITHUB_AVAILABLE:
             print(
-                "❌ GitLab package not available. Please install with: pip install python-gitlab python-dotenv"
+                "❌ GitHub package not available. Please install with: pip install PyGithub python-dotenv"
             )
             return
 
         try:
-            args = parse_argstring(self.gitlab_magic, line)
+            args = parse_argstring(self.github_magic, line)
         except Exception as e:
             print(f"❌ Error parsing arguments: {e}")
             return
 
         # Initialize client if needed
-        if self.gitlab_utils is None:
-            print("❌ GitLab client not available. Please check your environment variables.")
+        if self.github_utils is None:
+            print("❌ GitHub client not available. Please check your environment variables.")
             return
 
         try:
-            # Fetch repository or merge request
+            # Fetch repository or pull request
             if not args.repo:
-                print("❌ Please provide a GitLab repository identifier (e.g., namespace/project)")
+                print("❌ Please provide a GitHub repository identifier (e.g., username/repo)")
                 return
 
             # Clean up repository identifier - remove quotes if present
@@ -299,24 +305,26 @@ class GitLabMagics:
             ):
                 cleaned_repo = cleaned_repo[1:-1]
 
-            if args.mr:
-                # Fetch merge request
-                print(f"Fetching merge request {args.mr} from repository: {cleaned_repo}")
-                mr_data = self._fetch_merge_request(cleaned_repo, args.mr)
+            if args.pr:
+                # Fetch pull request
+                print(f"Fetching pull request {args.pr} from repository: {cleaned_repo}")
+                pr_data = self._fetch_pull_request(cleaned_repo, args.pr)
 
-                if not mr_data:
-                    print(f"No merge request found with ID: {args.mr} in repository {cleaned_repo}")
+                if not pr_data:
+                    print(
+                        f"No pull request found with number: {args.pr} in repository {cleaned_repo}"
+                    )
                     return
 
-                formatted_mr = self._format_mr_for_display(mr_data)
+                formatted_pr = self._format_pr_for_display(pr_data)
 
                 if args.show:
-                    print("\n" + formatted_mr)
+                    print("\n" + formatted_pr)
                 else:
                     self._add_to_history(
-                        formatted_mr,
-                        source_type="merge_request",
-                        source_id=f"{cleaned_repo}!{args.mr}",
+                        formatted_pr,
+                        source_type="pull_request",
+                        source_id=f"{cleaned_repo}#{args.pr}",
                         as_system_msg=args.system,
                     )
 
@@ -401,38 +409,33 @@ class GitLabMagics:
                         )
 
         except Exception as e:
-            print(f"❌ Error in GitLab magic: {e}")
-            logger.error(f"Error in GitLab magic: {e}", exc_info=True)
+            print(f"❌ Error in GitHub magic: {e}")
+            logger.error(f"Error in GitHub magic: {e}", exc_info=True)
 
 
 # --- Extension Loading ---
 def load_ipython_extension(ipython):
-    """Register the GitLab magics with the IPython runtime."""
+    """Register the GitHub magics with the IPython runtime."""
     if not _IPYTHON_AVAILABLE:
-        print("IPython is not available. Cannot load GitLab magics.", file=sys.stderr)
+        print("IPython is not available. Cannot load GitHub magics.", file=sys.stderr)
         return
 
-    if not _GITLAB_AVAILABLE:
+    if not _GITHUB_AVAILABLE:
         print(
-            "GitLab package not found. Please install with: pip install python-gitlab python-dotenv",
+            "GitHub package not found. Please install with: pip install PyGithub python-dotenv",
             file=sys.stderr,
         )
-        print("GitLab magics will not be available.", file=sys.stderr)
+        print("GitHub magics will not be available.", file=sys.stderr)
         return
 
     try:
-        # Create the magic class instance (not using the magics_class decorator)
-        magic_handler = GitLabMagics(ipython)
-
-        # Register only the gitlab magic function directly
-        ipython.register_magic_function(
-            magic_handler.gitlab_magic, magic_kind="line", magic_name="gitlab"
-        )
-
-        print("✅ GitLab Magics loaded. Use %gitlab namespace/project to fetch repositories.")
+        # Create and register the magic class
+        magic_class = GitHubMagics(ipython)
+        ipython.register_magics(magic_class)
+        print("✅ GitHub Magics loaded. Use %github username/repo to fetch repositories.")
     except Exception as e:
-        logger.exception("Failed to register GitLab magics.")
-        print(f"❌ Failed to load GitLab Magics: {e}", file=sys.stderr)
+        logger.exception("Failed to register GitHub magics.")
+        print(f"❌ Failed to load GitHub Magics: {e}", file=sys.stderr)
 
 
 def unload_ipython_extension(ipython):

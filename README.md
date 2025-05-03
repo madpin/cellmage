@@ -10,6 +10,8 @@ It's designed for **data scientists, software engineers, researchers, and studen
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation Status](https://readthedocs.org/projects/cellmage/badge/?version=latest)](https://cellmage.readthedocs.io/en/latest/?badge=latest)
 
+> **Current Version: v0.4.7** (May 2025)
+
 ---
 
 ## ✨ Key Features
@@ -25,6 +27,7 @@ It's designed for **data scientists, software engineers, researchers, and studen
 *   **📊 Status & Cost Tracking:** Get immediate feedback on prompt execution time, token usage, and estimated cost.
 *   **🔄 Jira Integration:** Fetch Jira tickets directly into your notebook to use as context for your LLM queries.
 *   **🦊 GitLab Integration:** Import repositories and merge requests as context for your LLM prompts, with token size estimates.
+*   **🐱 GitHub Integration:** Import repositories and pull requests as context for your LLM prompts, with token size estimates.
 
 ---
 
@@ -44,6 +47,24 @@ pip install cellmage
 pip install "cellmage[langchain]"
 ```
 
+*(Optional)* For Jira integration:
+
+```bash
+pip install "cellmage[jira]"
+```
+
+*(Optional)* For GitLab integration:
+
+```bash
+pip install "cellmage[gitlab]"
+```
+
+*(Optional)* For all features:
+
+```bash
+pip install "cellmage[all]"
+```
+
 *(Optional)* For development or to get the latest code, install from source:
 
 ```bash
@@ -58,7 +79,10 @@ pip install -e .[dev] # Includes dev dependencies
 
 1.  **Load the Magic:** In a Jupyter or IPython cell, load the extension:
     ```python
-    %load_ext cellmage
+    # IMPORTANT: Make sure to use the CORRECT extension path:
+    %load_ext cellmage.integrations.ipython_magic
+    
+    # NOT just 'cellmage' which won't register the magic commands properly
     ```
 
 2.  **Configure API Key (One-time Setup):**
@@ -77,13 +101,15 @@ pip install -e .[dev] # Includes dev dependencies
 
 4.  **See the Magic Happen:** The LLM's response will appear below the cell, along with status info (time, tokens, cost). ✨
 
+5.  **Troubleshooting:** If you see an error like `Line magic function '%llm_config' not found`, make sure you've loaded the extension correctly using the exact path shown in step 1.
+
 ---
 
 ## 📚 Core Concepts & Examples
 
 ### 1. Magic Commands
 
-*   `%load_ext cellmage`: Loads the extension (usually run once per session).
+*   `%load_ext cellmage.integrations.ipython_magic`: Loads the extension (usually run once per session).
 *   `%%llm`: Executes the entire cell content as a prompt to the configured LLM.
     ```python
     %%llm --temperature 0.8 --model gpt-4o
@@ -297,6 +323,80 @@ Fetch GitLab repositories and merge requests directly into your notebook using t
     Based on the GitLab repository above, can you explain the architecture of this project?
     ```
 
+### 8. GitHub Integration
+
+Fetch GitHub repositories and pull requests directly into your notebook using the `%github` magic command.
+
+*   **Installation:**
+    ```bash
+    pip install "cellmage[github]"
+    ```
+
+*   **Configuration:**
+    Set these environment variables in a `.env` file or your environment:
+    ```
+    GITHUB_TOKEN=your_github_personal_access_token
+    ```
+
+*   **Basic Usage:**
+    ```python
+    # Fetch a repository and add it to chat history
+    %github username/repo
+
+    # Fetch a repository and add as system context
+    %github username/repo --system
+
+    # Just display a repository without adding to history
+    %github username/repo --show
+
+    # Fetch a pull request and add to chat history
+    %github username/repo --pr 123
+
+    # Include full code content (may be very large)
+    %github username/repo --full-code
+    
+    # Get more detailed contributor information
+    %github username/repo --contributors-months 12
+    ```
+
+*   **Using with LLM Queries:**
+    ```python
+    # First, fetch the repository
+    %github username/repo
+    
+    # Check the estimated token size in the output
+    # "✅ Estimated token size: ~12,345 tokens (10,000 code, 2,345 metadata)"
+
+    # Then, reference it in your prompt
+    %%llm
+    Based on the GitHub repository above, can you analyze the code architecture and suggest improvements?
+    ```
+
+### 9. SQLite Storage
+
+CellMage now uses SQLite as the default storage backend for improved performance and reliability:
+
+* **Automatic:** SQLite storage is used by default - no configuration needed
+* **Persistent:** Your conversation history is automatically saved and can be restored across sessions
+* **Faster:** Better performance for larger conversation histories compared to file-based storage
+* **Reliable:** Transactions ensure that your data is safely stored
+
+To use SQLite-specific features:
+
+```python
+# Load the SQLite-specific magic commands
+%load_ext cellmage.integrations.sqlite_magic
+
+# List all stored conversations in the database
+%sqlite_llm --list-conversations
+
+# View details about a specific conversation
+%sqlite_llm --conversation-info conversation_id
+
+# Export a conversation to JSON
+%sqlite_llm --export conversation_id output.json
+```
+
 ---
 
 ## ⚙️ Configuration
@@ -308,7 +408,18 @@ Cellmage is configured via:
 2.  **`.env` File:** Place a `.env` file in your working directory.
 3.  **Magic Commands:** `%llm_config` allows runtime changes.
 
-*(See `config.py` or documentation for all options.)*
+Full configuration options:
+
+```
+CELLMAGE_API_KEY          - Your LLM API key
+CELLMAGE_API_BASE         - API base URL (default: https://api.openai.com/v1)
+CELLMAGE_DEFAULT_MODEL    - Default model (e.g., gpt-4o-mini)
+CELLMAGE_PERSONAS_DIRS    - Comma-separated paths to persona directories
+CELLMAGE_SNIPPETS_DIRS    - Comma-separated paths to snippet directories
+CELLMAGE_CONVERSATIONS_DIR - Directory for saving conversations
+CELLMAGE_SQLITE_PATH      - Custom path for SQLite database (default: ~/.cellmage/conversations.db)
+CELLMAGE_ADAPTER          - LLM adapter type (direct or langchain)
+```
 
 ---
 
@@ -320,6 +431,7 @@ Cellmage is actively developed. Future ideas include:
 *   Better error handling and feedback.
 *   Visual configuration options.
 *   Deeper notebook state integration.
+*   Improved integration with tools like GitHub Copilot and LangChain.
 
 Contributions, bug reports, and feature requests are welcome! Please check the `CONTRIBUTING.md` file and open an issue or PR on GitHub:
 

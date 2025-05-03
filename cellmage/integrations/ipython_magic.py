@@ -70,7 +70,9 @@ def _init_default_manager() -> ChatManager:
         # Import necessary components dynamically only if needed
         from ..config import settings
         from ..resources.file_loader import FileLoader
-        from ..storage.markdown_store import MarkdownStore
+        from ..storage.sqlite_store import (
+            SQLiteStore,  # Import SQLiteStore instead of MarkdownStore
+        )
 
         # Determine which adapter to use
         adapter_type = os.environ.get("CELLMAGE_ADAPTER", "direct").lower()
@@ -79,7 +81,11 @@ def _init_default_manager() -> ChatManager:
 
         # Create default dependencies
         loader = FileLoader(settings.personas_dir, settings.snippets_dir)
-        store = MarkdownStore(settings.save_dir)
+
+        # Use SQLiteStore instead of MarkdownStore as default storage
+        store = SQLiteStore()  # Use default path from settings
+        logger.info("Using SQLite as default storage backend")
+
         context_provider = get_ipython_context_provider()
 
         # Initialize the appropriate LLM client adapter
@@ -113,10 +119,10 @@ def _init_default_manager() -> ChatManager:
             llm_client=llm_client,
             persona_loader=loader,
             snippet_provider=loader,
-            history_store=store,
+            history_store=store,  # Use SQLite store here
             context_provider=context_provider,
         )
-        logger.info("Default ChatManager initialized successfully.")
+        logger.info("Default ChatManager initialized successfully with SQLite storage.")
         _initialization_error = None  # Clear previous error on success
         return manager
     except Exception as e:
@@ -1140,6 +1146,26 @@ class NotebookLLMMagics(Magics):
                     if mapped_model == current_model:
                         mapped_model = None
 
+        # Get storage information
+        storage_type = "Unknown"
+        storage_location = "Unknown"
+        if hasattr(manager, "history_manager"):
+            if hasattr(manager.history_manager, "store"):
+                store = manager.history_manager.store
+                store_class_name = store.__class__.__name__
+
+                if store_class_name == "SQLiteStore":
+                    storage_type = "SQLite"
+                    if hasattr(store, "db_path"):
+                        storage_location = str(store.db_path)
+                elif store_class_name == "MarkdownStore":
+                    storage_type = "Markdown"
+                    if hasattr(store, "save_dir"):
+                        storage_location = str(store.save_dir)
+                elif store_class_name == "MemoryStore":
+                    storage_type = "Memory (no persistence)"
+                    storage_location = "In-memory only"
+
         # Print simplified status output with dividers but no side borders
         print("══════════════════════════════════════════════════════════")
         print("  🪄 CellMage Status Summary                             ")
@@ -1195,6 +1221,10 @@ class NotebookLLMMagics(Magics):
         print("  📜 Conversation History")
         print(f"    • Messages: {len(history)}")
 
+        # Show storage information
+        print(f"    • Storage Type: {storage_type}")
+        print(f"    • Storage Location: {storage_location}")
+
         # Show token counts
         if total_tokens > 0:
             print(f"    • Total Tokens: {total_tokens:,}")
@@ -1227,6 +1257,13 @@ class NotebookLLMMagics(Magics):
             print(f"    • GitLab: {'✅ Loaded' if gitlab_available else '❌ Not loaded'}")
         except Exception:
             print("    • GitLab: ❓ Unknown")
+
+        # Check for GitHub integration
+        try:
+            github_available = "cellmage.integrations.github_magic" in sys.modules
+            print(f"    • GitHub: {'✅ Loaded' if github_available else '❌ Not loaded'}")
+        except Exception:
+            print("    • GitHub: ❓ Unknown")
 
         # Show environment/config file paths
         print("──────────────────────────────────────────────────────────")
@@ -1776,98 +1813,72 @@ class NotebookLLMMagics(Magics):
 
 # --- Extension Loading ---
 def load_ipython_extension(ipython):
-    """Registers the magics with the IPython runtime."""
+    """
+    Registers the magics with the IPython runtime.
+
+    By default, this now loads the SQLite-backed implementation for improved
+    conversation management. For legacy file-based storage, set the
+    CELLMAGE_USE_FILE_STORAGE=1 environment variable.
+    """
     if not _IPYTHON_AVAILABLE:
-        print("IPython is not available. Cannot load NotebookLLM magics.", file=sys.stderr)
+        print("IPython is not available. Cannot load extension.", file=sys.stderr)
         return
-    try:
-        # Load main magics
-        magic_class = NotebookLLMMagics(ipython)
-        ipython.register_magics(magic_class)
 
-        # Get API base URL if available
-        api_base = None
-        api_key_info = "🔑 API key: "
-        adapter_type = os.environ.get("CELLMAGE_ADAPTER", "direct").lower()
+    # Check if we should use legacy file-based storage
+    use_file_storage = os.environ.get("CELLMAGE_USE_FILE_STORAGE", "0") == "1"
 
-        # Try to get ChatManager to get API base
+    if not use_file_storage:
+        # Use the SQLite implementation by default
         try:
-            manager = get_chat_manager()
-            if hasattr(manager, "llm_client") and hasattr(manager.llm_client, "get_overrides"):
-                overrides = manager.llm_client.get_overrides()
-                api_base = overrides.get("api_base")
+            from .sqlite_magic import load_ipython_extension as load_sqlite
 
-                # Check if API key is set (don't show the key itself)
-                if overrides.get("api_key"):
-                    api_key_info += "✅ Set"
-                else:
-                    api_key_info += "❌ Not set"
-            else:
-                api_key_info += "❓ Unknown"
-        except Exception:
-            api_key_info += "❓ Unknown"
+            # Forward to SQLite extension loader
+            load_sqlite(ipython)
+            logger.info("Loaded SQLite-backed CellMage extension (default)")
 
-        # Fall back to env var if needed
-        if not api_base and "OPENAI_API_BASE" in os.environ:
-            api_base = os.environ.get("OPENAI_API_BASE")
+            # Verify magic commands are registered
+            if "%llm_config" not in ipython.magic_manager.magics["line"]:
+                logger.warning(
+                    "llm_config magic not found after loading SQLite extension, registering directly"
+                )
+                magic_class = NotebookLLMMagics(ipython)
+                ipython.register_magics(magic_class)
 
-        # Improved loading message with more information
-        print("══════════════════════════════════════════════════════════")
-        print("  🪄 CellMage Extension Loaded                           ")
-        print("══════════════════════════════════════════════════════════")
-        print(f"  🔌 LLM Adapter: {adapter_type.capitalize()}")
-        if api_base:
-            print(f"  🔗 API Base URL: {api_base}")
-        print(f"  {api_key_info}")
-        print("  ⌨️  Available commands:")
-        print("    • %llm_config - Configure LLM settings")
-        print("    • %%llm - Send prompt to LLM")
-        print("    • %llm_config_persistent - Enable ambient mode")
-
-        # Show integrations that were loaded
-        print("──────────────────────────────────────────────────────────")
-        print("  🧩 Loading integrations:")
-
-        # Try to load Jira magic if available
-        try:
-            from . import jira_magic
-
-            jira_magic.load_ipython_extension(ipython)
-            # Note: The jira_magic module will print its own success message
+            return
         except ImportError:
-            print("    • Jira: ❌ Not available (install with: pip install cellmage[jira])")
-            logger.info(
-                "Jira integration not available. Install with 'pip install cellmage[jira]' to enable."
+            logger.warning("SQLite storage not available, falling back to file-based storage")
+            print(
+                "⚠️ SQLite storage not available, falling back to file-based storage",
+                file=sys.stderr,
             )
+            use_file_storage = True
         except Exception as e:
-            print(f"    • Jira: ❌ Error loading ({str(e)[:50]})")
-            logger.warning(f"Failed to load Jira magic: {e}")
+            logger.error(f"Error loading SQLite extension: {e}")
+            print(f"⚠️ Error loading SQLite extension: {e}", file=sys.stderr)
+            print("Falling back to file-based storage", file=sys.stderr)
+            use_file_storage = True
 
-        # Try to load GitLab magic if available
+    # Legacy file-based implementation (only used if specifically requested or if SQLite fails)
+    if use_file_storage:
         try:
-            from . import gitlab_magic
+            # Register the magic class with IPython
+            magic_class = NotebookLLMMagics(ipython)
+            ipython.register_magics(magic_class)
+            logger.info("Legacy file-based CellMage extension loaded successfully")
+            print("ℹ️ Legacy file-based CellMage extension loaded", file=sys.stderr)
 
-            gitlab_magic.load_ipython_extension(ipython)
-            # Note: The gitlab_magic module will print its own success message
-        except ImportError:
-            print("    • GitLab: ❌ Not available (install with: pip install cellmage[gitlab])")
-            logger.info(
-                "GitLab integration not available. Install with 'pip install cellmage[gitlab]' to enable."
-            )
+            # Verify magic commands are registered
+            if "%llm_config" not in ipython.magic_manager.magics["line"]:
+                logger.warning("llm_config magic not registered properly, attempting to fix")
+                ipython.register_magics(magic_class)
+
         except Exception as e:
-            print(f"    • GitLab: ❌ Error loading ({str(e)[:50]})")
-            logger.warning(f"Failed to load GitLab magic: {e}")
-
-        print("══════════════════════════════════════════════════════════")
-        print("  💡 Tip: Use %llm_config --status to see full configuration")
-
-    except Exception as e:
-        logger.exception("Failed to register NotebookLLM magics.")
-        print(f"❌ Failed to load NotebookLLM Magics: {e}", file=sys.stderr)
+            logger.exception("Failed to register CellMage magics.")
+            print(f"❌ Failed to initialize NotebookLLM: {e}", file=sys.stderr)
 
 
 def unload_ipython_extension(ipython):
     """Unregisters the magics (optional but good practice)."""
     if not _IPYTHON_AVAILABLE:
         return
-    logger.info("NotebookLLM extension unload requested (typically no action needed).")
+    logger.info("Unload requested (typically no action needed).")

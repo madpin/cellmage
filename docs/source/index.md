@@ -8,8 +8,10 @@
 installation
 overview
 ipython_magic_commands
+sqlite_storage
 jira_integration
 gitlab_integration
+github_integration
 ```
 
 ```{toctree}
