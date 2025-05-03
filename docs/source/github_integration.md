@@ -95,7 +95,7 @@ Exclude certain directories and file types:
 
 Once you've fetched GitHub content, you can reference it in your LLM queries:
 
-```python
+```text
 # First, fetch the repository
 %github username/repo
 
@@ -106,7 +106,7 @@ Based on the GitHub repository above, can you explain the project architecture a
 
 Or with pull requests:
 
-```python
+```text
 # First, fetch the pull request
 %github username/repo --pr 123
 

@@ -30,7 +30,7 @@ To use SQLite storage in your Jupyter notebook:
 
 Use the `%%sqlite_llm` cell magic to send prompts to the LLM while storing history in SQLite:
 
-```python
+```text
 %%sqlite_llm
 What is the capital of France?
 ```
