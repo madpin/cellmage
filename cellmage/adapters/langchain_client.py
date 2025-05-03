@@ -1,7 +1,7 @@
 import logging
 import os
-from typing import Any, Dict, List, Optional, Union
 import uuid
+from typing import Any, Dict, List, Optional, Union
 
 from langchain_core.callbacks import StreamingStdOutCallbackHandler
 
@@ -187,26 +187,27 @@ class LangChainAdapter(LLMClientInterface):
             # Extract message_id and conversation_id if available
             message_id = None
             conversation_id = None
-            
+
             # Try to get message ID from the last message in the conversation
             if messages and len(messages) > 0:
                 last_message = messages[-1]
-                if hasattr(last_message, 'id') and last_message.id:
+                if hasattr(last_message, "id") and last_message.id:
                     message_id = last_message.id
-                
+
                 # Try to get conversation ID from message metadata
-                if hasattr(last_message, 'metadata') and last_message.metadata:
-                    if 'conversation_id' in last_message.metadata:
-                        conversation_id = last_message.metadata['conversation_id']
-            
+                if hasattr(last_message, "metadata") and last_message.metadata:
+                    if "conversation_id" in last_message.metadata:
+                        conversation_id = last_message.metadata["conversation_id"]
+
             # Also check in kwargs for conversation_id
-            if 'conversation_id' in kwargs:
-                conversation_id = kwargs.pop('conversation_id')
-                
+            if "conversation_id" in kwargs:
+                conversation_id = kwargs.pop("conversation_id")
+
             # Record start time for response time tracking
             import datetime
+
             start_time = datetime.datetime.now()
-                
+
             # Get API credentials and model
             api_key = kwargs.pop("api_key", None) or self._instance_overrides.get("api_key")
             api_base = kwargs.pop("api_base", None) or self._instance_overrides.get("api_base")
@@ -298,20 +299,13 @@ class LangChainAdapter(LLMClientInterface):
                 "choices": [
                     {
                         "index": 0,
-                        "message": {
-                            "role": "assistant",
-                            "content": result
-                        },
-                        "finish_reason": "stop"
+                        "message": {"role": "assistant", "content": result},
+                        "finish_reason": "stop",
                     }
                 ],
                 # LangChain doesn't provide token usage information directly
-                "usage": {
-                    "prompt_tokens": 0,
-                    "completion_tokens": 0,
-                    "total_tokens": 0
-                },
-                "_langchain_reconstructed": True
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                "_langchain_reconstructed": True,
             }
 
             # Create endpoint URL
@@ -324,7 +318,7 @@ class LangChainAdapter(LLMClientInterface):
                 endpoint=endpoint,
                 response_time_ms=response_time_ms,
                 message_id=message_id,
-                conversation_id=conversation_id
+                conversation_id=conversation_id,
             )
 
             # Store the model used for status reporting
@@ -422,18 +416,20 @@ class LangChainAdapter(LLMClientInterface):
             Model name or None if no call has been made
         """
         return self._last_model_used
-        
+
     def _get_sqlite_store(self) -> Optional[Any]:
         """
         Get the SQLiteStore instance if SQLite storage is configured.
-        
+
         Returns:
             SQLiteStore instance or None if not configured
         """
         try:
             from ..config import settings
+
             if settings.storage_type == "sqlite":
                 from ..storage.sqlite_store import SQLiteStore
+
                 return SQLiteStore()
             return None
         except ImportError:
@@ -441,7 +437,13 @@ class LangChainAdapter(LLMClientInterface):
             return None
 
     def _store_raw_api_response(
-        self, request_data: Dict[str, Any], response_data: Dict[str, Any], endpoint: str, response_time_ms: int, message_id: Optional[str] = None, conversation_id: Optional[str] = None
+        self,
+        request_data: Dict[str, Any],
+        response_data: Dict[str, Any],
+        endpoint: str,
+        response_time_ms: int,
+        message_id: Optional[str] = None,
+        conversation_id: Optional[str] = None,
     ) -> None:
         """
         Store raw API request and response data to SQLite if configured.
@@ -456,7 +458,8 @@ class LangChainAdapter(LLMClientInterface):
         """
         # Check if storing raw responses is enabled in settings
         from ..config import settings
-        if not getattr(settings, 'store_raw_responses', False):
+
+        if not getattr(settings, "store_raw_responses", False):
             # Skip storing raw responses if not enabled
             self.logger.debug("Skipping raw API response storage (disabled in settings)")
             return
@@ -467,12 +470,12 @@ class LangChainAdapter(LLMClientInterface):
                 # Create default message and conversation IDs if not provided
                 if message_id is None:
                     message_id = str(uuid.uuid4())
-                
+
                 if conversation_id is None:
                     conversation_id = str(uuid.uuid4())
-                
+
                 status_code = 200  # Assuming success since we got here
-                
+
                 sqlite_store.store_raw_api_response(
                     message_id=message_id,
                     conversation_id=conversation_id,
@@ -480,9 +483,9 @@ class LangChainAdapter(LLMClientInterface):
                     request_data=request_data,
                     response_data=response_data,
                     response_time_ms=response_time_ms,
-                    status_code=status_code
+                    status_code=status_code,
                 )
-                
+
                 self.logger.debug(f"Stored raw API response for message {message_id}")
             except Exception as e:
                 # Don't let errors in storing raw responses affect the main flow

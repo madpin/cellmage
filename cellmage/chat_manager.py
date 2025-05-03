@@ -354,14 +354,14 @@ class ChatManager:
             if temp_persona and temp_persona.system_message:
                 # Use ONLY the temp persona's system message, replacing any existing ones just for this request
                 system_message = Message(
-                    role="system", 
-                    content=temp_persona.system_message, 
+                    role="system",
+                    content=temp_persona.system_message,
                     id=Message.generate_message_id(
-                        role="system", 
+                        role="system",
                         content=temp_persona.system_message,
-                        cell_id=cell_id, 
-                        execution_count=exec_count
-                    )
+                        cell_id=cell_id,
+                        execution_count=exec_count,
+                    ),
                 )
                 messages.append(system_message)
                 self.logger.debug(
@@ -389,11 +389,11 @@ class ChatManager:
                         role="system",
                         content=self._active_persona.system_message,
                         id=Message.generate_message_id(
-                            role="system", 
+                            role="system",
                             content=self._active_persona.system_message,
-                            cell_id=cell_id, 
-                            execution_count=exec_count
-                        )
+                            cell_id=cell_id,
+                            execution_count=exec_count,
+                        ),
                     )
                     messages.append(system_message)
                     self.logger.debug("Added system message from active persona")
@@ -426,10 +426,7 @@ class ChatManager:
                 role="user",
                 content=prompt,
                 id=Message.generate_message_id(
-                    role="user", 
-                    content=prompt,
-                    cell_id=cell_id, 
-                    execution_count=exec_count
+                    role="user", content=prompt, cell_id=cell_id, execution_count=exec_count
                 ),
                 execution_count=exec_count,
                 cell_id=cell_id,
@@ -612,10 +609,10 @@ class ChatManager:
                     role="assistant",
                     content=assistant_response_content,
                     id=Message.generate_message_id(
-                        role="assistant", 
+                        role="assistant",
                         content=assistant_response_content,
-                        cell_id=cell_id, 
-                        execution_count=exec_count
+                        cell_id=cell_id,
+                        execution_count=exec_count,
                     ),
                     metadata={
                         "tokens_in": tokens_in,

@@ -239,22 +239,22 @@ class DirectLLMAdapter(LLMClientInterface):
             # Extract message_id and conversation_id if available
             message_id = None
             conversation_id = None
-            
+
             # Try to get message ID from the last message in the conversation
             if messages and len(messages) > 0:
                 last_message = messages[-1]
-                if hasattr(last_message, 'id') and last_message.id:
+                if hasattr(last_message, "id") and last_message.id:
                     message_id = last_message.id
-                
+
                 # Try to get conversation ID from message metadata
-                if hasattr(last_message, 'metadata') and last_message.metadata:
-                    if 'conversation_id' in last_message.metadata:
-                        conversation_id = last_message.metadata['conversation_id']
-            
+                if hasattr(last_message, "metadata") and last_message.metadata:
+                    if "conversation_id" in last_message.metadata:
+                        conversation_id = last_message.metadata["conversation_id"]
+
             # Also check in kwargs for conversation_id
-            if 'conversation_id' in kwargs:
-                conversation_id = kwargs.pop('conversation_id')
-            
+            if "conversation_id" in kwargs:
+                conversation_id = kwargs.pop("conversation_id")
+
             # Prepare system message and other messages
             system_message = next((m.content for m in messages if m.role == "system"), None)
 
@@ -302,9 +302,13 @@ class DirectLLMAdapter(LLMClientInterface):
 
             # Make the API call
             if stream:
-                return self._handle_streaming(api_base, headers, payload, stream_callback, message_id, conversation_id)
+                return self._handle_streaming(
+                    api_base, headers, payload, stream_callback, message_id, conversation_id
+                )
             else:
-                response_content = self._handle_non_streaming(api_base, headers, payload, message_id, conversation_id)
+                response_content = self._handle_non_streaming(
+                    api_base, headers, payload, message_id, conversation_id
+                )
 
                 # Store the actual model used from the API response in our instance overrides
                 # This allows retrieving the model in status reporting
@@ -323,23 +327,27 @@ class DirectLLMAdapter(LLMClientInterface):
         return [{"role": msg.role, "content": msg.content} for msg in messages]
 
     def _handle_non_streaming(
-        self, api_base: str, headers: Dict[str, str], payload: Dict[str, Any], 
-        message_id: Optional[str] = None, conversation_id: Optional[str] = None
+        self,
+        api_base: str,
+        headers: Dict[str, str],
+        payload: Dict[str, Any],
+        message_id: Optional[str] = None,
+        conversation_id: Optional[str] = None,
     ) -> str:
         """Handle non-streaming API response."""
         url = f"{api_base}/chat/completions"
         start_time = datetime.now()
-        
+
         # Store a copy of the payload for raw storage
         request_data = payload.copy()
-        
+
         response = requests.post(
             url,
             headers=headers,
             json=payload,
             timeout=60,  # Default timeout of 60 seconds
         )
-        
+
         # Calculate response time in milliseconds
         response_time_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
@@ -366,7 +374,7 @@ class DirectLLMAdapter(LLMClientInterface):
             endpoint=url,
             response_time_ms=response_time_ms,
             message_id=message_id,
-            conversation_id=conversation_id
+            conversation_id=conversation_id,
         )
 
         # Extract the assistant's message
@@ -425,7 +433,7 @@ class DirectLLMAdapter(LLMClientInterface):
         """Handle streaming API response."""
         url = f"{api_base}/chat/completions"
         start_time = datetime.now()
-        
+
         # Store a copy of the payload for raw storage
         request_data = payload.copy()
 
@@ -450,7 +458,7 @@ class DirectLLMAdapter(LLMClientInterface):
         model_from_stream = None
         # For streaming responses, we need to look for token usage in the final chunk
         token_usage_data = {}
-        
+
         # Collect chunks for raw API response storage
         all_chunks = []
 
@@ -494,7 +502,7 @@ class DirectLLMAdapter(LLMClientInterface):
             except json.JSONDecodeError:
                 self.logger.warning(f"Failed to parse streaming JSON: {line}")
                 continue
-        
+
         # Calculate response time in milliseconds
         response_time_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
@@ -518,26 +526,25 @@ class DirectLLMAdapter(LLMClientInterface):
                 // 4,  # Rough estimate: 4 chars per token
                 "total_tokens": 0,  # Can't accurately determine this from streaming
             }
-        
+
         # Construct a combined response object for storage
         reconstructed_response = {
             "id": str(uuid.uuid4()),  # Generate a unique ID for this response
             "model": model_from_stream,
             "created": int(time.time()),
             "object": "chat.completion",
-            "choices": [{
-                "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": accumulated_content
-                },
-                "finish_reason": "stop"  # Assuming normal completion
-            }],
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": accumulated_content},
+                    "finish_reason": "stop",  # Assuming normal completion
+                }
+            ],
             "usage": self._last_token_usage,
             "_stream_chunks_count": len(all_chunks),
-            "_is_reconstructed": True  # Flag to indicate this is a reconstructed response
+            "_is_reconstructed": True,  # Flag to indicate this is a reconstructed response
         }
-        
+
         # Save raw API response to SQLite if configured
         self._store_raw_api_response(
             request_data=request_data,
@@ -545,7 +552,7 @@ class DirectLLMAdapter(LLMClientInterface):
             endpoint=url,
             response_time_ms=response_time_ms,
             message_id=message_id,
-            conversation_id=conversation_id
+            conversation_id=conversation_id,
         )
 
         return accumulated_content
@@ -656,16 +663,18 @@ class DirectLLMAdapter(LLMClientInterface):
     def _get_sqlite_store(self) -> Optional[Any]:
         """
         Get the SQLiteStore instance if SQLite storage is configured.
-        
+
         Returns:
             SQLiteStore instance or None if not configured
         """
         try:
             from ..config import settings
+
             # Add explicit attribute check with fallback
-            storage_type = getattr(settings, 'storage_type', 'sqlite')
+            storage_type = getattr(settings, "storage_type", "sqlite")
             if storage_type == "sqlite":
                 from ..storage.sqlite_store import SQLiteStore
+
                 return SQLiteStore()
             return None
         except (ImportError, AttributeError) as e:
@@ -673,7 +682,13 @@ class DirectLLMAdapter(LLMClientInterface):
             return None
 
     def _store_raw_api_response(
-        self, request_data: Dict[str, Any], response_data: Dict[str, Any], endpoint: str, response_time_ms: int, message_id: Optional[str] = None, conversation_id: Optional[str] = None
+        self,
+        request_data: Dict[str, Any],
+        response_data: Dict[str, Any],
+        endpoint: str,
+        response_time_ms: int,
+        message_id: Optional[str] = None,
+        conversation_id: Optional[str] = None,
     ) -> None:
         """
         Store raw API request and response data to SQLite if configured.
@@ -688,7 +703,8 @@ class DirectLLMAdapter(LLMClientInterface):
         """
         # Check if storing raw responses is enabled in settings
         from ..config import settings
-        if not getattr(settings, 'store_raw_responses', False):
+
+        if not getattr(settings, "store_raw_responses", False):
             # Skip storing raw responses if not enabled
             self.logger.debug("Skipping raw API response storage (disabled in settings)")
             return
@@ -699,12 +715,12 @@ class DirectLLMAdapter(LLMClientInterface):
                 # Create default message and conversation IDs if not provided
                 if message_id is None:
                     message_id = str(uuid.uuid4())
-                
+
                 if conversation_id is None:
                     conversation_id = str(uuid.uuid4())
-                
+
                 status_code = 200  # Assuming success since we got here
-                
+
                 sqlite_store.store_raw_api_response(
                     message_id=message_id,
                     conversation_id=conversation_id,
@@ -712,9 +728,9 @@ class DirectLLMAdapter(LLMClientInterface):
                     request_data=request_data,
                     response_data=response_data,
                     response_time_ms=response_time_ms,
-                    status_code=status_code
+                    status_code=status_code,
                 )
-                
+
                 self.logger.debug(f"Stored raw API response for message {message_id}")
             except Exception as e:
                 # Don't let errors in storing raw responses affect the main flow

@@ -8,14 +8,12 @@ import logging
 import os
 import sys
 import time
-import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict
 
 # IPython imports with fallback handling
 try:
-    from IPython import get_ipython
     from IPython.core.magic import Magics, cell_magic, line_magic, magics_class
-    from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
+    from IPython.core.magic_arguments import argument, magic_arguments
 
     _IPYTHON_AVAILABLE = True
 except ImportError:
@@ -42,14 +40,8 @@ except ImportError:
 
     Magics = DummyMagics  # Type alias for compatibility
 
-from ..ambient_mode import (
-    disable_ambient_mode,
-    enable_ambient_mode,
-    is_ambient_mode_enabled,
-)
 from ..chat_manager import ChatManager
 from ..context_providers.ipython_context_provider import get_ipython_context_provider
-from ..models import Message
 
 # Logging setup
 logger = logging.getLogger(__name__)
@@ -58,10 +50,10 @@ logger = logging.getLogger(__name__)
 def prepare_runtime_params(args) -> Dict[str, Any]:
     """
     Extract runtime parameters from args and convert to dictionary.
-    
+
     Args:
         args: The parsed argument namespace
-        
+
     Returns:
         Dictionary of parameters that can be passed to the LLM client
     """
@@ -98,11 +90,11 @@ def prepare_runtime_params(args) -> Dict[str, Any]:
 def handle_snippet_commands(args, manager: ChatManager) -> bool:
     """
     Handle snippet-related arguments.
-    
+
     Args:
         args: The parsed argument namespace
         manager: Chat manager instance
-        
+
     Returns:
         True if any action was taken, False otherwise
     """
@@ -214,7 +206,7 @@ def handle_snippet_commands(args, manager: ChatManager) -> bool:
                 print("  Use: %llm_config --sys-snippet <n> for system snippets")
             except Exception as e:
                 print(f"❌ Error listing snippets: {e}")
-                
+
     except Exception as e:
         print(f"❌ Error processing snippets: {e}")
 
@@ -224,11 +216,11 @@ def handle_snippet_commands(args, manager: ChatManager) -> bool:
 def handle_model_setting(args, manager: ChatManager) -> bool:
     """
     Handle model setting and mapping configuration.
-    
+
     Args:
         args: The parsed argument namespace
         manager: Chat manager instance
-        
+
     Returns:
         True if any action was taken, False otherwise
     """
@@ -285,11 +277,11 @@ def handle_model_setting(args, manager: ChatManager) -> bool:
 def handle_adapter_switch(args, manager: ChatManager) -> bool:
     """
     Handle adapter switching.
-    
+
     Args:
         args: The parsed argument namespace
         manager: Chat manager instance
-        
+
     Returns:
         True if any action was taken, False otherwise
     """
@@ -338,9 +330,7 @@ def handle_adapter_switch(args, manager: ChatManager) -> bool:
                     logger.info("Switched to LangChain adapter")
 
                 except ImportError:
-                    print(
-                        "❌ LangChain adapter not available. Make sure langchain is installed."
-                    )
+                    print("❌ LangChain adapter not available. Make sure langchain is installed.")
                     logger.error("LangChain adapter requested but not available")
 
             elif adapter_type == "direct":
@@ -388,7 +378,7 @@ def handle_adapter_switch(args, manager: ChatManager) -> bool:
 def process_cell_as_prompt(manager: ChatManager, cell_content: str) -> None:
     """
     Process a regular code cell as an LLM prompt in ambient mode.
-    
+
     Args:
         manager: Chat manager instance
         cell_content: Content of the cell to process
@@ -460,7 +450,7 @@ def process_cell_as_prompt(manager: ChatManager, cell_content: str) -> None:
 def get_chat_manager_instance():
     """
     Get the ChatManager instance, with proper error handling.
-    
+
     Returns:
         ChatManager instance or None on error
     """
@@ -471,6 +461,7 @@ def get_chat_manager_instance():
     try:
         # Import from ipython_magic to maintain compatibility
         from ..integrations.ipython_magic import get_chat_manager
+
         return get_chat_manager()
     except Exception as e:
         print("❌ NotebookLLM Error: Could not get Chat Manager.", file=sys.stderr)

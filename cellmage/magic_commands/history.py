@@ -5,14 +5,11 @@ This module provides the history management and persistence commands for CellMag
 """
 
 import logging
-import os
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List
 
 from ..chat_manager import ChatManager
-from ..exceptions import PersistenceError, ResourceNotFoundError
 from ..conversation_manager import ConversationManager
+from ..exceptions import PersistenceError, ResourceNotFoundError
 
 # Logging setup
 logger = logging.getLogger(__name__)
@@ -21,11 +18,11 @@ logger = logging.getLogger(__name__)
 def handle_history_commands(args, manager: ChatManager) -> bool:
     """
     Handle history-related arguments.
-    
+
     Args:
         args: The parsed argument namespace
         manager: Chat manager instance
-        
+
     Returns:
         True if any action was taken, False otherwise
     """
@@ -159,11 +156,11 @@ def handle_history_commands(args, manager: ChatManager) -> bool:
 def handle_persistence_commands(args, manager: ChatManager) -> bool:
     """
     Handle persistence-related arguments.
-    
+
     Args:
         args: The parsed argument namespace
         manager: Chat manager instance
-        
+
     Returns:
         True if any action was taken, False otherwise
     """
@@ -205,9 +202,7 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
                 print("  Use: %llm_config --load SESSION_NAME to load a session")
             else:
                 print("  No saved sessions found.")
-                if hasattr(manager, "settings") and hasattr(
-                    manager.settings, "conversations_dir"
-                ):
+                if hasattr(manager, "settings") and hasattr(manager.settings, "conversations_dir"):
                     print(f"  Sessions directory: {manager.settings.conversations_dir}")
                 print("  Use: %llm_config --save SESSION_NAME to save the current conversation")
 
@@ -306,9 +301,7 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
         except ResourceNotFoundError:
             print(f"  ❌ Session '{session_id}' not found.")
             # Try to list available sessions for user convenience
-            if hasattr(manager, "list_saved_sessions") or hasattr(
-                manager, "list_conversations"
-            ):
+            if hasattr(manager, "list_saved_sessions") or hasattr(manager, "list_conversations"):
                 print("  Available sessions:")
                 try:
                     if hasattr(manager, "list_saved_sessions"):
@@ -405,34 +398,32 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
 def convert_to_conversation_manager(manager: ChatManager) -> ConversationManager:
     """
     Convert a ChatManager to use a ConversationManager for SQLite-based storage.
-    
+
     Args:
         manager: Chat manager instance
-        
+
     Returns:
         ConversationManager instance with data from ChatManager
     """
     # Create new conversation manager
-    conversation_manager = ConversationManager(
-        context_provider=manager.context_provider
-    )
-    
+    conversation_manager = ConversationManager(context_provider=manager.context_provider)
+
     # Copy messages from the chat manager's history
     if hasattr(manager, "history_manager") and hasattr(manager.history_manager, "get_history"):
         messages = manager.history_manager.get_history()
         for msg in messages:
             conversation_manager.add_message(msg)
-            
+
     return conversation_manager
 
 
 def get_conversation_statistics(conversation_manager: ConversationManager) -> Dict[str, Any]:
     """
     Get statistics about stored conversations.
-    
+
     Args:
         conversation_manager: ConversationManager instance
-        
+
     Returns:
         Dictionary with detailed statistics about stored conversations
     """
@@ -441,22 +432,20 @@ def get_conversation_statistics(conversation_manager: ConversationManager) -> Di
         return stats
     except Exception as e:
         logger.error(f"Error getting conversation statistics: {e}")
-        return {
-            "error": str(e),
-            "total_conversations": 0,
-            "total_messages": 0
-        }
-        
-        
-def search_conversations(conversation_manager: ConversationManager, query: str, limit: int = 20) -> List[Dict[str, Any]]:
+        return {"error": str(e), "total_conversations": 0, "total_messages": 0}
+
+
+def search_conversations(
+    conversation_manager: ConversationManager, query: str, limit: int = 20
+) -> List[Dict[str, Any]]:
     """
     Search for conversations by content.
-    
+
     Args:
         conversation_manager: ConversationManager instance
         query: Search query string
         limit: Maximum number of results to return
-        
+
     Returns:
         List of matching conversations
     """
@@ -465,15 +454,15 @@ def search_conversations(conversation_manager: ConversationManager, query: str, 
     except Exception as e:
         logger.error(f"Error searching conversations: {e}")
         return []
-        
-        
+
+
 def format_conversation_summary(conversation: Dict[str, Any]) -> str:
     """
     Format a conversation summary for display.
-    
+
     Args:
         conversation: Conversation metadata dictionary
-        
+
     Returns:
         Formatted string representation
     """
@@ -486,73 +475,78 @@ def format_conversation_summary(conversation: Dict[str, Any]) -> str:
     persona_name = conversation.get("persona_name", "none")
     total_tokens = conversation.get("total_tokens", 0)
     tags = conversation.get("tags", [])
-    
+
     # Format date
     date_str = "unknown date"
     if timestamp:
         try:
             from datetime import datetime
+
             date = datetime.fromtimestamp(timestamp)
             date_str = date.strftime("%Y-%m-%d %H:%M")
         except Exception:
             pass
-            
+
     # Build summary
     summary = [f"Conversation: {name} ({conv_id[:8]}...)"]
     summary.append(f"Date: {date_str}")
     summary.append(f"Messages: {message_count}")
-    
+
     if model_name and model_name != "unknown":
         summary.append(f"Model: {model_name}")
-    
+
     if persona_name and persona_name != "none":
         summary.append(f"Persona: {persona_name}")
-        
+
     if total_tokens:
         summary.append(f"Tokens: {total_tokens:,}")
-        
+
     if tags:
         summary.append(f"Tags: {', '.join(tags)}")
-        
+
     return "\n".join(summary)
 
 
 def create_conversation_stats_report(conversation_manager: ConversationManager) -> str:
     """
     Create a formatted report of conversation statistics.
-    
+
     Args:
         conversation_manager: ConversationManager instance
-        
+
     Returns:
         Formatted string report
     """
     stats = conversation_manager.get_statistics()
-    
+
     lines = []
     lines.append("=== Conversation Statistics ===")
     lines.append(f"Total conversations: {stats.get('total_conversations', 0):,}")
     lines.append(f"Total messages: {stats.get('total_messages', 0):,}")
     lines.append(f"Total tokens: {stats.get('total_tokens', 0):,}")
-    
+
     # Add role breakdown if available
     if "messages_by_role" in stats:
         lines.append("\nMessage breakdown by role:")
         for role, count in stats["messages_by_role"].items():
             lines.append(f"  - {role}: {count:,}")
-            
+
     # Add model usage if available
     if "most_used_model" in stats:
         model_info = stats["most_used_model"]
-        lines.append(f"\nMost used model: {model_info.get('model')} ({model_info.get('count')} times)")
-        
+        lines.append(
+            f"\nMost used model: {model_info.get('model')} ({model_info.get('count')} times)"
+        )
+
     # Add activity stats if available
     if "most_active_day" in stats:
         activity = stats["most_active_day"]
-        lines.append(f"Most active day: {activity.get('date')} with {activity.get('message_count')} messages")
-        
+        lines.append(
+            f"Most active day: {activity.get('date')} with {activity.get('message_count')} messages"
+        )
+
     # Add token stats
     if "avg_tokens_per_message" in stats:
         lines.append(f"Average tokens per message: {stats.get('avg_tokens_per_message'):.1f}")
-        
+
     return "\n".join(lines)

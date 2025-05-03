@@ -27,7 +27,7 @@ It's designed for **data scientists, software engineers, researchers, and studen
 *   **📊 Status & Cost Tracking:** Get immediate feedback on prompt execution time, token usage, and estimated cost.
 *   **🔄 Jira Integration:** Fetch Jira tickets directly into your notebook to use as context for your LLM queries.
 *   **🦊 GitLab Integration:** Import repositories and merge requests as context for your LLM prompts, with token size estimates.
-*   **🗄️ SQLite Storage:** Persistent conversation storage using SQLite for improved performance and reliability.
+*   **🐱 GitHub Integration:** Import repositories and pull requests as context for your LLM prompts, with token size estimates.
 
 ---
 
@@ -323,7 +323,56 @@ Fetch GitLab repositories and merge requests directly into your notebook using t
     Based on the GitLab repository above, can you explain the architecture of this project?
     ```
 
-### 8. SQLite Storage
+### 8. GitHub Integration
+
+Fetch GitHub repositories and pull requests directly into your notebook using the `%github` magic command.
+
+*   **Installation:**
+    ```bash
+    pip install "cellmage[github]"
+    ```
+
+*   **Configuration:**
+    Set these environment variables in a `.env` file or your environment:
+    ```
+    GITHUB_TOKEN=your_github_personal_access_token
+    ```
+
+*   **Basic Usage:**
+    ```python
+    # Fetch a repository and add it to chat history
+    %github username/repo
+
+    # Fetch a repository and add as system context
+    %github username/repo --system
+
+    # Just display a repository without adding to history
+    %github username/repo --show
+
+    # Fetch a pull request and add to chat history
+    %github username/repo --pr 123
+
+    # Include full code content (may be very large)
+    %github username/repo --full-code
+    
+    # Get more detailed contributor information
+    %github username/repo --contributors-months 12
+    ```
+
+*   **Using with LLM Queries:**
+    ```python
+    # First, fetch the repository
+    %github username/repo
+    
+    # Check the estimated token size in the output
+    # "✅ Estimated token size: ~12,345 tokens (10,000 code, 2,345 metadata)"
+
+    # Then, reference it in your prompt
+    %%llm
+    Based on the GitHub repository above, can you analyze the code architecture and suggest improvements?
+    ```
+
+### 9. SQLite Storage
 
 CellMage now uses SQLite as the default storage backend for improved performance and reliability:
 

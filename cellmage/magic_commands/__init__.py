@@ -7,8 +7,6 @@ This package contains modules for various kinds of IPython magic commands:
 - persistence: Saving and loading conversations
 """
 
-from . import core
-from . import history
-from . import persistence
+from . import core, history, persistence
 
 __all__ = ["core", "history", "persistence"]

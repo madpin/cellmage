@@ -70,7 +70,9 @@ def _init_default_manager() -> ChatManager:
         # Import necessary components dynamically only if needed
         from ..config import settings
         from ..resources.file_loader import FileLoader
-        from ..storage.sqlite_store import SQLiteStore  # Import SQLiteStore instead of MarkdownStore
+        from ..storage.sqlite_store import (
+            SQLiteStore,  # Import SQLiteStore instead of MarkdownStore
+        )
 
         # Determine which adapter to use
         adapter_type = os.environ.get("CELLMAGE_ADAPTER", "direct").lower()
@@ -79,11 +81,11 @@ def _init_default_manager() -> ChatManager:
 
         # Create default dependencies
         loader = FileLoader(settings.personas_dir, settings.snippets_dir)
-        
+
         # Use SQLiteStore instead of MarkdownStore as default storage
         store = SQLiteStore()  # Use default path from settings
         logger.info("Using SQLite as default storage backend")
-        
+
         context_provider = get_ipython_context_provider()
 
         # Initialize the appropriate LLM client adapter
@@ -1151,7 +1153,7 @@ class NotebookLLMMagics(Magics):
             if hasattr(manager.history_manager, "store"):
                 store = manager.history_manager.store
                 store_class_name = store.__class__.__name__
-                
+
                 if store_class_name == "SQLiteStore":
                     storage_type = "SQLite"
                     if hasattr(store, "db_path"):
@@ -1255,6 +1257,13 @@ class NotebookLLMMagics(Magics):
             print(f"    • GitLab: {'✅ Loaded' if gitlab_available else '❌ Not loaded'}")
         except Exception:
             print("    • GitLab: ❓ Unknown")
+
+        # Check for GitHub integration
+        try:
+            github_available = "cellmage.integrations.github_magic" in sys.modules
+            print(f"    • GitHub: {'✅ Loaded' if github_available else '❌ Not loaded'}")
+        except Exception:
+            print("    • GitHub: ❓ Unknown")
 
         # Show environment/config file paths
         print("──────────────────────────────────────────────────────────")
@@ -1806,7 +1815,7 @@ class NotebookLLMMagics(Magics):
 def load_ipython_extension(ipython):
     """
     Registers the magics with the IPython runtime.
-    
+
     By default, this now loads the SQLite-backed implementation for improved
     conversation management. For legacy file-based storage, set the
     CELLMAGE_USE_FILE_STORAGE=1 environment variable.
@@ -1817,33 +1826,38 @@ def load_ipython_extension(ipython):
 
     # Check if we should use legacy file-based storage
     use_file_storage = os.environ.get("CELLMAGE_USE_FILE_STORAGE", "0") == "1"
-    
+
     if not use_file_storage:
         # Use the SQLite implementation by default
         try:
             from .sqlite_magic import load_ipython_extension as load_sqlite
-            
+
             # Forward to SQLite extension loader
             load_sqlite(ipython)
             logger.info("Loaded SQLite-backed CellMage extension (default)")
-            
+
             # Verify magic commands are registered
-            if '%llm_config' not in ipython.magic_manager.magics['line']:
-                logger.warning("llm_config magic not found after loading SQLite extension, registering directly")
+            if "%llm_config" not in ipython.magic_manager.magics["line"]:
+                logger.warning(
+                    "llm_config magic not found after loading SQLite extension, registering directly"
+                )
                 magic_class = NotebookLLMMagics(ipython)
                 ipython.register_magics(magic_class)
-                
+
             return
         except ImportError:
             logger.warning("SQLite storage not available, falling back to file-based storage")
-            print("⚠️ SQLite storage not available, falling back to file-based storage", file=sys.stderr)
+            print(
+                "⚠️ SQLite storage not available, falling back to file-based storage",
+                file=sys.stderr,
+            )
             use_file_storage = True
         except Exception as e:
             logger.error(f"Error loading SQLite extension: {e}")
             print(f"⚠️ Error loading SQLite extension: {e}", file=sys.stderr)
             print("Falling back to file-based storage", file=sys.stderr)
             use_file_storage = True
-    
+
     # Legacy file-based implementation (only used if specifically requested or if SQLite fails)
     if use_file_storage:
         try:
@@ -1852,12 +1866,12 @@ def load_ipython_extension(ipython):
             ipython.register_magics(magic_class)
             logger.info("Legacy file-based CellMage extension loaded successfully")
             print("ℹ️ Legacy file-based CellMage extension loaded", file=sys.stderr)
-            
+
             # Verify magic commands are registered
-            if '%llm_config' not in ipython.magic_manager.magics['line']:
+            if "%llm_config" not in ipython.magic_manager.magics["line"]:
                 logger.warning("llm_config magic not registered properly, attempting to fix")
                 ipython.register_magics(magic_class)
-                
+
         except Exception as e:
             logger.exception("Failed to register CellMage magics.")
             print(f"❌ Failed to initialize NotebookLLM: {e}", file=sys.stderr)

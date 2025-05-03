@@ -6,7 +6,7 @@ the ability to treat regular code cells as LLM prompts automatically.
 """
 
 import logging
-from typing import Any, List, Callable
+from typing import Any, Callable, List
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -19,19 +19,21 @@ _ambient_handler = None
 def register_ambient_handler(handler_func: Callable[[str], None]) -> None:
     """
     Register a function that will handle processing cell content in ambient mode.
-    
+
     Args:
         handler_func: A function that takes a cell content string and processes it
     """
     global _ambient_handler
     _ambient_handler = handler_func
-    logger.info(f"Registered ambient mode handler: {handler_func.__module__}.{handler_func.__name__}")
+    logger.info(
+        f"Registered ambient mode handler: {handler_func.__module__}.{handler_func.__name__}"
+    )
 
 
 def get_ambient_handler() -> Callable[[str], None]:
     """
     Get the currently registered ambient handler function.
-    
+
     Returns:
         The registered handler function or None if not registered
     """
