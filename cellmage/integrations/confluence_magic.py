@@ -7,10 +7,11 @@ This module provides IPython magic commands for interacting with Confluence wiki
 import logging
 import sys
 import uuid
+from typing import Any, Dict, List, Optional
 
 # IPython imports with fallback handling
 try:
-    from IPython.core.magic import Magics, line_magic, magics_class
+    from IPython.core.magic import line_magic, magics_class
     from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
 
     _IPYTHON_AVAILABLE = True
@@ -30,28 +31,32 @@ except ImportError:
     def argument(*args, **kwargs):
         return lambda func: func
 
-    class DummyMagics:
-        pass  # Dummy base class
-
-    Magics = DummyMagics  # Type alias for compatibility
+# Import the base magic class
+from .base_magic import BaseMagics, Magics
 
 # Import Confluence utilities
-from ..models import Message
-from ..utils.confluence_utils import (
-    ConfluenceClient,
-    fetch_confluence_content,
-    search_confluence,
-)
+try:
+    from ..models import Message
+    from ..utils.confluence_utils import (
+        ConfluenceClient,
+        fetch_confluence_content,
+        search_confluence,
+    )
+    
+    _CONFLUENCE_AVAILABLE = True
+except ImportError:
+    _CONFLUENCE_AVAILABLE = False
 
 # Logging setup
 logger = logging.getLogger(__name__)
 
 
 @magics_class
-class ConfluenceMagics(Magics):
+class ConfluenceMagics(BaseMagics):
     """IPython magic commands for interacting with Confluence wiki pages."""
 
     def __init__(self, shell):
+        """Initialize the Confluence magic utility."""
         if not _IPYTHON_AVAILABLE:
             logger.warning("IPython not available. Confluence magics are disabled.")
             return
@@ -66,6 +71,155 @@ class ConfluenceMagics(Magics):
         except Exception as e:
             self._get_manager = None
             logger.error(f"Error initializing Confluence magics: {e}")
+
+    def _add_to_history(
+        self, content: str, source_type: str, source_id: str, as_system_msg: bool = False
+    ) -> bool:
+        """Add the content to the chat history as a user or system message."""
+        return super()._add_to_history(
+            content=content,
+            source_type=source_type,
+            source_id=source_id,
+            source_name="confluence",
+            id_key="confluence_id",
+            as_system_msg=as_system_msg
+        )
+
+    def _find_messages_to_remove(
+        self, history: List, source_name: str, source_type: str, source_id: str, id_key: str
+    ) -> List[int]:
+        """
+        Find messages to remove from history based on Confluence-specific rules.
+
+        For pages, remove any previous page with the same identifier.
+        For search queries, remove all previous search results regardless of the query.
+        """
+        indices_to_remove = []
+
+        if source_type == "page":
+            # For pages, remove any previous page with the same identifier
+            for i, msg in enumerate(history):
+                if (msg.metadata and 
+                    msg.metadata.get('source') == source_name and 
+                    msg.metadata.get('type') == 'page' and
+                    msg.metadata.get(id_key) == source_id):
+                    indices_to_remove.append(i)
+        
+        elif source_type == "search":
+            # For search queries, remove all previous searches
+            # This ensures fresh results replace old ones
+            for i, msg in enumerate(history):
+                if (msg.metadata and 
+                    msg.metadata.get('source') == source_name and 
+                    msg.metadata.get('type') == 'search'):
+                    indices_to_remove.append(i)
+        
+        # For other types, use standard implementation
+        else:
+            indices_to_remove = super()._find_messages_to_remove(
+                history, source_name, source_type, source_id, id_key
+            )
+                
+        return indices_to_remove
+
+    def _handle_page_fetch(self, args, client, manager):
+        """Handle fetching a specific Confluence page."""
+        print("══════════════════════════════════════════════════════════")
+        print(f"  📝 Fetching Confluence page: {args.identifier}")
+        print("══════════════════════════════════════════════════════════")
+
+        try:
+            # Fetch the page content with markdown option if specified
+            content = fetch_confluence_content(
+                args.identifier, client=client, as_markdown=args.markdown
+            )
+
+            if content.startswith("Error"):
+                print(f"❌ {content}", file=sys.stderr)
+                return
+
+            # Handle display-only mode
+            if args.show:
+                print(content)
+                print("══════════════════════════════════════════════════════════")
+                format_type = "Markdown" if args.markdown else "text"
+                print(f"  ℹ️  Content displayed in {format_type} format (not added to history)")
+                print("══════════════════════════════════════════════════════════")
+                return
+
+            # Add to history
+            success = self._add_to_history(
+                content=content,
+                source_type="page",
+                source_id=args.identifier,
+                as_system_msg=args.system,
+            )
+            if not success:
+                print("❌ Failed to add Confluence page to history.", file=sys.stderr)
+
+        except Exception as e:
+            print(f"❌ Error fetching Confluence page: {e}", file=sys.stderr)
+            logger.error(f"Error in _handle_page_fetch: {e}")
+
+    def _handle_cql_search(self, args, client, manager):
+        """Handle searching Confluence with CQL."""
+        print("══════════════════════════════════════════════════════════")
+        print(f"  🔍 Searching Confluence with CQL: {args.cql}")
+        print("══════════════════════════════════════════════════════════")
+
+        try:
+            # Run the search
+            max_results = max(1, min(20, args.max))  # Limit between 1 and 20
+
+            # Strip surrounding quotes if present to avoid double quoting
+            cql_query = args.cql.strip()
+            if (cql_query.startswith('"') and cql_query.endswith('"')) or (
+                cql_query.startswith("'") and cql_query.endswith("'")
+            ):
+                cql_query = cql_query[1:-1]
+
+            # Add info about the content inclusion mode
+            content_mode = "with" if args.include_content else "without"
+            format_type = "Markdown" if args.markdown else "text"
+            full_content_mode = "full content" if args.fetch_full_content else "metadata only"
+            print(f"  • Searching for up to {max_results} pages {content_mode} {full_content_mode}")
+            print(f"  • Output format: {format_type}")
+
+            # Fetch search results with appropriate options
+            content = search_confluence(
+                cql_query,
+                client=client,
+                max_results=max_results,
+                as_markdown=args.markdown,
+                include_content=args.include_content,
+                fetch_full_content=args.fetch_full_content,
+            )
+
+            if content.startswith("Error") or content.startswith("No Confluence"):
+                print(f"❌ {content}", file=sys.stderr)
+                return
+
+            # Handle display-only mode
+            if args.show:
+                print(content)
+                print("══════════════════════════════════════════════════════════")
+                print("  ℹ️  Search results displayed only (not added to history)")
+                print("══════════════════════════════════════════════════════════")
+                return
+
+            # Add to history
+            success = self._add_to_history(
+                content=content,
+                source_type="search",
+                source_id=args.cql,
+                as_system_msg=args.system,
+            )
+            if not success:
+                print("❌ Failed to add Confluence search results to history.", file=sys.stderr)
+
+        except Exception as e:
+            print(f"❌ Error searching Confluence: {e}", file=sys.stderr)
+            logger.error(f"Error in _handle_cql_search: {e}")
 
     @magic_arguments()
     @argument(
@@ -137,6 +291,10 @@ class ConfluenceMagics(Magics):
             print("❌ IPython not available. Confluence magic cannot be used.", file=sys.stderr)
             return
 
+        if not _CONFLUENCE_AVAILABLE:
+            print("❌ Confluence utilities not available. Please check your installation.", file=sys.stderr)
+            return
+
         try:
             args = parse_argstring(self.confluence_magic, line)
         except Exception as e:
@@ -145,9 +303,8 @@ class ConfluenceMagics(Magics):
 
         # Try to get the manager
         try:
-            if self._get_manager:
-                manager = self._get_manager()
-            else:
+            manager = self._get_chat_manager()
+            if not manager:
                 print("❌ Confluence magic could not access ChatManager.", file=sys.stderr)
                 return
         except Exception as e:
@@ -185,158 +342,23 @@ class ConfluenceMagics(Magics):
             print(f"❌ Unexpected error in Confluence magic: {e}", file=sys.stderr)
             logger.error(f"Unexpected error in Confluence magic: {e}")
 
-    def _handle_page_fetch(self, args, client, manager):
-        """Handle fetching a specific Confluence page."""
-        print("══════════════════════════════════════════════════════════")
-        print(f"  📝 Fetching Confluence page: {args.identifier}")
-        print("══════════════════════════════════════════════════════════")
 
-        try:
-            # Fetch the page content with markdown option if specified
-            content = fetch_confluence_content(
-                args.identifier, client=client, as_markdown=args.markdown
-            )
-
-            if content.startswith("Error"):
-                print(f"❌ {content}", file=sys.stderr)
-                return
-
-            # Handle display-only mode
-            if args.show:
-                print(content)
-                print("══════════════════════════════════════════════════════════")
-                format_type = "Markdown" if args.markdown else "text"
-                print(f"  ℹ️  Content displayed in {format_type} format (not added to history)")
-                print("══════════════════════════════════════════════════════════")
-                return
-
-            # Add to history
-            msg_role = "system" if args.system else "user"
-            msg = Message(
-                role=msg_role,
-                content=content,
-                id=str(uuid.uuid4()),
-                is_confluence=True,
-                metadata={
-                    "source": f"confluence:{args.identifier}",
-                    "format": "markdown" if args.markdown else "text",
-                },
-            )
-            manager.history_manager.add_message(msg)
-
-            # Print success message with preview
-            format_type = "Markdown" if args.markdown else "text"
-            print(
-                f"✅ Confluence content added to conversation as {msg_role} message ({format_type} format)"
-            )
-            preview = content.replace("\n", " ")[:100]
-            if len(content) > 100:
-                preview += "..."
-            print(f"  📄 Content: {preview}")
-            print("══════════════════════════════════════════════════════════")
-
-        except Exception as e:
-            print(f"❌ Error fetching Confluence page: {e}", file=sys.stderr)
-            logger.error(f"Error in _handle_page_fetch: {e}")
-
-    def _handle_cql_search(self, args, client, manager):
-        """Handle searching Confluence with CQL."""
-        print("══════════════════════════════════════════════════════════")
-        print(f"  🔍 Searching Confluence with CQL: {args.cql}")
-        print("══════════════════════════════════════════════════════════")
-
-        try:
-            # Run the search
-            max_results = max(1, min(20, args.max))  # Limit between 1 and 20
-
-            # Strip surrounding quotes if present to avoid double quoting
-            cql_query = args.cql.strip()
-            if (cql_query.startswith('"') and cql_query.endswith('"')) or (
-                cql_query.startswith("'") and cql_query.endswith("'")
-            ):
-                cql_query = cql_query[1:-1]
-
-            # Add info about the content inclusion mode
-            content_mode = "with" if args.include_content else "without"
-            format_type = "Markdown" if args.markdown else "text"
-            full_content_mode = "full content" if args.fetch_full_content else "metadata only"
-            print(f"  • Searching for up to {max_results} pages {content_mode} {full_content_mode}")
-            print(f"  • Output format: {format_type}")
-
-            # Fetch search results with appropriate options
-            content = search_confluence(
-                cql_query,
-                client=client,
-                max_results=max_results,
-                as_markdown=args.markdown,
-                include_content=args.include_content,
-                fetch_full_content=args.fetch_full_content,
-            )
-
-            if content.startswith("Error") or content.startswith("No Confluence"):
-                print(f"❌ {content}", file=sys.stderr)
-                return
-
-            # Handle display-only mode
-            if args.show:
-                print(content)
-                print("══════════════════════════════════════════════════════════")
-                print("  ℹ️  Search results displayed only (not added to history)")
-                print("══════════════════════════════════════════════════════════")
-                return
-
-            # Add to history
-            msg_role = "system" if args.system else "user"
-            msg = Message(
-                role=msg_role,
-                content=content,
-                id=str(uuid.uuid4()),
-                is_confluence=True,
-                metadata={
-                    "source": f"confluence_search:{args.cql}",
-                    "format": "markdown" if args.markdown else "text",
-                    "include_content": args.include_content,
-                    "fetch_full_content": args.fetch_full_content,
-                },
-            )
-            manager.history_manager.add_message(msg)
-
-            # Print success message with result count
-            if "Result 1:" in content:
-                result_count = content.count("Result ")
-                print(f"✅ {result_count} Confluence search results added as {msg_role} message")
-            else:
-                print(f"✅ Confluence search results added as {msg_role} message")
-
-            # Display format information
-            print(f"  • Format: {format_type}")
-            print(
-                f"  • Content inclusion: {'Yes' if args.include_content else 'No (metadata only)'}"
-            )
-            print(f"  • Full content: {'Yes' if args.fetch_full_content else 'No'}")
-            print("══════════════════════════════════════════════════════════")
-
-        except Exception as e:
-            print(f"❌ Error searching Confluence: {e}", file=sys.stderr)
-            logger.error(f"Error in _handle_cql_search: {e}")
-
-    def _convert_to_markdown(self, content):
-        """Convert content to Markdown format."""
-        # Placeholder for Markdown conversion logic
-        return content
-
-
-# Extension loading functions
+# --- Extension Loading ---
 def load_ipython_extension(ipython):
-    """Register the magics with the IPython kernel."""
+    """Register the Confluence magics with the IPython runtime."""
     if not _IPYTHON_AVAILABLE:
         print("IPython not available. Cannot load Confluence extension.", file=sys.stderr)
+        return
+
+    if not _CONFLUENCE_AVAILABLE:
+        print("Confluence utilities not available. Cannot load Confluence extension.", file=sys.stderr)
         return
 
     try:
         # Create and register the magics class
         confluence_magics = ConfluenceMagics(ipython)
         ipython.register_magics(confluence_magics)
+        print("✅ Confluence Magics loaded. Use %confluence <space:page> to fetch pages.")
         logger.info("Confluence magics loaded successfully.")
     except Exception as e:
         logger.exception(f"Failed to load Confluence magics: {e}")

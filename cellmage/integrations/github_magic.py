@@ -7,11 +7,12 @@ to use as context in LLM prompts.
 
 import logging
 import sys
+import uuid
 from typing import Any, Dict, List, Optional, Union
 
 # IPython imports with fallback handling
 try:
-    from IPython.core.magic import Magics, line_magic, magics_class
+    from IPython.core.magic import line_magic, magics_class
     from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
 
     _IPYTHON_AVAILABLE = True
@@ -31,10 +32,8 @@ except ImportError:
     def argument(*args, **kwargs):
         return lambda func: func
 
-    class DummyMagics:
-        pass  # Dummy base class
-
-    Magics = DummyMagics  # Type alias for compatibility
+# Import the base magic class
+from .base_magic import BaseMagics, Magics
 
 # Create a global logger
 logger = logging.getLogger(__name__)
@@ -49,10 +48,11 @@ except ImportError:
 
 
 @magics_class
-class GitHubMagics(Magics):
+class GitHubMagics(BaseMagics):
     """IPython magic commands for fetching and using GitHub repositories and pull requests as context."""
 
     def __init__(self, shell):
+        """Initialize the GitHub magic utility."""
         if not _IPYTHON_AVAILABLE:
             logger.warning("IPython not found. GitHub magics are disabled.")
             return
@@ -60,13 +60,6 @@ class GitHubMagics(Magics):
         super().__init__(shell)
         self.github_utils = None
         self._init_github_client()
-
-    # Add placeholder for llm_magic to fix initialization error
-    @line_magic("llm")
-    def llm_magic(self, line):
-        """Placeholder for LLM magic command."""
-        print("LLM magic command is not implemented in GitHub magics")
-        pass
 
     def _init_github_client(self) -> None:
         """Initialize the GitHub client if possible."""
@@ -174,34 +167,48 @@ class GitHubMagics(Magics):
         self, content: str, source_type: str, source_id: str, as_system_msg: bool = False
     ) -> bool:
         """Add the content to the chat history as a user or system message."""
-        import uuid
+        return super()._add_to_history(
+            content=content,
+            source_type=source_type,
+            source_id=source_id,
+            source_name="github",
+            id_key="github_id",
+            as_system_msg=as_system_msg
+        )
 
-        from ..models import Message
+    def _find_messages_to_remove(
+        self, history: List, source_name: str, source_type: str, source_id: str, id_key: str
+    ) -> List[int]:
+        """
+        Find messages to remove from history based on GitHub-specific rules.
 
-        manager = self._get_chat_manager()
-        if not manager:
-            print("❌ ChatManager not available")
-            return False
+        For pull requests, we want to remove all pull requests from the same repository.
+        For other content types, we use exact matching.
+        """
+        indices_to_remove = []
 
-        try:
-            # Create message
-            role = "system" if as_system_msg else "user"
-            message = Message(
-                role=role,
-                content=content,
-                id=str(uuid.uuid4()),
-                metadata={"source": "github", "github_id": source_id, "type": source_type},
+        if source_type == "pull_request":
+            # For pull requests, extract the repository name from source_id
+            # Format is typically "repo_name#pr_number"
+            repo_name = source_id.split("#")[0] if "#" in source_id else source_id
+            
+            # Remove ANY pull request from the same repository
+            for i, msg in enumerate(history):
+                if (msg.metadata and 
+                    msg.metadata.get('source') == source_name and 
+                    msg.metadata.get('type') == 'pull_request' and
+                    msg.metadata.get(id_key, '').startswith(repo_name + "#")):
+                    indices_to_remove.append(i)
+            
+            if indices_to_remove:
+                logger.info(f"Found {len(indices_to_remove)} previous pull requests from repository {repo_name} to remove")
+        else:
+            # For other content types, use the standard exact match approach
+            indices_to_remove = super()._find_messages_to_remove(
+                history, source_name, source_type, source_id, id_key
             )
-
-            # Add to history
-            manager.history_manager.add_message(message)
-            print(f"✅ Added GitHub {source_type} {source_id} as {role} message to chat history")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error adding GitHub content to history: {e}")
-            print(f"❌ Error adding GitHub content to history: {e}")
-            return False
+                
+        return indices_to_remove
 
     @magic_arguments()
     @argument(
