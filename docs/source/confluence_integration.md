@@ -136,7 +136,7 @@ Given the Confluence page above, please summarize the key points.
 
 ### Basic Usage
 
-```python-repl
+```text
 # Fetch a specific page (already in Markdown format by default)
 %confluence DOCS:Project Overview
 
@@ -157,7 +157,7 @@ Based on the Project Overview page, what are the key milestones?
 
 ### Combining with Other Features
 
-```python-repl
+```text
 # Fetch project requirements from Confluence
 %confluence PROJ:Requirements --system
 
