@@ -6,7 +6,7 @@ This module provides a base class with common functionality for all magic comman
 
 import logging
 import uuid
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 try:
     from IPython.core.magic import Magics
@@ -17,6 +17,7 @@ except ImportError:
 
     class DummyMagics:
         """Dummy class when IPython is not available."""
+
         pass
 
     Magics = DummyMagics  # Type alias for compatibility
@@ -51,25 +52,28 @@ class BaseMagics(Magics):
         """Get the current execution context (exec_count and cell_id)."""
         context_provider = None
         try:
-            from ..context_providers.ipython_context_provider import get_ipython_context_provider
+            from ..context_providers.ipython_context_provider import (
+                get_ipython_context_provider,
+            )
+
             context_provider = get_ipython_context_provider()
         except Exception as e:
             logger.error(f"Could not get context provider: {e}")
-        
+
         exec_count, cell_id = (None, None)
         if context_provider:
             exec_count, cell_id = context_provider.get_execution_context()
-        
+
         return exec_count, cell_id
 
     def _add_to_history(
-        self, 
-        content: str, 
-        source_type: str, 
-        source_id: str, 
+        self,
+        content: str,
+        source_type: str,
+        source_id: str,
         source_name: str,
         id_key: str,
-        as_system_msg: bool = False
+        as_system_msg: bool = False,
     ) -> bool:
         """
         Add the content to the chat history as a user or system message.
@@ -91,32 +95,36 @@ class BaseMagics(Magics):
         if not manager:
             print("❌ Conversation manager not available")
             return False
-            
+
         try:
             # Get execution context to identify current cell
             exec_count, cell_id = self._get_execution_context()
-            
+
             # Find and remove any previous content from the same source
             if hasattr(manager, "history_manager"):
                 # Get current history
                 current_history = manager.history_manager.get_history()
-                
+
                 # Look for messages to remove based on their metadata
                 indices_to_remove = self._find_messages_to_remove(
                     current_history, source_name, source_type, source_id, id_key
                 )
-                
+
                 # If we found messages to remove
                 if indices_to_remove:
                     # Create a new history without those messages
-                    new_history = [msg for i, msg in enumerate(current_history) if i not in indices_to_remove]
-                    
+                    new_history = [
+                        msg for i, msg in enumerate(current_history) if i not in indices_to_remove
+                    ]
+
                     # Clear history and re-add the filtered messages
                     manager.history_manager.clear_history(keep_system=False)
                     for msg in new_history:
                         manager.history_manager.add_message(msg)
-                    
-                    logger.info(f"Removed {len(indices_to_remove)} previous {source_name} {source_type} messages")
+
+                    logger.info(
+                        f"Removed {len(indices_to_remove)} previous {source_name} {source_type} messages"
+                    )
 
             # Create message with execution context
             role = "system" if as_system_msg else "user"
@@ -132,7 +140,9 @@ class BaseMagics(Magics):
 
             # Add to history
             manager.history_manager.add_message(message)
-            print(f"✅ Added {source_name} {source_type} {source_id} as {role} message to chat history")
+            print(
+                f"✅ Added {source_name} {source_type} {source_id} as {role} message to chat history"
+            )
             return True
 
         except Exception as e:
@@ -141,37 +151,34 @@ class BaseMagics(Magics):
             return False
 
     def _find_messages_to_remove(
-        self, 
-        history: List, 
-        source_name: str, 
-        source_type: str, 
-        source_id: str,
-        id_key: str
+        self, history: List, source_name: str, source_type: str, source_id: str, id_key: str
     ) -> List[int]:
         """
         Find messages to remove from history based on source metadata.
-        
+
         This is a base implementation that should be overridden by subclasses
         for more specific removal strategies.
-        
+
         Args:
             history: The current message history
             source_name: Name of the source system
             source_type: Type of the content
             source_id: ID of the content
             id_key: Key used for the source ID in metadata
-            
+
         Returns:
             List of indices to remove
         """
         indices_to_remove = []
-        
+
         # Basic implementation: remove exact matches
         for i, msg in enumerate(history):
-            if (msg.metadata and 
-                msg.metadata.get('source') == source_name and 
-                msg.metadata.get('type') == source_type and
-                msg.metadata.get(id_key) == source_id):
+            if (
+                msg.metadata
+                and msg.metadata.get("source") == source_name
+                and msg.metadata.get("type") == source_type
+                and msg.metadata.get(id_key) == source_id
+            ):
                 indices_to_remove.append(i)
-                
+
         return indices_to_remove

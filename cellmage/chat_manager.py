@@ -382,7 +382,7 @@ class ChatManager:
                             msg.content[:50] + "..." if len(msg.content) > 50 else msg.content
                         )
                         self.logger.info(
-                            f"PERSONA DEBUG: Using system message {i+1} from history: '{content_sample}'"
+                            f"PERSONA DEBUG: Using system message {i + 1} from history: '{content_sample}'"
                         )
                 elif self._active_persona and self._active_persona.system_message:
                     system_message = Message(

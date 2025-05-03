@@ -6,8 +6,7 @@ This module provides IPython magic commands for interacting with Confluence wiki
 
 import logging
 import sys
-import uuid
-from typing import Any, Dict, List, Optional
+from typing import List
 
 # IPython imports with fallback handling
 try:
@@ -31,18 +30,18 @@ except ImportError:
     def argument(*args, **kwargs):
         return lambda func: func
 
+
 # Import the base magic class
-from .base_magic import BaseMagics, Magics
+from .base_magic import BaseMagics
 
 # Import Confluence utilities
 try:
-    from ..models import Message
     from ..utils.confluence_utils import (
         ConfluenceClient,
         fetch_confluence_content,
         search_confluence,
     )
-    
+
     _CONFLUENCE_AVAILABLE = True
 except ImportError:
     _CONFLUENCE_AVAILABLE = False
@@ -82,7 +81,7 @@ class ConfluenceMagics(BaseMagics):
             source_id=source_id,
             source_name="confluence",
             id_key="confluence_id",
-            as_system_msg=as_system_msg
+            as_system_msg=as_system_msg,
         )
 
     def _find_messages_to_remove(
@@ -99,27 +98,31 @@ class ConfluenceMagics(BaseMagics):
         if source_type == "page":
             # For pages, remove any previous page with the same identifier
             for i, msg in enumerate(history):
-                if (msg.metadata and 
-                    msg.metadata.get('source') == source_name and 
-                    msg.metadata.get('type') == 'page' and
-                    msg.metadata.get(id_key) == source_id):
+                if (
+                    msg.metadata
+                    and msg.metadata.get("source") == source_name
+                    and msg.metadata.get("type") == "page"
+                    and msg.metadata.get(id_key) == source_id
+                ):
                     indices_to_remove.append(i)
-        
+
         elif source_type == "search":
             # For search queries, remove all previous searches
             # This ensures fresh results replace old ones
             for i, msg in enumerate(history):
-                if (msg.metadata and 
-                    msg.metadata.get('source') == source_name and 
-                    msg.metadata.get('type') == 'search'):
+                if (
+                    msg.metadata
+                    and msg.metadata.get("source") == source_name
+                    and msg.metadata.get("type") == "search"
+                ):
                     indices_to_remove.append(i)
-        
+
         # For other types, use standard implementation
         else:
             indices_to_remove = super()._find_messages_to_remove(
                 history, source_name, source_type, source_id, id_key
             )
-                
+
         return indices_to_remove
 
     def _handle_page_fetch(self, args, client, manager):
@@ -292,7 +295,10 @@ class ConfluenceMagics(BaseMagics):
             return
 
         if not _CONFLUENCE_AVAILABLE:
-            print("❌ Confluence utilities not available. Please check your installation.", file=sys.stderr)
+            print(
+                "❌ Confluence utilities not available. Please check your installation.",
+                file=sys.stderr,
+            )
             return
 
         try:
@@ -351,7 +357,9 @@ def load_ipython_extension(ipython):
         return
 
     if not _CONFLUENCE_AVAILABLE:
-        print("Confluence utilities not available. Cannot load Confluence extension.", file=sys.stderr)
+        print(
+            "Confluence utilities not available. Cannot load Confluence extension.", file=sys.stderr
+        )
         return
 
     try:

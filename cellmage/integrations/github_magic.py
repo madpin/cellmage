@@ -7,7 +7,6 @@ to use as context in LLM prompts.
 
 import logging
 import sys
-import uuid
 from typing import Any, Dict, List, Optional, Union
 
 # IPython imports with fallback handling
@@ -32,8 +31,9 @@ except ImportError:
     def argument(*args, **kwargs):
         return lambda func: func
 
+
 # Import the base magic class
-from .base_magic import BaseMagics, Magics
+from .base_magic import BaseMagics
 
 # Create a global logger
 logger = logging.getLogger(__name__)
@@ -173,7 +173,7 @@ class GitHubMagics(BaseMagics):
             source_id=source_id,
             source_name="github",
             id_key="github_id",
-            as_system_msg=as_system_msg
+            as_system_msg=as_system_msg,
         )
 
     def _find_messages_to_remove(
@@ -191,23 +191,27 @@ class GitHubMagics(BaseMagics):
             # For pull requests, extract the repository name from source_id
             # Format is typically "repo_name#pr_number"
             repo_name = source_id.split("#")[0] if "#" in source_id else source_id
-            
+
             # Remove ANY pull request from the same repository
             for i, msg in enumerate(history):
-                if (msg.metadata and 
-                    msg.metadata.get('source') == source_name and 
-                    msg.metadata.get('type') == 'pull_request' and
-                    msg.metadata.get(id_key, '').startswith(repo_name + "#")):
+                if (
+                    msg.metadata
+                    and msg.metadata.get("source") == source_name
+                    and msg.metadata.get("type") == "pull_request"
+                    and msg.metadata.get(id_key, "").startswith(repo_name + "#")
+                ):
                     indices_to_remove.append(i)
-            
+
             if indices_to_remove:
-                logger.info(f"Found {len(indices_to_remove)} previous pull requests from repository {repo_name} to remove")
+                logger.info(
+                    f"Found {len(indices_to_remove)} previous pull requests from repository {repo_name} to remove"
+                )
         else:
             # For other content types, use the standard exact match approach
             indices_to_remove = super()._find_messages_to_remove(
                 history, source_name, source_type, source_id, id_key
             )
-                
+
         return indices_to_remove
 
     @magic_arguments()

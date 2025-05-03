@@ -84,7 +84,7 @@ def main():
         preview = (
             msg.content.replace("\n", " ")[:50] + "..." if len(msg.content) > 50 else msg.content
         )
-        print(f"  {i+1}. [{msg.role.upper()}] {preview}")
+        print(f"  {i + 1}. [{msg.role.upper()}] {preview}")
 
     # Example 2: Save and create a new conversation
     print_section_header("Example 2: Creating a New Conversation")
@@ -128,7 +128,7 @@ def main():
             datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M") if timestamp else "unknown"
         )
 
-        print(f"  {i+1}. {name} (ID: {id_preview})")
+        print(f"  {i + 1}. {name} (ID: {id_preview})")
         print(f"     Date: {date_str}")
         print(f"     Messages: {msg_count}")
         if "model_name" in conv and conv["model_name"]:
@@ -150,7 +150,7 @@ def main():
                 preview = msg.content.replace("\n", " ")[:50]
                 if len(msg.content) > 50:
                     preview += "..."
-                print(f"  {i+1}. [{msg.role.upper()}] {preview}")
+                print(f"  {i + 1}. [{msg.role.upper()}] {preview}")
         else:
             print(f"Failed to load conversation {first_conv_id}")
     else:
@@ -186,7 +186,7 @@ def main():
     if results:
         for i, conv in enumerate(results):
             print(
-                f"  {i+1}. {conv.get('name', 'Unnamed')} (ID: {conv.get('id', 'unknown')[:8]}...)"
+                f"  {i + 1}. {conv.get('name', 'Unnamed')} (ID: {conv.get('id', 'unknown')[:8]}...)"
             )
             print(f"     Messages: {conv.get('message_count', 0)}")
             print(f"     Match: {conv.get('match_context', 'No context')}")

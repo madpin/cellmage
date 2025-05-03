@@ -6,7 +6,6 @@ This module provides magic commands for fetching Jira tickets and using them as 
 
 import logging
 import sys
-import uuid
 from typing import Any, Dict, List, Optional
 
 # IPython imports with fallback handling
@@ -31,8 +30,9 @@ except ImportError:
     def argument(*args, **kwargs):
         return lambda func: func
 
+
 # Import the base magic class
-from .base_magic import BaseMagics, Magics
+from .base_magic import BaseMagics
 
 # Create a global logger
 logger = logging.getLogger(__name__)
@@ -279,7 +279,7 @@ class JiraMagics(BaseMagics):
             source_id=source_id,
             source_name="jira",
             id_key="jira_id",
-            as_system_msg=as_system_msg
+            as_system_msg=as_system_msg,
         )
 
     def _find_messages_to_remove(
@@ -296,27 +296,31 @@ class JiraMagics(BaseMagics):
         if source_type == "ticket":
             # For tickets, remove any previous ticket with the same ID
             for i, msg in enumerate(history):
-                if (msg.metadata and 
-                    msg.metadata.get('source') == source_name and 
-                    msg.metadata.get('type') == 'ticket' and
-                    msg.metadata.get(id_key) == source_id):
+                if (
+                    msg.metadata
+                    and msg.metadata.get("source") == source_name
+                    and msg.metadata.get("type") == "ticket"
+                    and msg.metadata.get(id_key) == source_id
+                ):
                     indices_to_remove.append(i)
-        
+
         elif source_type == "search":
             # For search results, remove all previous JQL search results
             # This ensures fresh results replace old ones
             for i, msg in enumerate(history):
-                if (msg.metadata and 
-                    msg.metadata.get('source') == source_name and 
-                    msg.metadata.get('type') == 'search'):
+                if (
+                    msg.metadata
+                    and msg.metadata.get("source") == source_name
+                    and msg.metadata.get("type") == "search"
+                ):
                     indices_to_remove.append(i)
-        
+
         # For other types, use the standard approach
         else:
             indices_to_remove = super()._find_messages_to_remove(
                 history, source_name, source_type, source_id, id_key
             )
-                
+
         return indices_to_remove
 
     @magic_arguments()

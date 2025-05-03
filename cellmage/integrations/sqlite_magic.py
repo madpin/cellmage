@@ -5,12 +5,9 @@ This module provides magic commands for using CellMage with SQLite storage in IP
 """
 
 import logging
-import os
 import sys
 import time
-import uuid
-from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import List, Optional
 
 # IPython imports with fallback handling
 try:
@@ -37,8 +34,9 @@ except ImportError:
     def argument(*args, **kwargs):
         return lambda func: func
 
+
 # Import the base magic class
-from .base_magic import BaseMagics, Magics
+from .base_magic import BaseMagics
 
 # Create a global logger
 logger = logging.getLogger(__name__)
@@ -47,11 +45,12 @@ logger = logging.getLogger(__name__)
 try:
     from ..ambient_mode import disable_ambient_mode, is_ambient_mode_enabled
     from ..chat_manager import ChatManager
-    from ..context_providers.ipython_context_provider import get_ipython_context_provider
+    from ..context_providers.ipython_context_provider import (
+        get_ipython_context_provider,
+    )
     from ..conversation_manager import ConversationManager
     from ..magic_commands import history, persistence
-    from ..models import Message
-    
+
     _SQLITE_AVAILABLE = True
 except ImportError:
     _SQLITE_AVAILABLE = False
@@ -132,7 +131,7 @@ class SQLiteCellMagics(BaseMagics):
                 file=sys.stderr,
             )
             return None
-            
+
     def _add_to_history(
         self, content: str, source_type: str, source_id: str, as_system_msg: bool = False
     ) -> bool:
@@ -143,27 +142,29 @@ class SQLiteCellMagics(BaseMagics):
             source_id=source_id,
             source_name="sqlite",
             id_key="sqlite_id",
-            as_system_msg=as_system_msg
+            as_system_msg=as_system_msg,
         )
-        
+
     def _find_messages_to_remove(
         self, history: List, source_name: str, source_type: str, source_id: str, id_key: str
     ) -> List[int]:
         """
         Find messages to remove from history based on SQLite-specific rules.
-        
+
         Remove previous messages with the same source type and ID.
         """
         indices_to_remove = []
-        
+
         # Match by source type and ID
         for i, msg in enumerate(history):
-            if (msg.metadata and 
-                msg.metadata.get('source') == source_name and 
-                msg.metadata.get('type') == source_type and
-                msg.metadata.get(id_key) == source_id):
+            if (
+                msg.metadata
+                and msg.metadata.get("source") == source_name
+                and msg.metadata.get("type") == source_type
+                and msg.metadata.get(id_key) == source_id
+            ):
                 indices_to_remove.append(i)
-        
+
         return indices_to_remove
 
     def _show_status(self) -> None:
@@ -231,7 +232,7 @@ class SQLiteCellMagics(BaseMagics):
         try:
             # Get execution context for cell identification
             exec_count, cell_id = context_provider.get_execution_context()
-            
+
             # Check for cell rerun and perform rollback if needed
             manager.perform_rollback(cell_id)
 
@@ -266,22 +267,24 @@ class SQLiteCellMagics(BaseMagics):
 
                 # Add assistant message with the extracted metadata
                 response_id = f"ambient_response_{cell_id}_{exec_count}"
-                
+
                 # Store the response content with metadata
                 assistant_content = result
-                
+
                 # Add assistant message using _add_to_history
                 self._add_to_history(
-                    assistant_content, 
-                    "ambient_response", 
-                    response_id, 
-                    as_system_msg=False
+                    assistant_content, "ambient_response", response_id, as_system_msg=False
                 )
-                
+
                 # Update the metadata directly for the message we just added
                 if metadata:
                     for msg in reversed(manager.messages):
-                        if msg.role == "assistant" and msg.metadata and msg.metadata.get("source") == "sqlite" and msg.metadata.get("sqlite_id") == response_id:
+                        if (
+                            msg.role == "assistant"
+                            and msg.metadata
+                            and msg.metadata.get("source") == "sqlite"
+                            and msg.metadata.get("sqlite_id") == response_id
+                        ):
                             msg.metadata.update(metadata)
                             break
 
@@ -423,7 +426,8 @@ class SQLiteCellMagics(BaseMagics):
 
             # If original model was overridden, restore it
             if (
-                hasattr(args, "model") and args.model
+                hasattr(args, "model")
+                and args.model
                 and chat_manager.llm_client
                 and hasattr(chat_manager.llm_client, "set_override")
             ):
@@ -450,17 +454,17 @@ class SQLiteCellMagics(BaseMagics):
 
                 # Add assistant message with the result using _add_to_history
                 response_id = f"response_{cell_id}_{exec_count}"
-                self._add_to_history(
-                    result, 
-                    "response", 
-                    response_id, 
-                    as_system_msg=False
-                )
-                
+                self._add_to_history(result, "response", response_id, as_system_msg=False)
+
                 # Update the metadata directly for the message we just added
                 if metadata:
                     for msg in reversed(manager.messages):
-                        if msg.role == "assistant" and msg.metadata and msg.metadata.get("source") == "sqlite" and msg.metadata.get("sqlite_id") == response_id:
+                        if (
+                            msg.role == "assistant"
+                            and msg.metadata
+                            and msg.metadata.get("source") == "sqlite"
+                            and msg.metadata.get("sqlite_id") == response_id
+                        ):
                             msg.metadata.update(metadata)
                             break
 
@@ -481,7 +485,8 @@ class SQLiteCellMagics(BaseMagics):
 
             # Make sure to restore model override even on error
             if (
-                hasattr(args, "model") and args.model
+                hasattr(args, "model")
+                and args.model
                 and chat_manager.llm_client
                 and hasattr(chat_manager.llm_client, "set_override")
             ):
@@ -524,9 +529,11 @@ def load_ipython_extension(ipython):
     if not _IPYTHON_AVAILABLE:
         print("IPython is not available. Cannot load extension.", file=sys.stderr)
         return
-        
+
     if not _SQLITE_AVAILABLE:
-        print("SQLite storage components are not available. Cannot load extension.", file=sys.stderr)
+        print(
+            "SQLite storage components are not available. Cannot load extension.", file=sys.stderr
+        )
         return
 
     try:
