@@ -1265,6 +1265,13 @@ class NotebookLLMMagics(Magics):
         except Exception:
             print("    • GitHub: ❓ Unknown")
 
+        # Check for Confluence integration
+        try:
+            confluence_available = "cellmage.integrations.confluence_magic" in sys.modules
+            print(f"    • Confluence: {'✅ Loaded' if confluence_available else '❌ Not loaded'}")
+        except Exception:
+            print("    • Confluence: ❓ Unknown")
+
         # Show environment/config file paths
         print("──────────────────────────────────────────────────────────")
         print("  📁 Configuration")

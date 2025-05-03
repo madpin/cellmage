@@ -15,6 +15,7 @@ class Message(BaseModel):
     execution_count: Optional[int] = None  # Environment-specific metadata
     cell_id: Optional[str] = None  # Environment-specific metadata
     is_snippet: bool = False  # Whether this message was added from a snippet
+    is_confluence: bool = False  # Whether this message was added from Confluence
     metadata: Dict[str, Any] = Field(
         default_factory=dict
     )  # Store information like model, tokens, etc.

@@ -26,6 +26,7 @@ It's designed for **data scientists, software engineers, researchers, and studen
 *   **🏷️ Model Mapping:** Use short aliases (like `g4o`) for full model names (`gpt-4o`).
 *   **📊 Status & Cost Tracking:** Get immediate feedback on prompt execution time, token usage, and estimated cost.
 *   **🔄 Jira Integration:** Fetch Jira tickets directly into your notebook to use as context for your LLM queries.
+*   **📝 Confluence Wiki Integration:** Import wiki pages directly into your notebook to use as context for your LLM prompts.
 *   **🦊 GitLab Integration:** Import repositories and merge requests as context for your LLM prompts, with token size estimates.
 *   **🐱 GitHub Integration:** Import repositories and pull requests as context for your LLM prompts, with token size estimates.
 
@@ -57,6 +58,12 @@ pip install "cellmage[jira]"
 
 ```bash
 pip install "cellmage[gitlab]"
+```
+
+*(Optional)* For Confluence integration:
+
+```bash
+pip install "cellmage[confluence]"
 ```
 
 *(Optional)* For all features:
@@ -372,7 +379,53 @@ Fetch GitHub repositories and pull requests directly into your notebook using th
     Based on the GitHub repository above, can you analyze the code architecture and suggest improvements?
     ```
 
-### 9. SQLite Storage
+### 9. Confluence Wiki Integration
+
+Connect your notebooks directly to Confluence wiki content using the `%confluence` magic command.
+
+*   **Installation:**
+    ```bash
+    pip install "cellmage[confluence]"
+    ```
+
+*   **Configuration:**
+    Set these environment variables in a `.env` file or your environment:
+    ```
+    CONFLUENCE_URL=https://your-company.atlassian.net
+    # Confluence uses Jira credentials
+    JIRA_USER_EMAIL=your.email@company.com
+    JIRA_API_TOKEN=your_jira_api_token
+    ```
+
+*   **Basic Usage:**
+    ```python
+    # Fetch a page by space key and title (handles spaces in title correctly)
+    %confluence SPACE:Page Title
+
+    # Fetch a page by its ID
+    %confluence 123456789
+
+    # Fetch a page and add as system context
+    %confluence SPACE:Page Title --system
+
+    # Just display a page without adding to history
+    %confluence SPACE:Page Title --show
+
+    # Use CQL (Confluence Query Language) to fetch multiple pages
+    %confluence --cql "space = SPACE AND title ~ 'Search Term'" --max 5
+    ```
+
+*   **Using with LLM Queries:**
+    ```python
+    # First, fetch the wiki page
+    %confluence SPACE:Project Documentation
+
+    # Then, reference it in your prompt
+    %%llm
+    Based on the Confluence page above, what are the key requirements for this project?
+    ```
+
+### 10. SQLite Storage
 
 CellMage now uses SQLite as the default storage backend for improved performance and reliability:
 

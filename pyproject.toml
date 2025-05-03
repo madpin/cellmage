@@ -60,6 +60,10 @@ langchain = [
     "langchain-community>=0.1.20",
     "langchain-openai>=0.0.8"
 ]
+confluence = [
+    "atlassian-python-api>=3.32.0",
+    "python-dotenv>=1.0.0"
+]
 jira = [
     "jira>=3.5.0",
     "python-dotenv>=1.0.0"
@@ -95,7 +99,7 @@ dev = [
     "packaging"
 ]
 all = [
-    "cellmage[langchain,jira,gitlab,github]"
+    "cellmage[langchain,jira,gitlab,github,confluence]"
 ]
 
 [tool.setuptools.packages.find]

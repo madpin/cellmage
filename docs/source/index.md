@@ -12,6 +12,7 @@ sqlite_storage
 jira_integration
 gitlab_integration
 github_integration
+confluence_integration
 ```
 
 ```{toctree}
