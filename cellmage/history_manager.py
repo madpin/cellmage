@@ -1,7 +1,7 @@
 import logging
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, ClassVar
 
 from .interfaces import ContextProvider, HistoryStore
 from .models import ConversationMetadata, Message
@@ -18,6 +18,22 @@ class HistoryManager:
     - Handles automatic rollback when cells are re-executed
     - Saves and loads conversations
     """
+    
+    # Class variable to track the singleton instance
+    _instance: ClassVar[Optional['HistoryManager']] = None
+    
+    # Class variable to persist history across instances
+    _global_history: ClassVar[List[Message]] = []
+
+    def __new__(cls, *args, **kwargs):
+        """
+        Implement singleton pattern to ensure history is preserved across multiple
+        instantiations in the same Python process.
+        """
+        if cls._instance is None:
+            cls._instance = super(HistoryManager, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
 
     def __init__(
         self,
@@ -31,12 +47,31 @@ class HistoryManager:
             history_store: Optional store for saving/loading conversations
             context_provider: Optional provider for execution context
         """
+        # Only initialize once due to singleton pattern
+        if getattr(self, '_initialized', False):
+            # Update providers if they've changed
+            if history_store is not None:
+                self.history_store = history_store
+            if context_provider is not None:
+                self.context_provider = context_provider
+            return
+            
         self.logger = logging.getLogger(__name__)
-        self.history: List[Message] = []
+        
+        # Use the class-level global history to persist across instances
+        if not HistoryManager._global_history:
+            self.history = []
+            HistoryManager._global_history = self.history
+        else:
+            self.history = HistoryManager._global_history
+            self.logger.debug(f"Using existing history with {len(self.history)} messages")
+            
         self.cell_last_history_index: Dict[str, int] = {}
         self.history_store = history_store
         self.context_provider = context_provider
         self.current_save_path: Optional[str] = None
+        self._initialized = True
+        self.logger.debug("HistoryManager initialized with singleton pattern")
 
     def add_message(self, message: Message) -> None:
         """
@@ -58,6 +93,11 @@ class HistoryManager:
 
         # Add the message to history
         self.history.append(message)
+        
+        # Ensure the class-level history is updated
+        if HistoryManager._global_history is not self.history:
+            HistoryManager._global_history = self.history
+            self.logger.debug("Updated global history reference")
 
         # Update cell tracking if we have a cell ID
         if message.cell_id:
@@ -69,6 +109,7 @@ class HistoryManager:
 
         # Clear current save path since history has changed
         self.current_save_path = None
+        self.logger.debug(f"History now has {len(self.history)} messages")
 
     def perform_rollback(self, cell_id: Optional[str] = None) -> bool:
         """
@@ -129,13 +170,47 @@ class HistoryManager:
 
         return False
 
-    def get_history(self) -> List[Message]:
+    def get_history(self, include_all=True) -> List[Message]:
         """
         Get a copy of the current history.
 
+        Args:
+            include_all: Whether to include all messages (including system messages and
+                         integration-generated messages). Should always be True.
+                         Parameter is kept for backward compatibility.
+        
         Returns:
-            A copy of the history list
+            A copy of the complete history list with all messages
         """
+        # Always return the complete history without any filtering
+        # Debug any possibility of empty history
+        if not self.history:
+            self.logger.debug("get_history: History list is empty")
+        else:
+            # Log sources and roles for debugging
+            sources = {}
+            roles = {}
+            
+            for msg in self.history:
+                # Count by role
+                roles[msg.role] = roles.get(msg.role, 0) + 1
+                
+                # Count integration sources
+                if msg.metadata and "source" in msg.metadata:
+                    source = msg.metadata.get("source")
+                    if source:
+                        sources[source] = sources.get(source, 0) + 1
+            
+            self.logger.debug(f"get_history: Returning {len(self.history)} messages")
+            self.logger.debug(f"get_history: Roles breakdown: {roles}")
+            
+            if sources:
+                self.logger.debug(f"get_history: Integration sources: {sources}")
+
+        # Add extra debug info
+        self.logger.debug(f"Memory ID of history list: {id(self.history)}")
+        self.logger.debug(f"History state at retrieval: {[m.role for m in self.history]}")
+        
         return self.history.copy()
 
     def clear_history(self, keep_system: bool = True) -> None:

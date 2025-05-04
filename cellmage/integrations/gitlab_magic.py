@@ -321,7 +321,7 @@ class GitLabMagics(BaseMagics):
 
             if args.mr:
                 # Fetch merge request
-                print(f"Fetching merge request {args.mr} from repository: {cleaned_repo}")
+                logger.debug(f"Fetching merge request {args.mr} from repository: {cleaned_repo}")
                 mr_data = self._fetch_merge_request(cleaned_repo, args.mr)
 
                 if not mr_data:
