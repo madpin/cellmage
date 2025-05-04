@@ -5,9 +5,10 @@ This module provides the history management and persistence commands for CellMag
 """
 
 import logging
+import os
+from pathlib import Path
 from typing import Any, Dict, List
 
-from ..chat_manager import ChatManager
 from ..conversation_manager import ConversationManager
 from ..exceptions import PersistenceError, ResourceNotFoundError
 
@@ -15,13 +16,13 @@ from ..exceptions import PersistenceError, ResourceNotFoundError
 logger = logging.getLogger(__name__)
 
 
-def handle_history_commands(args, manager: ChatManager) -> bool:
+def handle_history_commands(args, manager: ConversationManager) -> bool:
     """
     Handle history-related arguments.
 
     Args:
         args: The parsed argument namespace
-        manager: Chat manager instance
+        manager: Conversation manager instance
 
     Returns:
         True if any action was taken, False otherwise
@@ -30,12 +31,12 @@ def handle_history_commands(args, manager: ChatManager) -> bool:
 
     if args.clear_history:
         action_taken = True
-        manager.clear_history()
+        manager.clear_messages()
         print("✅ Chat history cleared.")
 
     if args.show_history:
         action_taken = True
-        history = manager.get_history()
+        history = manager.get_messages()
 
         # Calculate total tokens for all messages
         total_tokens_in = 0
@@ -153,13 +154,13 @@ def handle_history_commands(args, manager: ChatManager) -> bool:
     return action_taken
 
 
-def handle_persistence_commands(args, manager: ChatManager) -> bool:
+def handle_persistence_commands(args, manager: ConversationManager) -> bool:
     """
     Handle persistence-related arguments.
 
     Args:
         args: The parsed argument namespace
-        manager: Chat manager instance
+        manager: Conversation manager instance
 
     Returns:
         True if any action was taken, False otherwise
@@ -169,25 +170,8 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
     if args.list_sessions:
         action_taken = True
         try:
-            # Check which method is available for listing sessions
-            sessions = []
-            method_used = None
-
-            if hasattr(manager, "list_saved_sessions"):
-                sessions = manager.list_saved_sessions()
-                method_used = "list_saved_sessions"
-            elif hasattr(manager, "list_conversations"):
-                sessions = manager.list_conversations()
-                method_used = "list_conversations"
-            elif hasattr(manager, "history_manager") and hasattr(
-                manager.history_manager, "list_saved_conversations"
-            ):
-                sessions = manager.history_manager.list_saved_conversations()
-                method_used = "history_manager.list_saved_conversations"
-            else:
-                raise AttributeError(
-                    "No method found for listing sessions. Make sure a conversations directory exists."
-                )
+            # Get list of conversations
+            sessions = manager.list_conversations()
 
             # Format the output in a user-friendly way
             print("══════════════════════════════════════════════════════════")
@@ -207,7 +191,7 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
                 print("  Use: %llm_config --save SESSION_NAME to save the current conversation")
 
             print("══════════════════════════════════════════════════════════")
-            logger.debug(f"Listed {len(sessions)} sessions using {method_used}")
+            logger.debug(f"Listed {len(sessions)} sessions")
         except Exception as e:
             print(f"❌ Error listing saved sessions: {e}")
             if hasattr(manager, "settings") and hasattr(manager.settings, "conversations_dir"):
@@ -267,56 +251,39 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
     if args.load:
         action_taken = True
         try:
-            # Check which method is available for loading sessions
+            # Load the conversation
             session_id = args.load
 
             print("══════════════════════════════════════════════════════════")
             print(f"  📂 Loading Session: {session_id}")
             print("══════════════════════════════════════════════════════════")
 
-            if hasattr(manager, "load_session"):
-                manager.load_session(session_id)
-                method = "load_session"
-            elif hasattr(manager, "load_conversation"):
-                manager.load_conversation(session_id)
-                method = "load_conversation"
-            elif hasattr(manager, "history_manager") and hasattr(
-                manager.history_manager, "load_conversation"
-            ):
-                manager.history_manager.load_conversation(session_id)
-                method = "history_manager.load_conversation"
+            success = manager.load_conversation(session_id)
+
+            # Get history length after loading
+            if success:
+                messages = manager.get_messages()
+                print(f"  ✅ Session loaded successfully")
+                print(f"  • Messages: {len(messages)}")
+                print("══════════════════════════════════════════════════════════")
             else:
-                raise AttributeError("No method found for loading sessions")
-
-            # Try to get history length after loading
-            try:
-                history = manager.get_history()
-                print(f"  ✅ Session loaded successfully using '{method}'")
-                print(f"  • Messages: {len(history)}")
-            except Exception:
-                print(f"  ✅ Session loaded successfully using '{method}'")
-
-            print("══════════════════════════════════════════════════════════")
+                print(f"  ❌ Failed to load session: {session_id}")
+                print("══════════════════════════════════════════════════════════")
 
         except ResourceNotFoundError:
             print(f"  ❌ Session '{session_id}' not found.")
             # Try to list available sessions for user convenience
-            if hasattr(manager, "list_saved_sessions") or hasattr(manager, "list_conversations"):
+            try:
+                sessions = manager.list_conversations()
                 print("  Available sessions:")
-                try:
-                    if hasattr(manager, "list_saved_sessions"):
-                        sessions = manager.list_saved_sessions()
-                    elif hasattr(manager, "list_conversations"):
-                        sessions = manager.list_conversations()
-
-                    # Show up to 5 available sessions
-                    if sessions:
-                        for i, session in enumerate(sorted(sessions)[:5]):
-                            print(f"  • {session}")
-                        if len(sessions) > 5:
-                            print(f"  • ... and {len(sessions) - 5} more")
-                except Exception:
-                    pass
+                # Show up to 5 available sessions
+                if sessions:
+                    for i, session in enumerate(sorted(sessions)[:5]):
+                        print(f"  • {session}")
+                    if len(sessions) > 5:
+                        print(f"  • ... and {len(sessions) - 5} more")
+            except Exception:
+                pass
             print("══════════════════════════════════════════════════════════")
         except PersistenceError as e:
             print(f"  ❌ Error loading session: {e}")
@@ -329,8 +296,6 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
     if args.save:
         action_taken = True
         try:
-            from pathlib import Path
-
             print("══════════════════════════════════════════════════════════")
             print("  💾 Saving Session")
             print("══════════════════════════════════════════════════════════")
@@ -340,20 +305,8 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
             if filename is not None:
                 print(f"  • Name: {filename}")
 
-            # Check which method is available for saving sessions
-            if hasattr(manager, "save_session"):
-                save_path = manager.save_session(identifier=filename)
-                method = "save_session"
-            elif hasattr(manager, "save_conversation"):
-                save_path = manager.save_conversation(filename)
-                method = "save_conversation"
-            elif hasattr(manager, "history_manager") and hasattr(
-                manager.history_manager, "save_conversation"
-            ):
-                save_path = manager.history_manager.save_conversation(filename)
-                method = "history_manager.save_conversation"
-            else:
-                raise AttributeError("No method found for saving sessions")
+            # Save the conversation
+            save_path = manager.save_conversation(filename)
 
             # Make the path more user-friendly by showing relative path if inside conversations_dir
             try:
@@ -372,7 +325,7 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
                 # Fallback to just the filename if the above fails
                 display_path = Path(save_path).name
 
-            print(f"  ✅ Session saved successfully using '{method}'")
+            print(f"  ✅ Session saved successfully")
             print(f"  • Path: {display_path}")
             print("══════════════════════════════════════════════════════════")
 
@@ -393,28 +346,6 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
             print("══════════════════════════════════════════════════════════")
 
     return action_taken
-
-
-def convert_to_conversation_manager(manager: ChatManager) -> ConversationManager:
-    """
-    Convert a ChatManager to use a ConversationManager for SQLite-based storage.
-
-    Args:
-        manager: Chat manager instance
-
-    Returns:
-        ConversationManager instance with data from ChatManager
-    """
-    # Create new conversation manager
-    conversation_manager = ConversationManager(context_provider=manager.context_provider)
-
-    # Copy messages from the chat manager's history
-    if hasattr(manager, "history_manager") and hasattr(manager.history_manager, "get_history"):
-        messages = manager.history_manager.get_history()
-        for msg in messages:
-            conversation_manager.add_message(msg)
-
-    return conversation_manager
 
 
 def get_conversation_statistics(conversation_manager: ConversationManager) -> Dict[str, Any]:

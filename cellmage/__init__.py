@@ -10,13 +10,13 @@ import logging
 import os
 from typing import Optional
 
-from .chat_manager import ChatManager
+# Remove direct import of ChatManager
 from .config import settings  # Import settings object instead of non-existent functions
 
 # Main managers
 from .conversation_manager import ConversationManager
 from .exceptions import ConfigurationError, PersistenceError, ResourceNotFoundError
-from .history_manager import HistoryManager
+# Removed import of HistoryManager which has been deprecated
 
 # Core components
 from .models import Message
@@ -42,32 +42,105 @@ def get_default_conversation_manager() -> ConversationManager:
     Returns a default conversation manager, using SQLite storage.
 
     This is the preferred way to get a conversation manager as it
-    ensures that SQLite storage is used by default.
+    ensures that SQLite storage is used by default and includes
+    all necessary components for LLM interaction.
+    
+    Returns:
+        A fully configured ConversationManager instance
     """
     from .context_providers.ipython_context_provider import get_ipython_context_provider
 
-    # Default to SQLite storage unless explicitly disabled
-    use_file_storage = os.environ.get("CELLMAGE_USE_FILE_STORAGE", "0") == "1"
-
-    if not use_file_storage:
-        try:
-            # Create SQLite-backed conversation manager
-            context_provider = get_ipython_context_provider()
-            manager = ConversationManager(
-                context_provider=context_provider,
-                storage_type="sqlite",  # Explicitly request SQLite storage
-            )
-            logger.info("Created default SQLite-backed conversation manager")
-            return manager
-        except Exception as e:
-            logger.warning(f"Failed to create SQLite conversation manager: {e}")
-            logger.warning("Falling back to memory-based storage")
-
-    # Fallback to memory-based storage
+    # Initialize components
     context_provider = get_ipython_context_provider()
-    manager = ConversationManager(context_provider=context_provider)
-    logger.info("Created memory-backed conversation manager (fallback)")
-    return manager
+    
+    # Determine which adapter to use
+    adapter_type = os.environ.get("CELLMAGE_ADAPTER", "direct").lower()
+    logger.info(f"Initializing default ConversationManager with adapter type: {adapter_type}")
+
+    # Create default dependencies
+    try:
+        from .resources.file_loader import FileLoader
+        loader = FileLoader(settings.personas_dir, settings.snippets_dir)
+        
+        # Initialize the appropriate LLM client adapter
+        from .interfaces import LLMClientInterface
+        llm_client = None
+
+        if adapter_type == "langchain":
+            try:
+                from .adapters.langchain_client import LangChainAdapter
+                llm_client = LangChainAdapter(default_model=settings.default_model)
+                logger.info("Using LangChain adapter")
+            except ImportError:
+                # Fall back to Direct adapter if LangChain is not available
+                logger.warning(
+                    "LangChain adapter requested but not available. Falling back to Direct adapter."
+                )
+                from .adapters.direct_client import DirectLLMAdapter
+                llm_client = DirectLLMAdapter(default_model=settings.default_model)
+        else:
+            # Default case: use Direct adapter
+            from .adapters.direct_client import DirectLLMAdapter
+            llm_client = DirectLLMAdapter(default_model=settings.default_model)
+            logger.info("Using Direct adapter")
+        
+        # Default to SQLite storage unless explicitly disabled
+        use_file_storage = os.environ.get("CELLMAGE_USE_FILE_STORAGE", "0") == "1"
+
+        if not use_file_storage:
+            try:
+                # Create SQLite-backed conversation manager with all components
+                manager = ConversationManager(
+                    context_provider=context_provider,
+                    storage_type="sqlite",  # Explicitly request SQLite storage
+                    settings=settings,
+                    llm_client=llm_client,
+                    persona_loader=loader,
+                    snippet_provider=loader,
+                )
+                logger.info("Created default SQLite-backed conversation manager with LLM capabilities")
+                return manager
+            except Exception as e:
+                logger.warning(f"Failed to create SQLite conversation manager: {e}")
+                logger.warning("Falling back to memory-based storage")
+
+        # Fallback to memory-based storage, but still with LLM capabilities
+        manager = ConversationManager(
+            context_provider=context_provider,
+            storage_type="memory",
+            settings=settings,
+            llm_client=llm_client,
+            persona_loader=loader,
+            snippet_provider=loader,
+        )
+        logger.info("Created memory-backed conversation manager with LLM capabilities (fallback)")
+        return manager
+    except Exception as e:
+        # Last resort: create minimal conversation manager
+        logger.error(f"Failed to initialize full ConversationManager: {e}")
+        logger.warning("Creating minimal conversation manager without LLM capabilities")
+        return ConversationManager(context_provider=context_provider)
+
+
+def get_default_manager() -> ConversationManager:
+    """
+    Returns a default manager instance (backward compatibility function).
+    
+    This function now returns a ConversationManager instance but maintains
+    the same function name for backward compatibility with code that
+    previously used ChatManager.
+    
+    Returns:
+        A fully configured ConversationManager instance
+    """
+    import warnings
+    warnings.warn(
+        "get_default_manager() is deprecated and will be removed in a future version. "
+        "Use get_default_conversation_manager() instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return get_default_conversation_manager()
 
 
 # This function ensures backwards compatibility

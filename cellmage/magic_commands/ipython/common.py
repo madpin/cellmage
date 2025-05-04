@@ -22,7 +22,7 @@ except ImportError:
 
     Magics = DummyMagics  # Type alias for compatibility
 
-from ...chat_manager import ChatManager
+from ...conversation_manager import ConversationManager
 from ...context_providers.ipython_context_provider import get_ipython_context_provider
 
 # Project imports
@@ -32,12 +32,12 @@ from ...integrations.base_magic import BaseMagics
 logger = logging.getLogger(__name__)
 
 # --- Global Instance Management ---
-_chat_manager_instance: Optional[ChatManager] = None
+_conversation_manager_instance: Optional[ConversationManager] = None
 _initialization_error: Optional[Exception] = None
 
 
-def _init_default_manager() -> ChatManager:
-    """Initializes the default ChatManager instance using default components."""
+def _init_default_manager() -> ConversationManager:
+    """Initializes the default ConversationManager instance using default components."""
     global _initialization_error
     try:
         # Import necessary components dynamically only if needed
@@ -48,7 +48,7 @@ def _init_default_manager() -> ChatManager:
         # Determine which adapter to use
         adapter_type = os.environ.get("CELLMAGE_ADAPTER", "direct").lower()
 
-        logger.info(f"Initializing default ChatManager with adapter type: {adapter_type}")
+        logger.info(f"Initializing default ConversationManager with adapter type: {adapter_type}")
 
         # Create default dependencies
         loader = FileLoader(settings.personas_dir, settings.snippets_dir)
@@ -85,7 +85,7 @@ def _init_default_manager() -> ChatManager:
             llm_client = DirectLLMAdapter(default_model=settings.default_model)
             logger.info("Using Direct adapter")
 
-        manager = ChatManager(
+        manager = ConversationManager(
             settings=settings,
             llm_client=llm_client,
             persona_loader=loader,
@@ -93,29 +93,29 @@ def _init_default_manager() -> ChatManager:
             history_store=store,
             context_provider=context_provider,
         )
-        logger.info("Default ChatManager initialized successfully with SQLite storage.")
+        logger.info("Default ConversationManager initialized successfully with SQLite storage.")
         _initialization_error = None  # Clear previous error on success
         return manager
     except Exception as e:
-        logger.exception("FATAL: Failed to initialize default NotebookLLM ChatManager.")
+        logger.exception("FATAL: Failed to initialize default NotebookLLM ConversationManager.")
         _initialization_error = e  # Store the error
         raise RuntimeError(
             f"NotebookLLM setup failed. Please check configuration and logs. Error: {e}"
         ) from e
 
 
-def get_chat_manager() -> ChatManager:
-    """Gets or creates the singleton ChatManager instance."""
-    global _chat_manager_instance
-    if _chat_manager_instance is None:
+def get_conversation_manager() -> ConversationManager:
+    """Gets or creates the singleton ConversationManager instance."""
+    global _conversation_manager_instance
+    if _conversation_manager_instance is None:
         if _initialization_error:
             raise RuntimeError(
                 f"NotebookLLM previously failed to initialize: {_initialization_error}"
             ) from _initialization_error
-        logger.debug("ChatManager instance not found, attempting initialization.")
-        _chat_manager_instance = _init_default_manager()
+        logger.debug("ConversationManager instance not found, attempting initialization.")
+        _conversation_manager_instance = _init_default_manager()
 
-    return _chat_manager_instance
+    return _conversation_manager_instance
 
 
 class IPythonMagicsBase(BaseMagics):
@@ -128,22 +128,22 @@ class IPythonMagicsBase(BaseMagics):
 
         super().__init__(shell)
         try:
-            get_chat_manager()
+            get_conversation_manager()
             logger.info(
-                f"{self.__class__.__name__} initialized and ChatManager accessed successfully."
+                f"{self.__class__.__name__} initialized and ConversationManager accessed successfully."
             )
         except Exception as e:
             logger.error(f"Error initializing NotebookLLM during magic setup: {e}")
 
-    def _get_manager(self) -> ChatManager:
+    def _get_manager(self) -> ConversationManager:
         """Helper to get the manager instance, with clear error handling."""
         if not _IPYTHON_AVAILABLE:
             raise RuntimeError("IPython not available")
 
         try:
-            return get_chat_manager()
+            return get_conversation_manager()
         except Exception as e:
-            print("❌ NotebookLLM Error: Could not get Chat Manager.", file=sys.stderr)
+            print("❌ NotebookLLM Error: Could not get Conversation Manager.", file=sys.stderr)
             print(f"   Reason: {e}", file=sys.stderr)
             print(
                 "   Please check your configuration (.env file, API keys, directories) and restart the kernel.",

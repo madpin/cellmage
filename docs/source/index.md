@@ -9,6 +9,7 @@ installation
 overview
 ipython_magic_commands
 sqlite_storage
+migration_guide
 jira_integration
 gitlab_integration
 github_integration

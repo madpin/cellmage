@@ -9,9 +9,8 @@ import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union, Protocol
 
-from ..chat_manager import ChatManager
 from ..conversation_manager import ConversationManager
 from ..models import ConversationMetadata, Message
 from ..storage.sqlite_store import SQLiteStore
@@ -20,32 +19,64 @@ from ..storage.sqlite_store import SQLiteStore
 logger = logging.getLogger(__name__)
 
 
-def migrate_to_sqlite(manager: ChatManager, db_path: Optional[str] = None) -> ConversationManager:
+# Protocol defining minimum interface required for migration
+class ManagerProtocol(Protocol):
+    """Protocol defining the interface required for manager migration."""
+    
+    @property
+    def context_provider(self): pass
+    
+    def get_history(self) -> List[Message]: ...
+
+
+def migrate_to_sqlite(manager: Any, db_path: Optional[str] = None) -> ConversationManager:
     """
     Migrate conversations from current storage to SQLite.
 
     Args:
-        manager: Current ChatManager instance
+        manager: Current manager instance (either ChatManager or ConversationManager)
         db_path: Optional path to SQLite database
 
     Returns:
         ConversationManager using SQLite storage
     """
+    # If already a ConversationManager with SQLite storage, return as is
+    if isinstance(manager, ConversationManager) and getattr(manager, "storage_type", None) == "sqlite":
+        logger.info("Manager is already a ConversationManager with SQLite storage, no migration needed")
+        return manager
+
     # Create a new ConversationManager with SQLite storage
     conversation_manager = ConversationManager(
-        db_path=db_path, context_provider=manager.context_provider
+        db_path=db_path, 
+        context_provider=getattr(manager, "context_provider", None),
+        # If the source manager has LLM capabilities, preserve them
+        settings=getattr(manager, "settings", None),
+        llm_client=getattr(manager, "llm_client", None),
+        persona_loader=getattr(manager, "persona_loader", None),
+        snippet_provider=getattr(manager, "snippet_provider", None),
     )
-
+    
     # Import current history into the conversation manager
+    current_history = []
+    
+    # Handle ChatManager-style history
     if hasattr(manager, "history_manager") and manager.history_manager:
         current_history = manager.history_manager.get_history()
-        for msg in current_history:
-            conversation_manager.add_message(msg)
-
+    # Handle ConversationManager-style history
+    elif hasattr(manager, "get_messages"):
+        current_history = manager.get_messages()
+    elif hasattr(manager, "get_history"):
+        current_history = manager.get_history()
+        
+    # Add messages to new conversation manager
+    for msg in current_history:
+        conversation_manager.add_message(msg)
+        
     logger.info(f"Migrated {len(current_history)} messages to SQLite storage")
 
     # Try to migrate saved conversations if they exist
     try:
+        # For ChatManager-style
         if hasattr(manager, "history_manager") and manager.history_manager:
             # Check if history_store is available for listing conversations
             if hasattr(manager.history_manager, "history_store"):
@@ -73,6 +104,32 @@ def migrate_to_sqlite(manager: ChatManager, db_path: Optional[str] = None) -> Co
                             logger.error(f"Error migrating conversation {conv.get('path')}: {e}")
 
                     logger.info(f"Migrated {migrated_count} saved conversations to SQLite")
+        
+        # For ConversationManager-style with non-SQLite storage
+        elif isinstance(manager, ConversationManager) and manager.storage_type != "sqlite":
+            if hasattr(manager, "store") and hasattr(manager.store, "list_saved_conversations"):
+                saved_conversations = manager.store.list_saved_conversations()
+                
+                migrated_count = 0
+                for conv in saved_conversations:
+                    try:
+                        # Load each conversation
+                        if "id" in conv:
+                            conv_id = conv["id"]
+                            messages, metadata = manager.store.load_conversation(conv_id)
+                            
+                            # Create a new conversation in SQLite
+                            conversation_manager.create_new_conversation()
+                            
+                            # Add messages to the new conversation
+                            for msg in messages:
+                                conversation_manager.add_message(msg)
+                                
+                            migrated_count += 1
+                    except Exception as e:
+                        logger.error(f"Error migrating conversation {conv.get('id')}: {e}")
+                        
+                logger.info(f"Migrated {migrated_count} saved conversations to SQLite")
     except Exception as e:
         logger.error(f"Error during saved conversation migration: {e}")
 

@@ -37,15 +37,15 @@ class BaseMagics(Magics):
 
         super().__init__(shell)
 
-    def _get_chat_manager(self):
-        """Get the ChatManager instance."""
+    def _get_conversation_manager(self):
+        """Get the ConversationManager instance."""
         try:
-            from .ipython_magic import get_chat_manager
+            from .. import get_default_conversation_manager
 
-            return get_chat_manager()
+            return get_default_conversation_manager()
         except Exception as e:
-            logger.error(f"Error getting ChatManager: {e}")
-            print(f"❌ Error getting ChatManager: {e}")
+            logger.error(f"Error getting ConversationManager: {e}")
+            print(f"❌ Error getting ConversationManager: {e}")
             return None
 
     def _get_execution_context(self) -> Tuple[Optional[int], Optional[str]]:
@@ -91,7 +91,8 @@ class BaseMagics(Magics):
         """
         from ..models import Message
 
-        manager = self._get_chat_manager()
+        # Use ConversationManager directly instead of ChatManager
+        manager = self._get_conversation_manager()
         if not manager:
             print("❌ Conversation manager not available")
             return False
@@ -101,30 +102,29 @@ class BaseMagics(Magics):
             exec_count, cell_id = self._get_execution_context()
 
             # Find and remove any previous content from the same source
-            if hasattr(manager, "history_manager"):
-                # Get current history
-                current_history = manager.history_manager.get_history()
+            # Get current history
+            current_history = manager.get_messages()
 
-                # Look for messages to remove based on their metadata
-                indices_to_remove = self._find_messages_to_remove(
-                    current_history, source_name, source_type, source_id, id_key
+            # Look for messages to remove based on their metadata
+            indices_to_remove = self._find_messages_to_remove(
+                current_history, source_name, source_type, source_id, id_key
+            )
+
+            # If we found messages to remove
+            if indices_to_remove:
+                # Create a new history without those messages
+                new_history = [
+                    msg for i, msg in enumerate(current_history) if i not in indices_to_remove
+                ]
+
+                # Clear history and re-add the filtered messages
+                manager.clear_messages(keep_system=False)
+                for msg in new_history:
+                    manager.add_message(msg)
+
+                logger.info(
+                    f"Removed {len(indices_to_remove)} previous {source_name} {source_type} messages"
                 )
-
-                # If we found messages to remove
-                if indices_to_remove:
-                    # Create a new history without those messages
-                    new_history = [
-                        msg for i, msg in enumerate(current_history) if i not in indices_to_remove
-                    ]
-
-                    # Clear history and re-add the filtered messages
-                    manager.history_manager.clear_history(keep_system=False)
-                    for msg in new_history:
-                        manager.history_manager.add_message(msg)
-
-                    logger.info(
-                        f"Removed {len(indices_to_remove)} previous {source_name} {source_type} messages"
-                    )
 
             # Create message with execution context
             role = "system" if as_system_msg else "user"
@@ -138,8 +138,8 @@ class BaseMagics(Magics):
                 metadata=metadata,
             )
 
-            # Add to history
-            manager.history_manager.add_message(message)
+            # Add message directly to the ConversationManager
+            manager.add_message(message)
             print(
                 f"✅ Added {source_name} {source_type} {source_id} as {role} message to chat history"
             )

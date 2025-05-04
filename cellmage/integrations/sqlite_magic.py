@@ -44,7 +44,6 @@ logger = logging.getLogger(__name__)
 # Check if SQLite storage components are available
 try:
     from ..ambient_mode import disable_ambient_mode, is_ambient_mode_enabled
-    from ..chat_manager import ChatManager
     from ..context_providers.ipython_context_provider import (
         get_ipython_context_provider,
     )
@@ -56,18 +55,16 @@ except ImportError:
     _SQLITE_AVAILABLE = False
 
 
-def get_chat_manager():
+def get_conversation_manager() -> ConversationManager:
     """
-    Create and return a ChatManager instance.
-    This is a fallback function to replace the missing get_chat_manager from chat_manager module.
+    Get the default conversation manager instance.
+    
+    Returns:
+        A fully configured ConversationManager instance
     """
-    from ..context_providers.ipython_context_provider import (
-        get_ipython_context_provider,
-    )
-
-    logger.info("Creating new ChatManager instance")
-    context_provider = get_ipython_context_provider()
-    return ChatManager(context_provider=context_provider)
+    from .. import get_default_conversation_manager
+    logger.info("Getting default ConversationManager instance")
+    return get_default_conversation_manager()
 
 
 @magics_class
@@ -87,24 +84,10 @@ class SQLiteCellMagics(BaseMagics):
     def setup_manager(self) -> None:
         """Set up the conversation manager."""
         try:
-            # Try to get the chat manager first for compatibility
-            chat_manager = get_chat_manager()
-
-            # Now create or get the conversation manager
+            # Get the conversation manager directly
             if self.conversation_manager is None:
-                context_provider = get_ipython_context_provider()
-
-                # Check if we should migrate from existing chat manager
-                if hasattr(chat_manager, "history_manager") and chat_manager.history_manager:
-                    # Migrate existing history
-                    self.conversation_manager = persistence.migrate_to_sqlite(chat_manager)
-                    logger.info("Migrated existing history to SQLite storage")
-                else:
-                    # Create a new conversation manager
-                    self.conversation_manager = ConversationManager(
-                        context_provider=context_provider
-                    )
-                    logger.info("Created new SQLite-backed ConversationManager")
+                self.conversation_manager = get_conversation_manager()
+                logger.info("Acquired ConversationManager for SQLite magic")
 
             logger.info("SQLiteCellMagics initialized successfully")
 
@@ -205,13 +188,6 @@ class SQLiteCellMagics(BaseMagics):
         if not _IPYTHON_AVAILABLE:
             return
 
-        # Get the original chat manager as we still need it for the LLM client
-        try:
-            chat_manager = get_chat_manager()
-        except Exception as e:
-            print(f"❌ Error getting chat manager for LLM client: {e}", file=sys.stderr)
-            return
-
         # Get the conversation manager
         manager = self._get_manager()
         if not manager:
@@ -236,72 +212,41 @@ class SQLiteCellMagics(BaseMagics):
             # Check for cell rerun and perform rollback if needed
             manager.perform_rollback(cell_id)
 
-            # Add user message using _add_to_history
-            unique_id = f"ambient_{cell_id}_{exec_count}"
-            self._add_to_history(prompt, "ambient_prompt", unique_id, as_system_msg=False)
-
-            # Call the ChatManager's chat method with default settings
-            result = chat_manager.chat(
-                prompt=prompt,
-                persona_name=None,  # Use default persona
-                stream=True,  # Default to streaming output
-                add_to_history=False,  # We manage history ourselves
-                auto_rollback=False,  # We've already done rollback
-            )
-
-            # If result is successful, capture the assistant response
-            if result:
-                status_info["success"] = True
-                status_info["response_content"] = result
-
-                # Extract metadata from chat_manager's last message
-                metadata = {}
-                try:
-                    chat_history = chat_manager.history_manager.get_history()
-                    if chat_history and len(chat_history) > 0:
-                        last_msg = chat_history[-1]
-                        if last_msg.role == "assistant" and last_msg.metadata:
-                            metadata = last_msg.metadata.copy()
-                except Exception as e:
-                    logger.warning(f"Error extracting metadata from chat history: {e}")
-
-                # Add assistant message with the extracted metadata
-                response_id = f"ambient_response_{cell_id}_{exec_count}"
-
-                # Store the response content with metadata
-                assistant_content = result
-
-                # Add assistant message using _add_to_history
-                self._add_to_history(
-                    assistant_content, "ambient_response", response_id, as_system_msg=False
+            try:
+                # Call the ConversationManager's chat method directly
+                result = manager.chat(
+                    prompt=prompt,
+                    persona_name=None,  # Use default persona
+                    stream=True,        # Default to streaming output
+                    add_to_history=True, # Let ConversationManager handle the history
                 )
 
-                # Update the metadata directly for the message we just added
-                if metadata:
+                # If result is successful, update status info
+                if result:
+                    status_info["success"] = True
+                    status_info["response_content"] = result
+
+                    # Get the last assistant message for metadata
                     for msg in reversed(manager.messages):
-                        if (
-                            msg.role == "assistant"
-                            and msg.metadata
-                            and msg.metadata.get("source") == "sqlite"
-                            and msg.metadata.get("sqlite_id") == response_id
-                        ):
-                            msg.metadata.update(metadata)
+                        if msg.role == "assistant" and msg.metadata:
+                            # Collect token counts for status bar
+                            tokens_in = msg.metadata.get("tokens_in", 0) or 0
+                            tokens_out = msg.metadata.get("tokens_out", 0) or 0
+
+                            status_info["tokens_in"] = float(tokens_in)
+                            status_info["tokens_out"] = float(tokens_out)
+                            status_info["cost_str"] = msg.metadata.get("cost_str", "")
+                            status_info["model_used"] = msg.metadata.get("model_used", "")
                             break
 
-                # Collect token counts for status bar
-                tokens_in = metadata.get("tokens_in", 0) or 0
-                tokens_out = metadata.get("tokens_out", 0) or 0
-
-                status_info["tokens_in"] = float(tokens_in)
-                status_info["tokens_out"] = float(tokens_out)
-                status_info["cost_str"] = metadata.get("cost_str", "")
-                status_info["model_used"] = metadata.get("model_used", "")
-
+            except Exception as e:
+                print(f"❌ LLM Error (Ambient Mode): {e}", file=sys.stderr)
+                logger.error(f"Error during LLM call in ambient mode: {e}")
+                # Add error message to status_info for copying
+                status_info["response_content"] = f"Error: {str(e)}"
         except Exception as e:
-            print(f"❌ LLM Error (Ambient Mode): {e}", file=sys.stderr)
-            logger.error(f"Error during LLM call in ambient mode: {e}")
-            # Add error message to status_info for copying
-            status_info["response_content"] = f"Error: {str(e)}"
+            print(f"❌ Error in ambient mode: {e}", file=sys.stderr)
+            logger.error(f"Error in ambient mode: {e}")
         finally:
             status_info["duration"] = time.time() - start_time
             # Display status bar
@@ -338,13 +283,6 @@ class SQLiteCellMagics(BaseMagics):
             print("❌ Conversation manager not available", file=sys.stderr)
             return None
 
-        # Get the original chat manager as we still need it for the LLM client
-        try:
-            chat_manager = get_chat_manager()
-        except Exception as e:
-            print(f"❌ Error getting chat manager for LLM client: {e}", file=sys.stderr)
-            return None
-
         start_time = time.time()
         status_info = {"success": False, "duration": 0.0}
         context_provider = get_ipython_context_provider()
@@ -369,10 +307,6 @@ class SQLiteCellMagics(BaseMagics):
 
         # Check for cell rerun and perform rollback if needed
         manager.perform_rollback(cell_id)
-
-        # Add user message using _add_to_history
-        prompt_id = f"prompt_{cell_id}_{exec_count}"
-        self._add_to_history(prompt, "prompt", prompt_id, as_system_msg=False)
 
         # Prepare runtime params
         runtime_params = {}
@@ -405,22 +339,21 @@ class SQLiteCellMagics(BaseMagics):
         # Handle model override
         original_model = None
         if hasattr(args, "model") and args.model:
-            # Temporarily set model override for this call
-            if chat_manager.llm_client and hasattr(chat_manager.llm_client, "set_override"):
-                original_model = chat_manager.llm_client.get_overrides().get("model")
-                chat_manager.llm_client.set_override("model", args.model)
+            if manager.llm_client and hasattr(manager.llm_client, "set_override"):
+                original_model = manager.get_overrides().get("model")
+                manager.set_override("model", args.model)
                 logger.debug(f"Temporarily set model override to: {args.model}")
             else:
                 runtime_params["model"] = args.model
 
         try:
-            # Call the ChatManager's chat method
-            result = chat_manager.chat(
+            # Call the ConversationManager's chat method directly
+            result = manager.chat(
                 prompt=prompt,
                 persona_name=args.persona if hasattr(args, "persona") else None,
+                model=args.model if hasattr(args, "model") else None,
                 stream=args.stream if hasattr(args, "stream") else True,
-                add_to_history=False,  # We manage history ourselves in SQLite
-                auto_rollback=False,  # We already handled rollback
+                add_to_history=True,  # Let ConversationManager handle history
                 **runtime_params,
             )
 
@@ -428,54 +361,31 @@ class SQLiteCellMagics(BaseMagics):
             if (
                 hasattr(args, "model")
                 and args.model
-                and chat_manager.llm_client
-                and hasattr(chat_manager.llm_client, "set_override")
+                and manager.llm_client
+                and hasattr(manager.llm_client, "set_override")
             ):
                 if original_model is not None:
-                    chat_manager.llm_client.set_override("model", original_model)
+                    manager.set_override("model", original_model)
                 else:
-                    chat_manager.llm_client.remove_override("model")
+                    manager.remove_override("model")
 
             # If result is successful, capture the assistant response
             if result:
                 status_info["success"] = True
                 status_info["response_content"] = result
 
-                # Extract metadata from chat_manager's last message
-                metadata = {}
-                try:
-                    chat_history = chat_manager.history_manager.get_history()
-                    if chat_history and len(chat_history) > 0:
-                        last_msg = chat_history[-1]
-                        if last_msg.role == "assistant" and last_msg.metadata:
-                            metadata = last_msg.metadata.copy()
-                except Exception as e:
-                    logger.warning(f"Error extracting metadata from chat history: {e}")
+                # Extract metadata from the last message
+                for msg in reversed(manager.messages):
+                    if msg.role == "assistant" and msg.metadata:
+                        # Collect token counts for status bar
+                        tokens_in = msg.metadata.get("tokens_in", 0) or 0
+                        tokens_out = msg.metadata.get("tokens_out", 0) or 0
 
-                # Add assistant message with the result using _add_to_history
-                response_id = f"response_{cell_id}_{exec_count}"
-                self._add_to_history(result, "response", response_id, as_system_msg=False)
-
-                # Update the metadata directly for the message we just added
-                if metadata:
-                    for msg in reversed(manager.messages):
-                        if (
-                            msg.role == "assistant"
-                            and msg.metadata
-                            and msg.metadata.get("source") == "sqlite"
-                            and msg.metadata.get("sqlite_id") == response_id
-                        ):
-                            msg.metadata.update(metadata)
-                            break
-
-                # Collect token counts for status bar
-                tokens_in = metadata.get("tokens_in", 0) or 0
-                tokens_out = metadata.get("tokens_out", 0) or 0
-
-                status_info["tokens_in"] = float(tokens_in)
-                status_info["tokens_out"] = float(tokens_out)
-                status_info["cost_str"] = metadata.get("cost_str", "")
-                status_info["model_used"] = metadata.get("model_used", "")
+                        status_info["tokens_in"] = float(tokens_in)
+                        status_info["tokens_out"] = float(tokens_out)
+                        status_info["cost_str"] = msg.metadata.get("cost_str", "")
+                        status_info["model_used"] = msg.metadata.get("model_used", "")
+                        break
 
         except Exception as e:
             print(f"❌ LLM Error: {e}", file=sys.stderr)
@@ -487,13 +397,13 @@ class SQLiteCellMagics(BaseMagics):
             if (
                 hasattr(args, "model")
                 and args.model
-                and chat_manager.llm_client
-                and hasattr(chat_manager.llm_client, "set_override")
+                and manager.llm_client
+                and hasattr(manager.llm_client, "set_override")
             ):
                 if original_model is not None:
-                    chat_manager.llm_client.set_override("model", original_model)
+                    manager.set_override("model", original_model)
                 else:
-                    chat_manager.llm_client.remove_override("model")
+                    manager.remove_override("model")
         finally:
             status_info["duration"] = time.time() - start_time
             # Display status bar

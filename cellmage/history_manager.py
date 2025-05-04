@@ -1,5 +1,13 @@
+"""
+DEPRECATED: History manager for conversation tracking.
+
+This module is maintained only for backward compatibility and will be removed in a future version.
+All new code should use ConversationManager directly.
+"""
+
 import logging
 import uuid
+import warnings
 from datetime import datetime
 from typing import ClassVar, Dict, List, Optional
 
@@ -7,9 +15,22 @@ from .interfaces import ContextProvider, HistoryStore
 from .models import ConversationMetadata, Message
 from .utils.token_utils import count_tokens
 
+# Set up deprecation warning for module import
+warnings.warn(
+    "The history_manager module is deprecated and will be removed in a future version. "
+    "Use conversation_manager instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
 
 class HistoryManager:
     """
+    DEPRECATED: Legacy history manager for conversation tracking.
+    
+    This class is provided for backward compatibility only.
+    New code should use ConversationManager directly.
+
     Manages conversation history, including cell ID tracking and rollback for notebook re-execution.
 
     Features:
@@ -30,6 +51,14 @@ class HistoryManager:
         Implement singleton pattern to ensure history is preserved across multiple
         instantiations in the same Python process.
         """
+        # Output deprecation warning on instantiation
+        warnings.warn(
+            "HistoryManager is deprecated and will be removed in a future version. "
+            "Use ConversationManager instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
         if cls._instance is None:
             cls._instance = super(HistoryManager, cls).__new__(cls)
             cls._instance._initialized = False
@@ -47,6 +76,14 @@ class HistoryManager:
             history_store: Optional store for saving/loading conversations
             context_provider: Optional provider for execution context
         """
+        # Output deprecation warning on initialization
+        warnings.warn(
+            "HistoryManager is deprecated and will be removed in a future version. "
+            "Use ConversationManager instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
         # Only initialize once due to singleton pattern
         if getattr(self, "_initialized", False):
             # Update providers if they've changed
@@ -57,6 +94,10 @@ class HistoryManager:
             return
 
         self.logger = logging.getLogger(__name__)
+        self.logger.warning(
+            "HistoryManager is deprecated and will be removed in a future version. "
+            "Use ConversationManager instead."
+        )
 
         # Use the class-level global history to persist across instances
         if not HistoryManager._global_history:

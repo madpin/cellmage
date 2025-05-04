@@ -5,6 +5,7 @@ This module provides the %llm_config line magic for configuring LLM interactions
 """
 
 import os
+import sys
 
 from IPython.core.magic import line_magic, magics_class
 from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
@@ -616,7 +617,18 @@ class ConfigMagics(IPythonMagicsBase):
                     if msg.metadata and source:
                         for key, value in msg.metadata.items():
                             if key.endswith("_id") and value and key != "cell_id":
-                                meta_items.append(f"{source} ID: {value}")
+                                # For GitLab merge requests, format the ID nicely
+                                if source.lower() == "gitlab" and source_type == "merge_request" and "!" in value:
+                                    # GitLab merge request IDs are in the format project!mr_number
+                                    project, mr_num = value.split("!", 1)
+                                    meta_items.append(f"{source} MR: {project} !{mr_num}")
+                                # For GitHub pull requests, format the ID nicely
+                                elif source.lower() == "github" and source_type == "pull_request" and "#" in value:
+                                    # GitHub PR IDs are in the format repo#pr_number
+                                    repo, pr_num = value.split("#", 1)
+                                    meta_items.append(f"{source} PR: {repo} #{pr_num}")
+                                else:
+                                    meta_items.append(f"{source} ID: {value}")
                                 break
 
                     # Add other metadata
@@ -726,6 +738,9 @@ class ConfigMagics(IPythonMagicsBase):
         if hasattr(args, "auto_save") and args.auto_save:
             action_taken = True
             try:
+                # Import os module to ensure it's available in this scope
+                import os
+                
                 manager.settings.auto_save = True
                 # Get absolute path for better user experience
                 conversations_dir = os.path.abspath(manager.settings.conversations_dir)
@@ -795,24 +810,25 @@ class ConfigMagics(IPythonMagicsBase):
                 print("══════════════════════════════════════════════════════════")
 
             except ResourceNotFoundError:
-                print(f"  ❌ Session '{session_id}' not found.")
+                print(f"  ❌ Session '{args.load}' not found.")
                 # Try to list available sessions for user convenience
                 if hasattr(manager, "list_saved_sessions") or hasattr(
                     manager, "list_conversations"
                 ):
                     print("  Available sessions:")
                     try:
+                        sessions_list = []
                         if hasattr(manager, "list_saved_sessions"):
-                            sessions = manager.list_saved_sessions()
+                            sessions_list = manager.list_saved_sessions()
                         elif hasattr(manager, "list_conversations"):
-                            sessions = manager.list_conversations()
+                            sessions_list = manager.list_conversations()
 
                         # Show up to 5 available sessions
-                        if sessions:
-                            for i, session in enumerate(sorted(sessions)[:5]):
+                        if sessions_list:
+                            for i, session in enumerate(sorted(sessions_list)[:5]):
                                 print(f"  • {session}")
-                            if len(sessions) > 5:
-                                print(f"  • ... and {len(sessions) - 5} more")
+                            if len(sessions_list) > 5:
+                                print(f"  • ... and {len(sessions_list) - 5} more")
                     except Exception:
                         pass
                 print("══════════════════════════════════════════════════════════")
@@ -881,6 +897,7 @@ class ConfigMagics(IPythonMagicsBase):
                 print(f"  ❌ Unexpected error: {e}")
                 # Check if conversations directory exists
                 if hasattr(manager, "settings") and hasattr(manager.settings, "conversations_dir"):
+                    import os
                     if not os.path.exists(manager.settings.conversations_dir):
                         print(
                             f"  The conversations directory does not exist: {manager.settings.conversations_dir}"
@@ -1204,8 +1221,6 @@ class ConfigMagics(IPythonMagicsBase):
 
         # Check for Jira integration
         try:
-            import sys
-
             jira_available = "cellmage.integrations.jira_magic" in sys.modules
             print(f"    • Jira: {'✅ Loaded' if jira_available else '❌ Not loaded'}")
         except Exception:
