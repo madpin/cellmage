@@ -374,7 +374,7 @@ class JiraMagics(BaseMagics):
                 ):
                     cleaned_jql = cleaned_jql[1:-1]
 
-                print(f"Fetching tickets with JQL: {cleaned_jql}")
+                logger.debug(f"Fetching tickets with JQL: {cleaned_jql}")
                 tickets = self._fetch_tickets_by_jql(cleaned_jql, max_results=args.max)
 
                 if not tickets:
@@ -404,7 +404,7 @@ class JiraMagics(BaseMagics):
                 ):
                     cleaned_ticket = cleaned_ticket[1:-1]
 
-                print(f"Fetching ticket: {cleaned_ticket}")
+                logger.debug(f"Fetching ticket: {cleaned_ticket}")
                 ticket = self._fetch_ticket(cleaned_ticket)
 
                 if not ticket:

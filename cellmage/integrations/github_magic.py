@@ -318,7 +318,7 @@ class GitHubMagics(BaseMagics):
 
             if args.pr:
                 # Fetch pull request
-                print(f"Fetching pull request {args.pr} from repository: {cleaned_repo}")
+                logger.debug(f"Fetching pull request {args.pr} from repository: {cleaned_repo}")
                 pr_data = self._fetch_pull_request(cleaned_repo, args.pr)
 
                 if not pr_data:
@@ -341,7 +341,7 @@ class GitHubMagics(BaseMagics):
 
             else:
                 # Fetch repository
-                print(f"Fetching repository: {cleaned_repo}")
+                logger.debug(f"Fetching repository: {cleaned_repo}")
 
                 # Process exclusion patterns
                 exclusion_patterns = {}

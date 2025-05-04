@@ -259,7 +259,7 @@ class AmbientModeMagics(IPythonMagicsBase):
             context_provider.display_status(status_info)
 
     @line_magic("llm_magic")
-    def llm_magic(self, line):
+    def llm_magic(self, line, cell=None):
         """
         Placeholder for llm_magic which is expected by the registration process.
 
@@ -269,4 +269,17 @@ class AmbientModeMagics(IPythonMagicsBase):
         print(
             "ℹ️ This is a placeholder. Please use the %%llm cell magic from CoreLLMMagics instead."
         )
+        
+        # Delegate to the correct implementation if CoreLLMMagics is available
+        try:
+            from .llm_magic import CoreLLMMagics
+            llm_magic = CoreLLMMagics(self.shell)
+            if cell is not None:
+                return llm_magic.execute_llm(line, cell)
+            else:
+                print("⚠️ The %%llm magic requires cell content. Please use it as a cell magic.")
+        except Exception as e:
+            logger.error(f"Error delegating to CoreLLMMagics.execute_llm: {e}")
+            print(f"❌ Error: {e}")
+            
         return None

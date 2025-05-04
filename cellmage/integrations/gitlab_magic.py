@@ -342,7 +342,7 @@ class GitLabMagics(BaseMagics):
 
             else:
                 # Fetch repository
-                print(f"Fetching repository: {cleaned_repo}")
+                logger.debug(f"Fetching repository: {cleaned_repo}")
 
                 # Process exclusion patterns
                 exclusion_patterns = {}
