@@ -82,38 +82,51 @@ def load_ipython_extension(ipython):
     This also loads all available integrations (Jira, GitLab, GitHub, etc.)
     """
     try:
-        # Check if we should prefer the SQLite implementation
-        use_sqlite = os.environ.get("CELLMAGE_USE_SQLITE", "1") == "1"
-
+        # Load the new refactored magic commands
         primary_extension_loaded = False
 
-        if use_sqlite:
-            # Try to load the SQLite implementation first
-            try:
-                from .integrations.sqlite_magic import (
-                    load_ipython_extension as load_sqlite,
-                )
+        try:
+            # Use the new centralized magic command loader
+            from .magic_commands import load_ipython_extension as load_magics
 
-                load_sqlite(ipython)
-                logger.info("Loaded CellMage with SQLite-based storage")
-                primary_extension_loaded = True
-            except Exception as e:
-                logger.warning(f"Failed to load SQLite extension: {e}")
-                logger.warning("Falling back to legacy implementation")
+            load_magics(ipython)
+            logger.info("Loaded CellMage with refactored magic commands")
+            primary_extension_loaded = True
+        except Exception as e:
+            logger.warning(f"Failed to load refactored magic commands: {e}")
+            logger.warning("Falling back to legacy implementation")
 
-        # Load legacy implementation if SQLite failed or not requested
+        # Check if we should prefer the SQLite implementation (legacy fallback path)
         if not primary_extension_loaded:
-            try:
-                from .integrations.ipython_magic import (
-                    load_ipython_extension as load_legacy,
-                )
+            use_sqlite = os.environ.get("CELLMAGE_USE_SQLITE", "1") == "1"
 
-                load_legacy(ipython)
-                logger.info("Loaded CellMage with legacy storage")
-                primary_extension_loaded = True
-            except Exception as e:
-                logger.error(f"Failed to load legacy implementation: {e}")
-                print(f"❌ Failed to load CellMage core functionality: {e}")
+            if use_sqlite:
+                # Try to load the SQLite implementation first
+                try:
+                    from .integrations.sqlite_magic import (
+                        load_ipython_extension as load_sqlite,
+                    )
+
+                    load_sqlite(ipython)
+                    logger.info("Loaded CellMage with SQLite-based storage (legacy)")
+                    primary_extension_loaded = True
+                except Exception as e:
+                    logger.warning(f"Failed to load SQLite extension: {e}")
+                    logger.warning("Falling back to legacy implementation")
+
+            # Load legacy implementation if SQLite failed or not requested
+            if not primary_extension_loaded:
+                try:
+                    from .integrations.ipython_magic import (
+                        load_ipython_extension as load_legacy,
+                    )
+
+                    load_legacy(ipython)
+                    logger.info("Loaded CellMage with legacy storage")
+                    primary_extension_loaded = True
+                except Exception as e:
+                    logger.error(f"Failed to load legacy implementation: {e}")
+                    print(f"❌ Failed to load CellMage core functionality: {e}")
 
         # Now load additional integrations if available
 
@@ -176,7 +189,16 @@ def load_ipython_extension(ipython):
 def unload_ipython_extension(ipython):
     """Unregisters the magics from the IPython runtime."""
     try:
-        # Try to unload SQLite extension first
+        # Try to unload the refactored magic commands
+        try:
+            from .magic_commands import unload_ipython_extension as unload_magics
+
+            unload_magics(ipython)
+            return
+        except (ImportError, AttributeError):
+            pass
+
+        # Try to unload SQLite extension as fallback
         try:
             from .integrations.sqlite_magic import (
                 unload_ipython_extension as unload_sqlite,

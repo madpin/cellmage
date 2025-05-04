@@ -19,6 +19,7 @@ confluence_integration
 :hidden:
 :caption: Development
 
+refactored_magic_architecture
 CHANGELOG
 CONTRIBUTING
 License <https://raw.githubusercontent.com/allenai/cellmage/main/LICENSE>

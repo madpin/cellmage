@@ -751,7 +751,40 @@ class ChatManager:
         Returns:
             List of messages in the conversation
         """
-        return self.history_manager.get_history()
+        if self.history_manager:
+            # Make sure we're retrieving ALL messages including integration messages
+            messages = self.history_manager.get_history(include_all=True)
+
+            # Additional debug to help diagnose any issues
+            if messages:
+                self.logger.info(f"Retrieved {len(messages)} messages from history manager")
+
+                # Count message types for debugging
+                role_counts = {}
+                integration_counts = {}
+
+                for msg in messages:
+                    # Count by role
+                    role = msg.role
+                    role_counts[role] = role_counts.get(role, 0) + 1
+
+                    # Count integration sources
+                    if msg.metadata and "source" in msg.metadata:
+                        source = msg.metadata.get("source")
+                        if source:
+                            integration_counts[source] = integration_counts.get(source, 0) + 1
+
+                if role_counts:
+                    self.logger.debug(f"Message types in history: {role_counts}")
+                if integration_counts:
+                    self.logger.debug(f"Integration sources in history: {integration_counts}")
+            else:
+                self.logger.warning("History manager returned empty history")
+
+            return messages
+
+        self.logger.warning("No history manager available when trying to get history")
+        return []
 
     def clear_history(self, keep_system: bool = True) -> None:
         """
