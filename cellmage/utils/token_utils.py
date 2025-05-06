@@ -22,7 +22,7 @@ except ImportError:
     logger.info("tiktoken package not available, using heuristic token counting")
 
 # Constants
-DEFAULT_ENCODING_NAME = "cl100k_base"  # Default for GPT-4, GPT-3.5-turbo models
+DEFAULT_ENCODING_NAME = "cl100k_base"  # Default for GPT-4, gpt-4.1-nano models
 DEFAULT_TOKENS_PER_WORD = 1.3  # Heuristic: average tokens per word
 DEFAULT_CHARS_PER_TOKEN = 4.0  # Heuristic: average characters per token
 DEFAULT_TRUNCATE_THRESHOLD = 100000  # Truncate content for safety when calling tiktoken

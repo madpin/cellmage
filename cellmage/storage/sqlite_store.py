@@ -397,8 +397,8 @@ class SQLiteStore(HistoryStore):
             # Get messages for this conversation
             cursor.execute(
                 """
-                SELECT * FROM messages 
-                WHERE conversation_id = ? 
+                SELECT * FROM messages
+                WHERE conversation_id = ?
                 ORDER BY position ASC
                 """,
                 (conversation_id,),
@@ -857,7 +857,7 @@ class SQLiteStore(HistoryStore):
             cursor.execute(
                 """
                 INSERT INTO raw_api_responses
-                (id, message_id, conversation_id, timestamp, endpoint, 
+                (id, message_id, conversation_id, timestamp, endpoint,
                 request_data, response_data, response_time_ms, status_code)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,

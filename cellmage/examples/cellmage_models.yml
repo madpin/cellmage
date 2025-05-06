@@ -7,9 +7,9 @@ g4t: gpt-4-turbo
 g4v: gpt-4-vision
 
 # GPT-3.5 models
-g3: gpt-3.5-turbo
-g35: gpt-3.5-turbo
-g35t: gpt-3.5-turbo-16k
+g3: gpt-4.1-nano
+g35: gpt-4.1-nano
+g35t: gpt-4.1-nano-16k
 
 # Claude models
 c2: claude-2
