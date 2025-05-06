@@ -1,7 +1,7 @@
 # Makefile for cellmage project
 
 # Define phony targets to avoid conflicts with files of the same name
-.PHONY: docs run-checks run-fix build clean test-unit release prepare-changelog examples test-magic
+.PHONY: docs run-checks run-fix build clean test-unit release release-patch release-minor release-major prepare-changelog examples test-magic
 
 # Default target when just running 'make'
 .DEFAULT_GOAL := help
@@ -19,7 +19,10 @@ help:
 	@echo "  make build             - Build the Python package"
 	@echo "  make clean             - Clean build artifacts"
 	@echo "  make test-unit         - Run only unit tests"
-	@echo "  make release           - Create a new release"
+	@echo "  make release           - Create a new release (patch version)"
+	@echo "  make release-patch     - Create a new patch version release"
+	@echo "  make release-minor     - Create a new minor version release"
+	@echo "  make release-major     - Create a new major version release"
 	@echo "  make prepare-changelog - Update CHANGELOG.md for a new release"
 	@echo "  make examples          - Run example scripts"
 	@echo "  make test-magic        - Test refactored magic commands"
@@ -59,10 +62,23 @@ clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 
-# Create a new release
-release:
-	@echo "Creating a new release..."
-	@scripts/release.sh
+# Create a new release (defaults to patch version)
+release: release-patch
+
+# Create a patch version release
+release-patch:
+	@echo "Creating a new patch release..."
+	@scripts/release.sh patch
+
+# Create a minor version release
+release-minor:
+	@echo "Creating a new minor release..."
+	@scripts/release.sh minor
+
+# Create a major version release
+release-major:
+	@echo "Creating a new major release..."
+	@scripts/release.sh major
 
 # Update CHANGELOG.md for a new release
 prepare-changelog:
