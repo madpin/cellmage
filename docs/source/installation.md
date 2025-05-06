@@ -1,7 +1,7 @@
 Installation
 ============
 
-**cellmage** supports Python >= 3.8.
+**cellmage** supports Python >= 3.9.
 
 ## Installing with `pip`
 

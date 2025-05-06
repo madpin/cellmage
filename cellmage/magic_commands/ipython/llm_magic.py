@@ -146,11 +146,12 @@ class CoreLLMMagics(IPythonMagicsBase):
 
         # Handle snippets
         try:
-            # Import ConfigMagics to handle snippet commands
-            from .config_magic import ConfigMagics
+            # Import config handlers for snippet processing
+            from .config_handlers.snippet_config_handler import SnippetConfigHandler
 
-            config_magic = ConfigMagics(self.shell)
-            config_magic._handle_snippet_commands(args, manager)
+            # Initialize the snippet handler and use it directly
+            snippet_handler = SnippetConfigHandler()
+            snippet_handler.handle_args(args, manager)
         except Exception as e:
             print(f"❌ Unexpected error processing snippets: {e}")
             status_info["duration"] = time.time() - start_time

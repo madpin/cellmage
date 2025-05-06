@@ -51,6 +51,11 @@ class TestMagicCommands(unittest.TestCase):
         mock_manager = MagicMock()
         mock_init_manager.return_value = mock_manager
 
+        # Reset the global _chat_manager_instance to ensure initialization happens
+        import cellmage.magic_commands.ipython.common
+
+        cellmage.magic_commands.ipython.common._chat_manager_instance = None
+
         # Import the module under test
         from cellmage.magic_commands.ipython.common import get_chat_manager
 

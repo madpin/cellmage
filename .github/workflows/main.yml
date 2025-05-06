@@ -18,18 +18,18 @@ on:
 
 env:
   # Change this to invalidate existing cache.
-  CACHE_PREFIX: v0
+  CACHE_PREFIX: v1
   PYTHONPATH: ./
 
 jobs:
   checks:
     name: Python ${{ matrix.python }} - ${{ matrix.task.name }}
-    runs-on: [ubuntu-latest]
-    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.8", "3.10"]
+        python: ["3.9", "3.10", "3.11"]
         task:
           - name: Test
             run: |
@@ -72,6 +72,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache-prefix: ${{ env.CACHE_PREFIX }}
+          dependencies: "dev,all"
 
       # - name: Restore mypy cache
       #   if: matrix.task.name == 'Type check'
@@ -83,10 +84,29 @@ jobs:
       #       mypy-${{ env.CACHE_PREFIX }}-${{ runner.os }}-${{ matrix.python }}-${{ hashFiles('*requirements.txt') }}-${{ github.ref }}
       #       mypy-${{ env.CACHE_PREFIX }}-${{ runner.os }}-${{ matrix.python }}-${{ hashFiles('*requirements.txt') }}
 
+      - name: Verify environment before task
+        if: ${{ matrix.task.name == 'Test' }}
+        run: |
+          . .venv/bin/activate
+          # Check for langchain modules - critical for tests
+          python -c "import sys, os; print(f'Python {sys.version}'); print(f'PYTHONPATH: {os.environ.get(\"PYTHONPATH\", \"Not set\")}'); print('Working directory:', os.getcwd())"
+          python -c "import langchain_core; print('langchain_core version:', langchain_core.__version__)" || echo "WARNING: langchain_core not installed properly"
+
       - name: ${{ matrix.task.name }}
         run: |
           . .venv/bin/activate
           ${{ matrix.task.run }}
+        
+      - name: Debug on test failure
+        if: ${{ failure() && matrix.task.name == 'Test' }}
+        run: |
+          . .venv/bin/activate
+          echo "==== Installed packages ===="
+          pip list
+          echo "==== Python path ===="
+          python -c "import sys; print(sys.path)"
+          echo "==== Import test ===="
+          python -c "import langchain_core" || echo "Failed to import langchain_core"
 
       - name: Upload package distribution files
         if: matrix.task.name == 'Build'
@@ -94,6 +114,7 @@ jobs:
         with:
           name: package
           path: dist
+          retention-days: 7
 
       - name: Clean up
         if: always()
@@ -118,8 +139,8 @@ jobs:
 
       - name: Install requirements
         run: |
-          pip install --upgrade pip setuptools wheel build
-          pip install -e .[dev]
+          pip install --upgrade pip setuptools wheel build twine
+          pip install -e ".[dev,all]"
 
       - name: Prepare environment
         run: |
@@ -135,6 +156,12 @@ jobs:
       - name: Generate release notes
         run: |
           python scripts/release_notes.py > ${{ github.workspace }}-RELEASE_NOTES.md
+
+      - name: Verify package files
+        run: |
+          echo "Package files to be uploaded:"
+          ls -la dist/
+          twine check dist/*
 
       - name: Publish package to PyPI
         run: |

@@ -1,15 +1,27 @@
 # Core dependencies
 pyyaml>=6.0
 pydantic>=2.0
+pydantic-settings>=2.0.0
 requests>=2.25.0
 ipython>=8.0
 click>=7.0,<9.0
 click-help-colors>=0.9.1,<0.10
 rich>=11.0,<14.0
-beautifulsoup4>=4.10.0  # For HTML parsing (used in Confluence integration)
-atlassian-python-api>=3.20.0  # For Confluence API access
-html2text>=2020.1.16  # For converting HTML to Markdown
+python-dotenv>=1.0.0
+types-PyYAML
+types-requests
 
-# Optional dependencies - uncomment as needed
-# langchain-core>=0.1.0  # For LangChain integration
-# langchain-community>=0.1.0  # For LangChain providers
+# Integration dependencies
+beautifulsoup4>=4.10.0  # For HTML parsing (used in Confluence integration)
+atlassian-python-api>=3.32.0  # For Confluence API access
+html2text>=2020.1.16  # For converting HTML to Markdown
+jira>=3.5.0  # For Jira integration
+python-gitlab>=3.15.0  # For GitLab integration
+PyGithub>=2.1.0  # For GitHub integration
+tiktoken>=0.5.0  # For token counting in GitHub/GitLab integrations
+
+# LangChain integration
+langchain==0.3.24
+langchain-core>=0.1.20
+langchain-community>=0.1.20
+langchain-openai>=0.0.8
