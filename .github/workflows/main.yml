@@ -119,7 +119,7 @@ jobs:
       - name: Install requirements
         run: |
           pip install --upgrade pip setuptools wheel build
-          pip install -e .[dev,all]
+          pip install -e ".[dev,all]"
 
       - name: Prepare environment
         run: |
