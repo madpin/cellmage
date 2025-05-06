@@ -11,7 +11,8 @@ Usage:
 Environment variables:
     CELLMAGE_API_KEY/OPENAI_API_KEY: Your LLM API key (required)
     CELLMAGE_API_BASE/OPENAI_API_BASE: API endpoint URL (default: OpenAI's endpoint)
-    MODEL: LLM model to use (default: gpt-4)
+    MODEL: LLM model to use (default: gpt-4.1-mini)
+    MODEL_LIST: Comma-separated list of models to try in order (overrides MODEL)
 
 Requirements:
     - Git repository with commit history
@@ -25,6 +26,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import List, Optional
 
 import openai
 
@@ -36,7 +38,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Constants
-DEFAULT_MODEL = "gpt-4.1-mini"
+DEFAULT_MODELS = ["gpt-4.1-mini", "gemini-2.5-flash", "Qwen3-235B-A22B"]
 SECTION_HEADERS = ["Added", "Changed", "Fixed", "Removed", "Security", "Deprecated"]
 
 
@@ -100,7 +102,13 @@ def get_commit_messages(since_tag, current_tag):
         return ""
 
 
-def generate_changelog_with_llm(commits, version, api_key, api_base=None, model=DEFAULT_MODEL):
+def generate_changelog_with_llm(
+    commits: str,
+    version: str,
+    api_key: str,
+    api_base: Optional[str] = None,
+    models: List[str] = None,
+) -> str:
     """Use LLM to generate changelog entries based on commit messages."""
     if not commits.strip():
         logger.warning("No commits found to analyze")
@@ -113,8 +121,12 @@ def generate_changelog_with_llm(commits, version, api_key, api_base=None, model=
 
     client = openai.OpenAI(**client_kwargs)
 
+    # Use default model if none provided
+    if not models:
+        models = DEFAULT_MODELS
+
     # Log the API configuration (without exposing the key)
-    logger.info(f"Using model: {model}")
+    logger.info(f"Using models in order: {', '.join(models)}")
     if api_base:
         logger.info(f"Using custom API base: {api_base}")
     else:
@@ -157,29 +169,36 @@ following this format:
 etc.
 """
 
-    try:
-        # Make API call
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a software development assistant that creates well-organized changelog entries.",
-                },
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.5,
-            max_tokens=1000,
-        )
+    for model_name in models:
+        try:
+            logger.info(f"Attempting to generate changelog using model: {model_name}")
+            # Make API call
+            response = client.chat.completions.create(
+                model=model_name.strip(),
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a software development assistant that creates well-organized changelog entries.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.5,
+                max_tokens=1000,
+            )
 
-        # Extract changelog content
-        changelog_content = response.choices[0].message.content.strip()
-        logger.info(f"Successfully generated changelog for {version}")
-        return changelog_content
+            # Extract changelog content
+            changelog_content = response.choices[0].message.content.strip()
+            logger.info(f"Successfully generated changelog for {version} using model {model_name}")
+            return changelog_content
 
-    except Exception as e:
-        logger.error(f"Error generating changelog with LLM: {e}")
-        return ""
+        except Exception as e:
+            logger.error(f"Error generating changelog with model {model_name}: {e}")
+            if model_name == models[-1]:
+                logger.error("All models failed to generate changelog")
+            else:
+                logger.info("Trying next model in fallback list")
+
+    return ""
 
 
 def update_changelog_file(changelog_content, version):
@@ -241,6 +260,7 @@ def main():
     parser = argparse.ArgumentParser(description="Generate changelog entries using LLM")
     parser.add_argument("--since-tag", help="Starting tag for collecting commits")
     parser.add_argument("--quiet", action="store_true", help="Suppress output")
+    parser.add_argument("--models", help="Comma-separated list of models to try in order")
     args = parser.parse_args()
 
     if args.quiet:
@@ -264,7 +284,20 @@ def main():
     api_base = os.environ.get("CELLMAGE_API_BASE") or os.environ.get("OPENAI_API_BASE")
 
     # Get model name (optional)
-    model = os.environ.get("MODEL", DEFAULT_MODEL)
+    model = os.environ.get("MODEL", DEFAULT_MODELS)
+
+    # Get model list from command line or environment
+    if args.models:
+        model_list = args.models.split(",")
+        logger.info(f"Using models from command line: {', '.join(model_list)}")
+    else:
+        model_list = (
+            os.environ.get("MODEL_LIST", "").split(",") if os.environ.get("MODEL_LIST") else [model]
+        )
+        if len(model_list) > 1:
+            logger.info(f"Using models from MODEL_LIST: {', '.join(model_list)}")
+        else:
+            logger.info(f"Using single model: {model}")
 
     # Get version
     current_version = get_current_version()
@@ -281,7 +314,7 @@ def main():
 
     # Generate changelog with LLM
     changelog_content = generate_changelog_with_llm(
-        commits, current_version, api_key, api_base, model
+        commits, current_version, api_key, api_base, model_list
     )
 
     if changelog_content:
