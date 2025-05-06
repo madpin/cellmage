@@ -52,3 +52,4 @@ site/
 .env
 *.log
 .aider*
+.data/conversations.db
