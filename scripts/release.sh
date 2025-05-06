@@ -32,6 +32,15 @@ VERSION_TYPE=${1:-"patch"}
 echo "=== Cellmage Release Process ==="
 echo "Version increment type: $VERSION_TYPE"
 
+# Check for API key for LLM
+if [[ -z "${CELLMAGE_API_KEY}" && -z "${OPENAI_API_KEY}" && -z "${API_KEY}" ]]; then
+    echo "WARNING: No API key found. LLM-powered changelog generation will be skipped."
+    echo "To enable LLM changelog generation, set CELLMAGE_API_KEY, OPENAI_API_KEY, or API_KEY environment variable."
+    USE_LLM=false
+else
+    USE_LLM=true
+fi
+
 # Check if git is clean
 if [[ -n $(git status -s) ]]; then
     echo "ERROR: Working directory is not clean. Please commit or stash changes before releasing."
@@ -92,7 +101,16 @@ echo "Current version: $TAG"
 read -p "Creating new release for $TAG. Do you want to continue? [Y/n] " prompt
 
 if [[ $prompt == "y" || $prompt == "Y" || $prompt == "yes" || $prompt == "Yes" || $prompt == "" ]]; then
-    echo "Preparing changelog..."
+    # Generate changelog with LLM if API key is provided
+    if [[ "$USE_LLM" == true ]]; then
+        echo "Generating changelog with LLM..."
+        if ! python scripts/generate_changelog_with_llm.py; then
+            echo "WARNING: Failed to generate changelog with LLM. Falling back to basic changelog format."
+        fi
+    fi
+
+    # Run prepare_changelog.py to ensure version header is in CHANGELOG.md
+    echo "Preparing changelog structure..."
     if ! python scripts/prepare_changelog.py; then
         echo "ERROR: Failed to update changelog."
         exit 1

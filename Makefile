@@ -1,7 +1,7 @@
 # Makefile for cellmage project
 
 # Define phony targets to avoid conflicts with files of the same name
-.PHONY: docs run-checks run-fix build clean test-unit release release-patch release-minor release-major prepare-changelog examples test-magic
+.PHONY: docs run-checks run-fix build clean test-unit release release-patch release-minor release-major prepare-changelog generate-changelog-llm examples test-magic
 
 # Default target when just running 'make'
 .DEFAULT_GOAL := help
@@ -24,6 +24,7 @@ help:
 	@echo "  make release-minor     - Create a new minor version release"
 	@echo "  make release-major     - Create a new major version release"
 	@echo "  make prepare-changelog - Update CHANGELOG.md for a new release"
+	@echo "  make generate-changelog-llm - Generate changelog entries with LLM"
 	@echo "  make examples          - Run example scripts"
 	@echo "  make test-magic        - Test refactored magic commands"
 
@@ -84,6 +85,16 @@ release-major:
 prepare-changelog:
 	@echo "Updating CHANGELOG.md for release..."
 	@python scripts/prepare_changelog.py
+
+# Generate changelog entries with LLM
+generate-changelog-llm:
+	@echo "Generating changelog entries with LLM..."
+	@if [ -z "$$API_KEY" ]; then \
+		echo "ERROR: API_KEY environment variable is required."; \
+		echo "Usage: API_KEY=your_openai_api_key make generate-changelog-llm"; \
+		exit 1; \
+	fi
+	@python scripts/generate_changelog_with_llm.py
 
 # Run example scripts
 examples: examples-adapter examples-direct
