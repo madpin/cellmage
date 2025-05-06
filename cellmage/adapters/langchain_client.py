@@ -362,7 +362,7 @@ class LangChainAdapter(LLMClientInterface):
             # a direct way to list models. We'd need to make a custom request.
             # For now, we return a simplified list of common models
             return [
-                {"id": "gpt-3.5-turbo", "name": "GPT-3.5 Turbo"},
+                {"id": "gpt-4.1-nano", "name": "GPT-3.5 Turbo"},
                 {"id": "gpt-4o", "name": "GPT-4o"},
                 {"id": "gpt-4o-mini", "name": "GPT-4o Mini"},
             ]
@@ -386,8 +386,8 @@ class LangChainAdapter(LLMClientInterface):
 
         # Updated with latest model information as of April 2025
         model_info = {
-            "gpt-3.5-turbo": {
-                "id": "gpt-3.5-turbo",
+            "gpt-4.1-nano": {
+                "id": "gpt-4.1-nano",
                 "name": "GPT-3.5 Turbo",
                 "description": "Most capable GPT-3.5 model and optimized for chat",
                 "context_window": 16385,

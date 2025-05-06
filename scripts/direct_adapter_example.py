@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 def main(
     api_key: Optional[str] = None,
     api_base: Optional[str] = None,
-    model: str = "gpt-3.5-turbo",
+    model: str = "gpt-4.1-nano",
     prompt: str = "Explain what cellmage is and how it helps users interact with LLMs.",
 ):
     """
@@ -113,7 +113,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--api-base", help="API base URL (falls back to CELLMAGE_API_BASE env var)")
     parser.add_argument(
-        "--model", default="gpt-3.5-turbo", help="Model to use (default: gpt-3.5-turbo)"
+        "--model", default="gpt-4.1-nano", help="Model to use (default: gpt-4.1-nano)"
     )
     parser.add_argument(
         "--prompt",

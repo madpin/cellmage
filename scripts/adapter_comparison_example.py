@@ -77,7 +77,7 @@ def main():
     prompts = ["What is the capital of France?", "Write a short limerick about programming."]
 
     # Initialize Direct Adapter
-    direct_adapter = DirectLLMAdapter(api_key=api_key, default_model="gpt-3.5-turbo")
+    direct_adapter = DirectLLMAdapter(api_key=api_key, default_model="gpt-4.1-nano")
 
     # Test Direct Adapter without streaming
     test_adapter("Direct Adapter", direct_adapter, prompts, stream=False)
@@ -89,7 +89,7 @@ def main():
     try:
         from cellmage.adapters.langchain_client import LangChainAdapter
 
-        langchain_adapter = LangChainAdapter(api_key=api_key, default_model="gpt-3.5-turbo")
+        langchain_adapter = LangChainAdapter(api_key=api_key, default_model="gpt-4.1-nano")
 
         # Test LangChain Adapter without streaming
         test_adapter("LangChain Adapter", langchain_adapter, prompts, stream=False)
