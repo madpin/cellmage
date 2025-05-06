@@ -36,7 +36,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Constants
-DEFAULT_MODEL = "gpt-4"
+DEFAULT_MODEL = "gpt-4.1-mini"
 SECTION_HEADERS = ["Added", "Changed", "Fixed", "Removed", "Security", "Deprecated"]
 
 
