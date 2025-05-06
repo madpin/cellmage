@@ -65,25 +65,30 @@ if git tag -l "$TAG" | grep -q "$TAG"; then
     if [[ "$VERSION_TYPE" == "major" ]]; then
         NEXT_MAJOR=$((MAJOR + 1))
         SUGGESTED_VERSION="v$NEXT_MAJOR.0.0"
-        VERSION_FILE_UPDATES="-e s/_MAJOR = \"$MAJOR\"/_MAJOR = \"$NEXT_MAJOR\"/ -e s/_MINOR = \"$MINOR\"/_MINOR = \"0\"/ -e s/_PATCH = \"$PATCH\"/_PATCH = \"0\"/"
+        # Fix: Use separate sed commands for each substitution
+        sed -i '' "s/_MAJOR = \"$MAJOR\"/_MAJOR = \"$NEXT_MAJOR\"/" cellmage/version.py
+        sed -i '' "s/_MINOR = \"$MINOR\"/_MINOR = \"0\"/" cellmage/version.py
+        sed -i '' "s/_PATCH = \"$PATCH\"/_PATCH = \"0\"/" cellmage/version.py
     elif [[ "$VERSION_TYPE" == "minor" ]]; then
         NEXT_MINOR=$((MINOR + 1))
         SUGGESTED_VERSION="v$MAJOR.$NEXT_MINOR.0"
-        VERSION_FILE_UPDATES="-e s/_MINOR = \"$MINOR\"/_MINOR = \"$NEXT_MINOR\"/ -e s/_PATCH = \"$PATCH\"/_PATCH = \"0\"/"
+        # Fix: Use separate sed commands for each substitution
+        sed -i '' "s/_MINOR = \"$MINOR\"/_MINOR = \"$NEXT_MINOR\"/" cellmage/version.py
+        sed -i '' "s/_PATCH = \"$PATCH\"/_PATCH = \"0\"/" cellmage/version.py
     else
         # Default to patch
         NEXT_PATCH=$((PATCH + 1))
         SUGGESTED_VERSION="v$MAJOR.$MINOR.$NEXT_PATCH"
-        VERSION_FILE_UPDATES="-e s/_PATCH = \"$PATCH\"/_PATCH = \"$NEXT_PATCH\"/"
+        # Fix: Use a single, properly escaped sed command
+        sed -i '' "s/_PATCH = \"$PATCH\"/_PATCH = \"$NEXT_PATCH\"/" cellmage/version.py
     fi
 
     echo "Would you like to create a new $VERSION_TYPE version: $SUGGESTED_VERSION? [y/N]"
     read -p "> " create_new_version
 
     if [[ $create_new_version == "y" || $create_new_version == "Y" || $create_new_version == "yes" || $create_new_version == "Yes" ]]; then
-        # Update version.py with new version
+        # Update version.py with new version - already done above
         echo "Updating version.py with new version $SUGGESTED_VERSION..."
-        sed -i '' $VERSION_FILE_UPDATES cellmage/version.py
 
         # Get the updated version
         if ! TAG=$(python -c 'from cellmage.version import VERSION; print("v" + VERSION)'); then
