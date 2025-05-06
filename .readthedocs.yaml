@@ -5,6 +5,14 @@ build:
   tools:
     python: "3.9"
 
+python:
+  install:
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
+        - all
+
 sphinx:
   configuration: docs/source/conf.py
   fail_on_warning: true
