@@ -38,6 +38,39 @@ if ! TAG=$(python -c 'from cellmage.version import VERSION; print("v" + VERSION)
     exit 1
 fi
 
+# Check if current tag already exists
+if git tag -l "$TAG" | grep -q "$TAG"; then
+    echo "WARNING: Tag $TAG already exists!"
+
+    # Extract major, minor, patch from current version
+    CURRENT_VERSION=${TAG#v}
+    IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+    # Calculate next minor version
+    NEXT_MINOR=$((MINOR + 1))
+    SUGGESTED_VERSION="v$MAJOR.$NEXT_MINOR.0"
+
+    echo "Would you like to create a new minor version: $SUGGESTED_VERSION? [y/N]"
+    read -p "> " create_new_minor
+
+    if [[ $create_new_minor == "y" || $create_new_minor == "Y" || $create_new_minor == "yes" || $create_new_minor == "Yes" ]]; then
+        # Update version.py with new version
+        echo "Updating version.py with new version $SUGGESTED_VERSION..."
+        sed -i '' "s/_MINOR = \"$MINOR\"/_MINOR = \"$NEXT_MINOR\"/" cellmage/version.py
+        sed -i '' "s/_PATCH = \"$PATCH\"/_PATCH = \"0\"/" cellmage/version.py
+
+        # Get the updated version
+        if ! TAG=$(python -c 'from cellmage.version import VERSION; print("v" + VERSION)'); then
+            echo "ERROR: Failed to get updated version from cellmage.version."
+            exit 1
+        fi
+        echo "Version updated to: $TAG"
+    else
+        echo "Release cancelled. Please update version.py manually before proceeding."
+        exit 1
+    fi
+fi
+
 echo "Current version: $TAG"
 read -p "Creating new release for $TAG. Do you want to continue? [Y/n] " prompt
 
@@ -49,7 +82,7 @@ if [[ $prompt == "y" || $prompt == "Y" || $prompt == "yes" || $prompt == "Yes" |
     fi
 
     echo "Committing changes..."
-    git add CHANGELOG.md
+    git add CHANGELOG.md cellmage/version.py
     if ! git commit -m "Bump version to $TAG for release"; then
         echo "No changes to commit or commit failed."
         # Continue anyway since there might be no changes
