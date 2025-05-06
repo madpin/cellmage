@@ -36,7 +36,6 @@ def test_magic_refactoring():
     """Test that the refactored magic commands can be loaded."""
     # First, check that IPython is available
     try:
-
         print("✅ IPython is available")
     except ImportError:
         print("❌ IPython is not available. Cannot test magic commands.")
@@ -51,12 +50,12 @@ def test_magic_refactoring():
     success_count = 0
 
     # Test 1: Load the main extension but patch integration modules to prevent their errors
-    with patch("cellmage.integrations.jira_magic.load_ipython_extension"), patch(
-        "cellmage.integrations.gitlab_magic.load_ipython_extension"
-    ), patch("cellmage.integrations.github_magic.load_ipython_extension"), patch(
-        "cellmage.integrations.confluence_magic.load_ipython_extension"
+    with (
+        patch("cellmage.integrations.jira_magic.load_ipython_extension"),
+        patch("cellmage.integrations.gitlab_magic.load_ipython_extension"),
+        patch("cellmage.integrations.github_magic.load_ipython_extension"),
+        patch("cellmage.integrations.confluence_magic.load_ipython_extension"),
     ):
-
         try:
             import cellmage
 
