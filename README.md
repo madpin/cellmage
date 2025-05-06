@@ -88,7 +88,7 @@ pip install -e .[dev] # Includes dev dependencies
     ```python
     # IMPORTANT: Make sure to use the CORRECT extension path:
     %load_ext cellmage.integrations.ipython_magic
-    
+
     # NOT just 'cellmage' which won't register the magic commands properly
     ```
 
@@ -312,7 +312,7 @@ Fetch GitLab repositories and merge requests directly into your notebook using t
 
     # Include full code content (may be very large)
     %gitlab namespace/project --full-code
-    
+
     # Get more detailed contributor information
     %gitlab namespace/project --contributors-months 12
     ```
@@ -321,7 +321,7 @@ Fetch GitLab repositories and merge requests directly into your notebook using t
     ```python
     # First, fetch the repository
     %gitlab namespace/project
-    
+
     # Check the estimated token size in the output
     # "✅ Estimated token size: ~12,345 tokens (10,000 code, 2,345 metadata)"
 
@@ -361,7 +361,7 @@ Fetch GitHub repositories and pull requests directly into your notebook using th
 
     # Include full code content (may be very large)
     %github username/repo --full-code
-    
+
     # Get more detailed contributor information
     %github username/repo --contributors-months 12
     ```
@@ -370,7 +370,7 @@ Fetch GitHub repositories and pull requests directly into your notebook using th
     ```python
     # First, fetch the repository
     %github username/repo
-    
+
     # Check the estimated token size in the output
     # "✅ Estimated token size: ~12,345 tokens (10,000 code, 2,345 metadata)"
 

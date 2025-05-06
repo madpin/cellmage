@@ -10,8 +10,8 @@ To use the Confluence integration, you need:
 2. Valid credentials (email/username and API token)
 3. The following environment variables set:
    - `CONFLUENCE_URL` (or `JIRA_URL` if your Confluence is part of your Jira instance)
-   - `JIRA_USER_EMAIL` 
-   - `JIRA_API_TOKEN` 
+   - `JIRA_USER_EMAIL`
+   - `JIRA_API_TOKEN`
 
 ## Getting Started
 
@@ -122,7 +122,7 @@ Given the Confluence page above, please summarize the key points.
    ```python
    # Default is already Markdown (recommended for most uses)
    %confluence SPACE:PageTitle
-   
+
    # Use text only if needed for specific use cases
    %confluence SPACE:PageTitle --text
    ```
@@ -166,6 +166,6 @@ Based on the Project Overview page, what are the key milestones?
 
 # Ask LLM to analyze both
 %%llm
-Given the project requirements from Confluence and the Jira ticket above, 
+Given the project requirements from Confluence and the Jira ticket above,
 what should be our implementation approach?
 ```

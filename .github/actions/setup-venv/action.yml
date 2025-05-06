@@ -47,17 +47,17 @@ runs:
         echo "Cache miss - creating new virtual environment and installing dependencies"
         test -d .venv || virtualenv -p $(which python) --copies --reset-app-data .venv
         . .venv/bin/activate
-        
+
         # Install in stages to better handle dependency resolution
         pip install -e .
-        
+
         # Install additional dependencies based on input
         IFS=',' read -ra DEPS <<< "${{ inputs.dependencies }}"
         for dep in "${DEPS[@]}"; do
           echo "Installing optional dependency group: ${dep}"
           pip install -e ".[${dep}]"
         done
-        
+
         # Verify key packages are installed
         if [[ "${{ inputs.dependencies }}" == *"all"* ]]; then
           echo "Verifying langchain dependencies..."
@@ -71,17 +71,17 @@ runs:
         # Set up virtual environment from cache hit.
         echo "Cache hit - using cached virtual environment"
         . .venv/bin/activate
-        
+
         # Reinstall the package without dependencies
         pip install -e .
-        
+
         # Install additional dependencies based on input
         IFS=',' read -ra DEPS <<< "${{ inputs.dependencies }}"
         for dep in "${DEPS[@]}"; do
           echo "Installing optional dependency group: ${dep}"
           pip install -e ".[${dep}]"
         done
-        
+
         # Verify key packages are installed
         if [[ "${{ inputs.dependencies }}" == *"all"* ]]; then
           echo "Verifying langchain dependencies..."
@@ -97,11 +97,11 @@ runs:
         echo "Python path: $PYTHONPATH"
         echo "Packages installed:"
         pip list
-        
+
         # Verify critical packages
         echo "Verifying critical packages..."
         python -c "import sys; print('Python version:', sys.version)"
-        
+
         if [[ "${{ inputs.dependencies }}" == *"all"* ]] || [[ "${{ inputs.dependencies }}" == *"langchain"* ]]; then
           echo "Checking for langchain modules..."
           python -c "import langchain; import langchain_core; print('langchain version:', langchain.__version__, 'langchain_core version:', langchain_core.__version__)" || echo "Warning: langchain modules not properly installed"

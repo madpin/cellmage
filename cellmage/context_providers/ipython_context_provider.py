@@ -210,9 +210,9 @@ class IPythonContextProvider(ContextProvider):
 
         # Add copy button with JavaScript functionality - improved approach with isolated function for each instance
         copy_button_html = f"""
-        <button id="{status_id}_button" 
+        <button id="{status_id}_button"
                 onclick="{status_id}_copyContent(this)"
-                style="margin-left: 8px; border: none; background: none; cursor: pointer; 
+                style="margin-left: 8px; border: none; background: none; cursor: pointer;
                        padding: 0px 4px; border-radius: 3px; font-size: 1em; opacity: 0.8;"
                 title="Copy response to clipboard">
             📋
@@ -220,11 +220,11 @@ class IPythonContextProvider(ContextProvider):
         <script>
         // Define the content as a string directly to avoid variable name collisions
         const {status_id}_content = {repr(response_content)};
-        
+
         // Use a uniquely named function for each button to avoid overwrites
         function {status_id}_copyContent(button) {{
             const text = {status_id}_content;
-            
+
             // If no content found or it's empty
             if (!text) {{
                 button.innerHTML = '❓';
@@ -235,7 +235,7 @@ class IPythonContextProvider(ContextProvider):
                 }}, 1500);
                 return;
             }}
-            
+
             // Try modern clipboard API first
             if (navigator.clipboard && navigator.clipboard.writeText) {{
                 navigator.clipboard.writeText(text)
@@ -243,7 +243,7 @@ class IPythonContextProvider(ContextProvider):
                         // Show success indication on the button
                         button.innerHTML = '✅';
                         button.title = 'Copied!';
-                        
+
                         // Reset button after a short delay
                         setTimeout(() => {{
                             button.innerHTML = '📋';
@@ -260,7 +260,7 @@ class IPythonContextProvider(ContextProvider):
                 {status_id}_fallbackCopy(button, text);
             }}
         }}
-        
+
         // Also create a unique fallback function
         function {status_id}_fallbackCopy(button, text) {{
             // Create temporary element for copying
@@ -271,13 +271,13 @@ class IPythonContextProvider(ContextProvider):
             tempElement.style.left = '-9999px';
             document.body.appendChild(tempElement);
             tempElement.select();
-            
+
             try {{
                 // Copy text to clipboard using execCommand
                 const success = document.execCommand('copy');
                 button.innerHTML = success ? '✅' : '❌';
                 button.title = success ? 'Copied!' : 'Failed to copy';
-                
+
                 // Reset button after delay
                 setTimeout(() => {{
                     button.innerHTML = '📋';
@@ -287,7 +287,7 @@ class IPythonContextProvider(ContextProvider):
                 console.error('Failed to copy: ', err);
                 button.innerHTML = '❌';
                 button.title = 'Failed to copy';
-                
+
                 setTimeout(() => {{
                     button.innerHTML = '📋';
                     button.title = 'Copy response to clipboard';
@@ -310,7 +310,7 @@ class IPythonContextProvider(ContextProvider):
 
         status_html = f"""
         <div id="{status_id}" style="background-color: {bg_color}; border: 1px solid {border_color}; color: {text_color};
-                    padding: 3px 6px; margin-top: 4px; border-radius: 3px; font-family: monospace; 
+                    padding: 3px 6px; margin-top: 4px; border-radius: 3px; font-family: monospace;
                     font-size: 0.75em; line-height: 1.2; display: inline-block; opacity: 0.85;">
             <span style="display: flex; align-items: center;">
                 <span>{status_text}</span>

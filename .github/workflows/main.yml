@@ -96,7 +96,7 @@ jobs:
         run: |
           . .venv/bin/activate
           ${{ matrix.task.run }}
-        
+
       - name: Debug on test failure
         if: ${{ failure() && matrix.task.name == 'Test' }}
         run: |
