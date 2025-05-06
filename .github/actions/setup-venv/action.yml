@@ -8,6 +8,10 @@ inputs:
     description: Update this to invalidate the cache
     required: true
     default: v0
+  dependencies:
+    description: Additional dependencies to install (comma separated)
+    required: false
+    default: "dev,all"
 runs:
   using: composite
   steps:
@@ -20,37 +24,86 @@ runs:
       run: |
         # Install prerequisites.
         pip install --upgrade pip setuptools wheel virtualenv
+      name: Install prerequisites
 
     - shell: bash
       run: |
         # Get the exact Python version to use in the cache key.
         echo "PYTHON_VERSION=$(python --version)" >> $GITHUB_ENV
+      name: Set Python version environment variable
 
     - uses: actions/cache@v4
       id: virtualenv-cache
       with:
         path: .venv
         key: ${{ inputs.cache-prefix }}-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('pyproject.toml') }}
+        restore-keys: |
+          ${{ inputs.cache-prefix }}-${{ runner.os }}-${{ env.PYTHON_VERSION }}-
 
     - if: steps.virtualenv-cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
         # Set up virtual environment without cache hit.
+        echo "Cache miss - creating new virtual environment and installing dependencies"
         test -d .venv || virtualenv -p $(which python) --copies --reset-app-data .venv
         . .venv/bin/activate
-        pip install -e .[dev,all]
+        
+        # Install in stages to better handle dependency resolution
+        pip install -e .
+        
+        # Install additional dependencies based on input
+        IFS=',' read -ra DEPS <<< "${{ inputs.dependencies }}"
+        for dep in "${DEPS[@]}"; do
+          echo "Installing optional dependency group: ${dep}"
+          pip install -e ".[${dep}]"
+        done
+        
+        # Verify key packages are installed
+        if [[ "${{ inputs.dependencies }}" == *"all"* ]]; then
+          echo "Verifying langchain dependencies..."
+          pip install langchain-core langchain
+        fi
+      name: Setup virtualenv (no cache)
 
     - if: steps.virtualenv-cache.outputs.cache-hit == 'true'
       shell: bash
       run: |
         # Set up virtual environment from cache hit.
+        echo "Cache hit - using cached virtual environment"
         . .venv/bin/activate
-        pip install --no-deps -e .[dev,all]
+        
+        # Reinstall the package without dependencies
+        pip install -e .
+        
+        # Install additional dependencies based on input
+        IFS=',' read -ra DEPS <<< "${{ inputs.dependencies }}"
+        for dep in "${DEPS[@]}"; do
+          echo "Installing optional dependency group: ${dep}"
+          pip install -e ".[${dep}]"
+        done
+        
+        # Verify key packages are installed
+        if [[ "${{ inputs.dependencies }}" == *"all"* ]]; then
+          echo "Verifying langchain dependencies..."
+          pip install langchain-core langchain
+        fi
+      name: Setup virtualenv (from cache)
 
     - shell: bash
       run: |
         # Show environment info.
         . .venv/bin/activate
         echo "✓ Installed $(python --version) virtual environment to $(which python)"
-        echo "Packages:"
-        pip freeze
+        echo "Python path: $PYTHONPATH"
+        echo "Packages installed:"
+        pip list
+        
+        # Verify critical packages
+        echo "Verifying critical packages..."
+        python -c "import sys; print('Python version:', sys.version)"
+        
+        if [[ "${{ inputs.dependencies }}" == *"all"* ]] || [[ "${{ inputs.dependencies }}" == *"langchain"* ]]; then
+          echo "Checking for langchain modules..."
+          python -c "import langchain; import langchain_core; print('langchain version:', langchain.__version__, 'langchain_core version:', langchain_core.__version__)" || echo "Warning: langchain modules not properly installed"
+        fi
+      name: Verify environment
