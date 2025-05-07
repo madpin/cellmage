@@ -88,9 +88,13 @@ def get_commit_messages(since_tag, current_tag):
     """Get commit messages between two tags."""
     try:
         if since_tag:
-            range_spec = f"{since_tag}..HEAD"
+            # Use the current_tag instead of HEAD to limit commits to only those
+            # relevant for the current version
+            range_spec = f"{since_tag}..{current_tag}"
         else:
-            range_spec = "HEAD"
+            # If no since_tag is provided, limit to the current tag
+            # or use HEAD if current_tag is not available
+            range_spec = current_tag if current_tag else "HEAD"
 
         commits = subprocess.check_output(
             ["git", "log", range_spec, "--pretty=format:%s (%h)"],
@@ -319,7 +323,7 @@ def main():
         since_tag = get_previous_tag(current_version)
         logger.info(f"Using previous tag: {since_tag}")
 
-    # Get commit messages
+    # Get commit messages - pass current_version tag instead of just using HEAD
     commits = get_commit_messages(since_tag, current_version)
 
     # Generate changelog with LLM
