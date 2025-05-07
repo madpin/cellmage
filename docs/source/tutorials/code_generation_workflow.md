@@ -18,7 +18,7 @@ Before diving in, make sure:
 - You understand the fundamentals of the language/framework you're using
 - You have CellMage loaded in your notebook:
 
-```python
+```ipython
 %load_ext cellmage.integrations.ipython_magic
 ```
 
@@ -26,7 +26,7 @@ Before diving in, make sure:
 
 When using LLMs for code generation, shift your thinking from "writing code" to "collaborating with an AI pair programmer":
 
-```python
+```ipython
 %%llm
 I want to establish a good workflow for code generation with LLMs.
 What principles should I follow to get the best results when asking you to generate code?
@@ -37,7 +37,7 @@ What are common pitfalls to avoid?
 
 The quality of your prompt determines the quality of generated code. Start by clearly defining requirements:
 
-```python
+```ipython
 %%llm
 I need to build a Python function that:
 1. Takes a list of URLs as input
@@ -57,7 +57,7 @@ Requirements:
 
 For complex code generation, break tasks into manageable components:
 
-```python
+```ipython
 %%llm
 I want to build a web scraper for product information. Let's break this down:
 
@@ -80,7 +80,7 @@ For each component, outline:
 
 Generated code often needs refinement. Use a multi-step approach:
 
-```python
+```ipython
 # First draft
 %%llm
 Write a Python class for a simple in-memory key-value store with expiration.
@@ -101,7 +101,7 @@ Can you update the implementation with these changes?
 
 Always ask for tests alongside implementations:
 
-```python
+```ipython
 %%llm
 Write a function to validate JSON against a schema, and include comprehensive unit tests.
 The function should:
@@ -122,7 +122,7 @@ Include pytest test cases that cover:
 
 Request well-documented code to enhance maintainability:
 
-```python
+```ipython
 %%llm
 Write a Python utility module for secure password handling with the following functions:
 1. hash_password(password: str) -> str
@@ -142,7 +142,7 @@ Also add module-level documentation explaining security considerations.
 
 When performance matters, provide specific requirements:
 
-```python
+```ipython
 %%llm
 I need an efficient algorithm for finding all pairs of numbers in an array that sum to a given target.
 
@@ -164,7 +164,7 @@ Please provide:
 
 Generate multiple solutions to select the best approach:
 
-```python
+```ipython
 %%llm
 I need to implement a rate limiter for an API. Generate three different approaches:
 1. A simple time-window counter implementation
@@ -184,7 +184,7 @@ Then recommend which approach best fits a high-traffic microservice with bursty 
 
 Guide the LLM on how to integrate with your existing code:
 
-```python
+```ipython
 # First, provide context about your existing code
 %llm_config --snippet database_manager.py
 %llm_config --snippet config.py
@@ -205,7 +205,7 @@ Please generate the implementation that integrates with our existing code.
 
 Use CellMage to review code for security issues:
 
-```python
+```ipython
 %llm_config --snippet user_authentication.py
 
 %%llm
@@ -227,7 +227,7 @@ For each issue found, explain:
 
 ### Implementing Design Patterns
 
-```python
+```ipython
 %%llm
 Implement the Observer design pattern for a weather monitoring system in Python.
 
@@ -246,7 +246,7 @@ Include:
 
 ### API Client Generation
 
-```python
+```ipython
 %%llm
 Generate a Python client for interacting with the following REST API endpoints:
 
@@ -270,7 +270,7 @@ Create a well-structured client that:
 
 ### Full-Stack Feature Implementation
 
-```python
+```ipython
 %%llm
 I'm building a task management application and need to implement a "task assignment" feature.
 

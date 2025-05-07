@@ -167,7 +167,7 @@ When working with CellMage, keep these performance considerations in mind:
 
 Enable debug mode to see detailed logs:
 
-```python
+```ipython
 from cellmage.utils.logging import setup_logging
 import logging
 setup_logging(level=logging.DEBUG)

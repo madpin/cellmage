@@ -33,7 +33,7 @@ To create a GitHub Personal Access Token:
 
 To fetch a specific repository:
 
-```python
+```ipython
 %github username/repo
 ```
 
@@ -45,7 +45,7 @@ This fetches the repository summary and adds it as a user message in the chat hi
 
 You can also fetch a specific pull request from a repository:
 
-```python
+```ipython
 %github username/repo --pr 123
 ```
 
@@ -65,32 +65,32 @@ You can also fetch a specific pull request from a repository:
 ### Examples
 
 Fetch a repository and add it to history:
-```python
+```ipython
 %github username/repo
 ```
 
 Fetch a repository and add it as system context:
-```python
+```ipython
 %github username/repo --system
 ```
 
 Just view a repository summary without adding to history:
-```python
+```ipython
 %github username/repo --show
 ```
 
 Fetch a pull request:
-```python
+```ipython
 %github username/repo --pr 123
 ```
 
 View a pull request without adding to history:
-```python
+```ipython
 %github username/repo --pr 123 --show
 ```
 
 Exclude certain directories and file types:
-```python
+```ipython
 %github username/repo --exclude-dir "node_modules" --exclude-ext ".json" --exclude-ext ".md"
 ```
 
@@ -98,7 +98,7 @@ Exclude certain directories and file types:
 
 Once you've fetched GitHub content, you can reference it in your LLM queries:
 
-```python
+```ipython
 # First, fetch the repository
 %github username/repo
 
@@ -109,7 +109,7 @@ Based on the GitHub repository above, can you explain the project architecture a
 
 Or with pull requests:
 
-```python
+```ipython
 # First, fetch the pull request
 %github username/repo --pr 123
 
@@ -123,7 +123,7 @@ Please review the pull request above and suggest any improvements or issues to a
 ### Authentication Issues
 
 1. **Verify your token is set properly**:
-   ```python
+   ```ipython
    import os
    print("GITHUB_TOKEN is set:", os.environ.get("GITHUB_TOKEN") is not None)
    ```

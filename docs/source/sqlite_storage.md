@@ -11,7 +11,7 @@ CellMage provides a powerful SQLite-based storage system - think of it as your m
 
 To begin using the magical SQLite storage:
 
-```python
+```ipython
 # Load the extension with the SQLite vault
 %load_ext cellmage.integrations.sqlite_magic
 
@@ -23,7 +23,7 @@ To begin using the magical SQLite storage:
 
 The SQLite storage automatically captures all your magical conversations. Use it just like regular CellMage:
 
-```python
+```ipython
 # Cast a spell (sends to LLM and stores in SQLite)
 %%llm
 Explain how wizards might use databases in magical societies.
@@ -48,7 +48,7 @@ The `%sqlite` line magic gives you special powers:
 
 ## 📜 Examples of Magical Storage
 
-```python
+```ipython
 # Start a new conversation
 %sqlite --new
 
@@ -69,7 +69,7 @@ The `%sqlite` line magic gives you special powers:
 
 For advanced wizards who wish to control the storage vault directly:
 
-```python
+```ipython
 from cellmage.storage.sqlite_store import SQLiteStore
 
 # Create a custom storage vault

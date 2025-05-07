@@ -49,7 +49,7 @@ export GITLAB_PAT=your_gitlab_personal_access_token
 
 Let's start with basic repository analysis:
 
-```python
+```ipython
 # Load the CellMage extension
 %load_ext cellmage.integrations.ipython_magic
 
@@ -62,7 +62,7 @@ Let's start with basic repository analysis:
 
 ### Fetching a GitHub Repository
 
-```python
+```ipython
 # Fetch a GitHub repository and add it to chat history
 %github username/repository
 
@@ -74,7 +74,7 @@ and main components? What patterns does it use?
 
 ### Fetching a GitLab Repository
 
-```python
+```ipython
 # Fetch a GitLab repository and add it to chat history
 %gitlab namespace/project
 
@@ -89,7 +89,7 @@ Can you analyze this GitLab project's structure and explain its key modules?
 
 Pull requests contain valuable context about code changes. Let's review one:
 
-```python
+```ipython
 # Fetch a specific pull request
 %github username/repository --pr 123
 
@@ -107,7 +107,7 @@ Please review this pull request, focusing on:
 
 Similarly, for GitLab merge requests:
 
-```python
+```ipython
 # Fetch a specific merge request
 %gitlab namespace/project --mr 456
 
@@ -123,7 +123,7 @@ Both GitHub and GitLab integrations provide options to customize the content fet
 
 ### GitHub Advanced Options
 
-```python
+```ipython
 # Clean mode (focuses on code by excluding non-essential files)
 %github username/repository --clean
 
@@ -142,7 +142,7 @@ Both GitHub and GitLab integrations provide options to customize the content fet
 
 ### GitLab Advanced Options
 
-```python
+```ipython
 # Clean mode
 %gitlab namespace/project --clean
 
@@ -159,7 +159,7 @@ Let's look at some real-world scenarios where CellMage + GitHub/GitLab integrati
 
 ### 1. Code Architecture Assessment
 
-```python
+```ipython
 # Fetch repository
 %github username/complex-project
 
@@ -173,7 +173,7 @@ Based on this repository:
 
 ### 2. Security Audit
 
-```python
+```ipython
 # Fetch repository with focus on code
 %github username/webapp --clean
 
@@ -187,7 +187,7 @@ Perform a security audit of this codebase:
 
 ### 3. Performance Review
 
-```python
+```ipython
 # Fetch a performance-related pull request
 %github username/performance-project --pr 42
 
@@ -201,7 +201,7 @@ This PR aims to improve performance. Please:
 
 ### 4. Onboarding to New Codebase
 
-```python
+```ipython
 # Fetch repository
 %gitlab namespace/new-project
 

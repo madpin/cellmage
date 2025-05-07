@@ -21,7 +21,7 @@ Each integration brings unique capabilities to your magical workflow:
 
 Fetch ticket information, create comments, update statuses, and more without leaving your notebook.
 
-```python
+```ipython
 %jira PROJ-123  # Get ticket details
 ```
 
@@ -29,7 +29,7 @@ Fetch ticket information, create comments, update statuses, and more without lea
 
 Import knowledge from your company wiki directly into your LLM context.
 
-```python
+```ipython
 %confluence "Page Title"  # Import page content
 ```
 
@@ -37,7 +37,7 @@ Import knowledge from your company wiki directly into your LLM context.
 
 Access repository information, pull requests, issues, and more.
 
-```python
+```ipython
 %github repo:user/repo issue:42  # Get issue details
 ```
 
@@ -45,7 +45,7 @@ Access repository information, pull requests, issues, and more.
 
 Similar to GitHub, but for GitLab repositories and merge requests.
 
-```python
+```ipython
 %gitlab project:group/project mr:15  # Get merge request details
 ```
 

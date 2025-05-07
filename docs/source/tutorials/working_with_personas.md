@@ -176,7 +176,7 @@ Adapt your style to match the requested genre while maintaining high quality pro
 
 You can easily switch between personas during a session:
 
-```python
+```ipython
 # Switch to the data analyst
 %llm_config --persona data_analyst
 
@@ -192,7 +192,7 @@ Write a short story about a data scientist who discovers magic in their code.
 
 To see which persona is active and what its system instructions are:
 
-```python
+```ipython
 # Show the current persona
 %llm_config --show-persona
 ```

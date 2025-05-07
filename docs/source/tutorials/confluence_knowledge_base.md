@@ -21,7 +21,7 @@ Before diving in, make sure:
   pip install "cellmage[confluence]"
   ```
 - You have CellMage loaded in your notebook:
-  ```python
+  ```ipython
   %load_ext cellmage.integrations.ipython_magic
   ```
 
@@ -29,7 +29,7 @@ Before diving in, make sure:
 
 First, let's configure CellMage to connect to your Confluence instance:
 
-```python
+```ipython
 # Set Confluence credentials (recommended approach is using environment variables)
 import os
 os.environ["CONFLUENCE_URL"] = "https://your-instance.atlassian.net/wiki"
@@ -47,7 +47,7 @@ os.environ["CONFLUENCE_API_TOKEN"] = "your-api-token"
 
 Let's verify that the connection works by listing some spaces:
 
-```python
+```ipython
 # List available Confluence spaces
 %confluence list-spaces
 ```
@@ -66,7 +66,7 @@ Available Confluence Spaces:
 
 To import a specific Confluence page into your LLM context:
 
-```python
+```ipython
 # Import a page by title
 %confluence "Project Overview"
 
@@ -82,7 +82,7 @@ Summarize the key points from the Project Overview page.
 
 Find relevant pages based on search terms:
 
-```python
+```ipython
 # Search for pages containing "onboarding"
 %confluence --search "onboarding"
 
@@ -98,7 +98,7 @@ What are the key steps in our onboarding process?
 
 You can also work with entire Confluence spaces:
 
-```python
+```ipython
 # List all pages in a specific space
 %confluence --space "TEAM" --list
 
@@ -114,7 +114,7 @@ What are the main projects our team is currently working on, based on the wiki c
 
 For more fine-grained control over what content to import:
 
-```python
+```ipython
 # Import pages with specific labels
 %confluence --labels "documentation,api"
 
@@ -133,7 +133,7 @@ Summarize the recent API changes documented in our wiki.
 
 Confluence wikis can be extensive. Here's how to manage large content:
 
-```python
+```ipython
 # Import a page but limit the content size
 %confluence "Architecture Overview" --max-tokens 2000
 
@@ -152,7 +152,7 @@ Based on the API Reference section, what authentication methods are supported?
 
 Confluence content can be used alongside other information sources:
 
-```python
+```ipython
 # Import Confluence page
 %confluence "Service Architecture"
 
@@ -172,7 +172,7 @@ identify any inconsistencies between documentation and code.
 
 Use Confluence content to enhance your LLM workflows:
 
-```python
+```ipython
 # Import company style guide
 %confluence "Brand Style Guide"
 
@@ -186,7 +186,7 @@ our new feature X. The post should be approximately 400 words.
 
 When working with corporate wikis:
 
-```python
+```ipython
 # Clear sensitive context after use
 %confluence --clear
 
@@ -202,7 +202,7 @@ Summarize the timeline for the confidential project.
 
 ### Document-Grounded Question Answering
 
-```python
+```ipython
 # Import relevant documentation
 %confluence --search "authentication" --top 3
 
@@ -214,7 +214,7 @@ If any information is missing from the documentation, identify those gaps.
 
 ### Knowledge Base Aggregation
 
-```python
+```ipython
 # Import pages from different spaces
 %confluence --space "ENGINEERING" --labels "architecture"
 %confluence --space "PRODUCT" --labels "requirements"
@@ -227,7 +227,7 @@ upcoming product needs.
 
 ### Document-Based Reasoning
 
-```python
+```ipython
 # Import procedural documentation
 %confluence "Incident Response Procedure"
 

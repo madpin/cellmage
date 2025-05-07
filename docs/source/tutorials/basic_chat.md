@@ -17,7 +17,7 @@ Before diving in, make sure you have:
 - An API key configured (see the [Quickstart](quickstart.md) guide if needed)
 - The extension loaded in your notebook:
 
-```python
+```ipython
 %load_ext cellmage.integrations.ipython_magic
 ```
 
@@ -25,7 +25,7 @@ Before diving in, make sure you have:
 
 Let's start with a simple conversation:
 
-```python
+```ipython
 %%llm
 Explain what makes a good prompt for an LLM. Keep it concise.
 ```
@@ -36,7 +36,7 @@ You'll notice the LLM responds with a concise explanation. But what if we want t
 
 CellMage maintains conversation context automatically, allowing for natural follow-ups:
 
-```python
+```ipython
 %%llm
 Can you give me 3 specific examples of what you just explained?
 ```
@@ -47,7 +47,7 @@ The model remembers the previous discussion about good prompts and provides exam
 
 For more detailed responses, structure your prompt with clear sections:
 
-```python
+```ipython
 %%llm
 I need information about Python's list comprehensions.
 
@@ -64,7 +64,7 @@ Notice how providing a structure helps the LLM organize its response in a more u
 
 You can request different styles or formats for responses:
 
-```python
+```ipython
 %%llm
 Explain the concept of "technical debt" in software development.
 First, explain it as if I'm a senior developer.
@@ -77,7 +77,7 @@ This approach is useful when you need explanations tailored to different audienc
 
 The temperature parameter controls the creativity and randomness of responses:
 
-```python
+```ipython
 # More deterministic, focused response
 %%llm --temperature 0.1
 List 5 best practices for writing clean code.
@@ -93,7 +93,7 @@ Compare the two responses. The lower temperature produces more predictable, conv
 
 If a response isn't quite what you wanted, you can ask for refinements:
 
-```python
+```ipython
 %%llm
 Your previous response about clean code was helpful, but could you focus more specifically on Python best practices and include examples for each?
 ```
@@ -104,14 +104,14 @@ This iterative refinement is one of the most powerful aspects of conversational 
 
 You can guide the LLM to produce shorter or longer responses:
 
-```python
+```ipython
 %%llm
 Explain quantum computing in 2-3 sentences only.
 ```
 
 Or for a more detailed explanation:
 
-```python
+```ipython
 %%llm
 I'd like an in-depth explanation of quantum computing, including:
 - Key principles and concepts
@@ -126,7 +126,7 @@ Please be thorough and provide examples where helpful.
 
 You can request a specific tone for the response:
 
-```python
+```ipython
 %%llm
 Write a brief explanation of blockchain technology with an enthusiastic tone.
 
@@ -137,7 +137,7 @@ Now, explain the same concept with a more formal, academic tone.
 
 If you receive a response that isn't helpful, you can:
 
-```python
+```ipython
 %%llm
 That explanation wasn't quite what I was looking for. Let me clarify: I'm trying to understand blockchain specifically in terms of its application for supply chain tracking. Can you focus on that aspect?
 ```
@@ -154,7 +154,7 @@ That explanation wasn't quite what I was looking for. Let me clarify: I'm trying
 
 To review your conversation:
 
-```python
+```ipython
 # Show your full conversation history
 %llm_config --show-history
 ```
@@ -163,7 +163,7 @@ To review your conversation:
 
 When you want to start a new conversation without previous context:
 
-```python
+```ipython
 # Clear conversation history
 %llm_config --clear-history
 ```

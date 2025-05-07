@@ -30,7 +30,7 @@ echo "CELLMAGE_API_KEY=your_openai_api_key" > .env
 
 Open a new Jupyter notebook and let's get started. You'll first need to load the CellMage extension:
 
-```python
+```ipython
 # Load the CellMage magical extension
 %load_ext cellmage.integrations.ipython_magic
 
@@ -44,7 +44,7 @@ You should see a status message showing your current configuration, including th
 
 Let's cast your first spell by sending a prompt to your LLM:
 
-```python
+```ipython
 %%llm
 Explain what large language models are in 3 simple sentences.
 ```
@@ -59,7 +59,7 @@ Within moments, you should see a response appear below the cell, along with some
 
 Let's try tweaking some parameters to see how they affect the response:
 
-```python
+```ipython
 %%llm --temperature 0.8 --model gpt-4o
 Write a short, imaginative story about a wizard who uses AI to help with spellcasting.
 ```
@@ -70,7 +70,7 @@ The `--temperature` parameter increases creativity, and we've also specified a d
 
 CellMage comes with several built-in personas that shape how the LLM responds:
 
-```python
+```ipython
 # List available personas
 %llm_config --list-personas
 
@@ -87,7 +87,7 @@ Notice how the LLM's response is now tailored toward coding expertise!
 
 CellMage maintains conversation history automatically. Let's see it in action:
 
-```python
+```ipython
 %%llm
 In your previous response about Python exceptions, can you provide a specific example?
 ```
@@ -96,7 +96,7 @@ The LLM remembers the previous conversation about exceptions and builds on it.
 
 If you want to start fresh:
 
-```python
+```ipython
 # Clear the conversation history
 %llm_config --clear-history
 
@@ -109,7 +109,7 @@ What are the key principles of good data visualization?
 
 Let's see what we've done in this session:
 
-```python
+```ipython
 # Show your conversation history
 %llm_config --show-history
 ```
@@ -120,14 +120,14 @@ This displays all the messages exchanged in your current session.
 
 Before ending our tour, let's save this conversation:
 
-```python
+```ipython
 # Save the conversation with a meaningful name
 %llm_config --save "my_first_cellmage_session"
 ```
 
 You can reload this session later with:
 
-```python
+```ipython
 # List saved sessions
 %llm_config --list-sessions
 

@@ -31,7 +31,7 @@ This status line shows:
 
 You can also view token usage for your entire conversation:
 
-```python
+```ipython
 # Show conversation history with token counts
 %llm_config --show-history
 ```
@@ -59,7 +59,7 @@ Let's look at some practical examples to understand token usage in context:
 
 ### Example 1: Simple Question and Answer
 
-```python
+```ipython
 %%llm
 What is the capital of France?
 ```
@@ -71,7 +71,7 @@ Approximate tokens:
 
 ### Example 2: Code Review
 
-```python
+```ipython
 %%llm --snippet my_function.py
 Review this code for bugs and efficiency improvements.
 ```
@@ -83,7 +83,7 @@ If `my_function.py` contains 100 lines of code:
 
 ### Example 3: GitHub Repository Analysis
 
-```python
+```ipython
 %github username/medium-project
 %%llm
 Analyze this repository architecture.
@@ -98,14 +98,14 @@ For a medium-sized repository:
 
 CellMage includes a token counting example to help you understand how different texts are tokenized:
 
-```python
+```ipython
 # Run the token counting example script
 !python examples/token_counting_example.py
 ```
 
 You can also tokenize custom text:
 
-```python
+```ipython
 from cellmage.utils.token_utils import estimate_tokens
 
 # Estimate tokens in a simple string
@@ -139,7 +139,7 @@ Each model has a context window limit - the maximum number of combined input and
 
 Use more powerful models only when needed:
 
-```python
+```ipython
 # For simple questions
 %%llm -m gpt-3.5-turbo
 What is the difference between a list and a tuple in Python?
@@ -186,7 +186,7 @@ What authentication method should we use for the API?
 
 When using GitHub or GitLab integration, use the `--clean` flag and exclusion options:
 
-```python
+```ipython
 # More efficient repository import
 %github username/repository --clean --exclude-dir node_modules --exclude-dir .git --exclude-ext .md
 ```
@@ -195,7 +195,7 @@ When using GitHub or GitLab integration, use the `--clean` flag and exclusion op
 
 Break down large analyses into smaller chunks:
 
-```python
+```ipython
 # First, get a high-level overview
 %github username/large-repository --clean
 %%llm
@@ -211,7 +211,7 @@ Analyze this specific component in detail.
 
 Instead of keeping very long conversations in memory, use SQLite storage and reference previous conversations:
 
-```python
+```ipython
 # Load SQLite magic to store conversations
 %load_ext cellmage.integrations.sqlite_magic
 
@@ -229,7 +229,7 @@ CellMage provides several ways to monitor your token usage:
 
 ### Conversation History with Token Counts
 
-```python
+```ipython
 # View current conversation history with token counts
 %llm_config --show-history
 ```
@@ -238,7 +238,7 @@ CellMage provides several ways to monitor your token usage:
 
 If you're using SQLite storage:
 
-```python
+```ipython
 # Get statistics for your conversations
 %sqlite --stats
 ```

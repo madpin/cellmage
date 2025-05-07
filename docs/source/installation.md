@@ -126,7 +126,7 @@ A reference example can be found in `cellmage/examples/cellmage_models.yml`. Thi
 
 Let's verify that your CellMage installation is working properly:
 
-```python
+```ipython
 # In your Jupyter Notebook
 %load_ext cellmage.integrations.ipython_magic
 

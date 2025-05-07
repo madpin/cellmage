@@ -66,7 +66,7 @@ To add a new magic command:
 
 Example:
 
-```python
+```ipython
 # in ipython/new_magic.py
 @magics_class
 class NewMagics(IPythonMagicsBase):

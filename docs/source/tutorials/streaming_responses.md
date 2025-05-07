@@ -18,7 +18,7 @@ Before diving in, make sure:
 - You understand how to use the `%%llm` magic command
 - You have CellMage loaded in your notebook:
 
-```python
+```ipython
 %load_ext cellmage.integrations.ipython_magic
 ```
 
@@ -34,7 +34,7 @@ By default, CellMage displays LLM responses only when they're fully complete. Ho
 
 Try your first streaming response:
 
-```python
+```ipython
 %%llm --stream
 Write a brief explanation of quantum computing for beginners.
 ```
@@ -45,7 +45,7 @@ You'll notice text appearing incrementally rather than all at once.
 
 Streaming is particularly valuable for:
 
-```python
+```ipython
 # Long-form content generation
 %%llm --stream
 Write a detailed step-by-step guide for setting up a Docker development environment for a Python web application with PostgreSQL and Redis.
@@ -63,7 +63,7 @@ Explain the philosophical implications of the Ship of Theseus paradox and how it
 
 Streaming behavior can vary between models:
 
-```python
+```ipython
 # Faster models with streaming
 %%llm --stream --model gpt-3.5-turbo
 Explain how neural networks learn through backpropagation.
@@ -79,7 +79,7 @@ Notice how different models might stream at different rates and chunk sizes.
 
 If you prefer streaming by default:
 
-```python
+```ipython
 # Set streaming as your default option
 %llm_config --stream-by-default True
 
@@ -96,7 +96,7 @@ Give me a brief definition of blockchain.
 
 Streaming works with all other CellMage parameters:
 
-```python
+```ipython
 # Streaming with personas
 %llm_config --persona code_expert
 %%llm --stream
@@ -115,11 +115,11 @@ Explain the concept of recursion with three different examples from different do
 
 Streaming is particularly helpful for complex tasks to show progress:
 
-```python
+```ipython
 %%llm --stream
 I want you to perform a detailed code review of this Python function:
 
-```python
+```ipython
 def bubble_sort(arr):
     n = len(arr)
     for i in range(n):
@@ -141,7 +141,7 @@ Please analyze:
 
 ### Interactive Tutorials
 
-```python
+```ipython
 %%llm --stream --temperature 0.7
 Create an interactive Python tutorial on decorators.
 Present it as a series of lessons with code examples and exercises.
@@ -150,7 +150,7 @@ After each concept, include a practice exercise for the reader.
 
 ### Real-Time Brainstorming
 
-```python
+```ipython
 %%llm --stream --temperature 0.8
 Let's brainstorm innovative solutions for reducing plastic waste in urban environments.
 Generate ideas across different categories:
@@ -163,7 +163,7 @@ Generate ideas across different categories:
 
 ### Progressive Data Analysis
 
-```python
+```ipython
 %%llm --stream
 Analyze this dataset summary step by step:
 

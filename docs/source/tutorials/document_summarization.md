@@ -16,7 +16,7 @@ In this tutorial, you'll discover:
 Before diving in, make sure:
 - You have basic knowledge of Python
 - You have CellMage loaded in your notebook:
-  ```python
+  ```ipython
   %load_ext cellmage.integrations.ipython_magic
   ```
 - You have document handling libraries installed:
@@ -28,7 +28,7 @@ Before diving in, make sure:
 
 First, let's explore how to load content from different file types:
 
-```python
+```ipython
 # For PDF files
 from PyPDF2 import PdfReader
 
@@ -65,7 +65,7 @@ pdf_text = extract_text_from_pdf('example.pdf')
 
 Now that you have extracted text, use CellMage to generate a summary:
 
-```python
+```ipython
 # Load the document content into CellMage context
 %llm_config --snippet pdf_text[:2000]  # First 2000 chars as context
 
@@ -84,7 +84,7 @@ Keep the summary to 3-4 paragraphs maximum.
 
 Extract specific information from documents into structured formats:
 
-```python
+```ipython
 # First provide the document context
 %llm_config --snippet pdf_text
 
@@ -103,7 +103,7 @@ Format the output as a structured JSON with these categories as keys.
 
 Generate concise executive summaries for busy stakeholders:
 
-```python
+```ipython
 %llm_config --snippet pdf_text
 
 %%llm
@@ -121,7 +121,7 @@ The summary should be suitable for executives who have no time to read the full 
 
 Identify the main topics covered in a document:
 
-```python
+```ipython
 %llm_config --snippet pdf_text
 
 %%llm
@@ -138,7 +138,7 @@ Present the information in a structured format suitable for understanding docume
 
 Compare multiple documents on the same subject:
 
-```python
+```ipython
 # Load multiple documents
 %llm_config --snippet document1_text[:1500]
 %llm_config --snippet document2_text[:1500]
@@ -159,7 +159,7 @@ Structure this as a comparative analysis report.
 
 Extract specific answers from lengthy documents:
 
-```python
+```ipython
 %llm_config --snippet technical_document
 
 %%llm
@@ -177,7 +177,7 @@ Provide direct answers with page/section references where possible.
 
 Convert documents into different formats for various purposes:
 
-```python
+```ipython
 %llm_config --snippet research_paper
 
 %%llm
@@ -194,7 +194,7 @@ Each transformation should maintain accuracy while adapting the tone and complex
 
 Generate useful metadata for document management:
 
-```python
+```ipython
 %llm_config --snippet document_text
 
 %%llm
@@ -214,7 +214,7 @@ Format as a metadata dictionary suitable for a document management system.
 
 Go beyond summarization to extract deeper insights:
 
-```python
+```ipython
 %llm_config --snippet market_research_report
 
 %%llm
@@ -235,7 +235,7 @@ Structure this as a strategic insights brief for management decision-making.
 
 For documents that exceed context limits:
 
-```python
+```ipython
 # Split document into chunks
 def chunk_document(text, chunk_size=4000, overlap=200):
     """Split document into overlapping chunks."""
@@ -292,7 +292,7 @@ Please synthesize these into a coherent overall summary that:
 
 For analyzing collections of related documents:
 
-```python
+```ipython
 # Assume you have summaries of multiple related documents
 document_summaries = {
     "policy_doc1.pdf": policy1_summary,
@@ -321,7 +321,7 @@ Structure this as a knowledge base article that serves as an authoritative refer
 
 ### Extracting Action Items
 
-```python
+```ipython
 %llm_config --snippet meeting_transcript
 
 %%llm

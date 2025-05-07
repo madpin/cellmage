@@ -17,7 +17,7 @@ Before diving in, make sure:
 - You have basic knowledge of Python data science libraries (pandas, matplotlib, etc.)
 - You have a Jupyter notebook environment set up
 - You have CellMage installed and loaded:
-  ```python
+  ```ipython
   %load_ext cellmage.integrations.ipython_magic
   ```
 - You have common data science packages installed:
@@ -29,7 +29,7 @@ Before diving in, make sure:
 
 Let's start by setting up an environment with some sample data:
 
-```python
+```ipython
 # Import necessary libraries
 import pandas as pd
 import numpy as np
@@ -51,7 +51,7 @@ df.head()
 
 Use CellMage to explore your dataset through natural language:
 
-```python
+```ipython
 # Add your dataframe to the context
 %llm_config --snippet df.head().to_string()
 %llm_config --snippet df.describe().to_string()
@@ -70,7 +70,7 @@ I'm working with a dataset called 'df'. Based on what you can see:
 
 Ask CellMage to help you create visualizations:
 
-```python
+```ipython
 %%llm
 Generate Python code to create these visualizations for my tips dataset:
 1. A histogram of tip amounts
@@ -87,7 +87,7 @@ Now execute the generated code in a new cell to see your visualizations.
 
 Ask for specific analyses based on your preliminary findings:
 
-```python
+```ipython
 %%llm
 Based on the tips dataset, generate code to analyze:
 1. Whether there's a statistically significant difference in tip percentages between lunch and dinner
@@ -101,7 +101,7 @@ Include proper statistical tests and clear explanations of the results.
 
 When you encounter unfamiliar statistical concepts:
 
-```python
+```ipython
 %%llm
 Please explain the following concepts in the context of our tips dataset analysis:
 1. What is a t-test and when should I use it?
@@ -116,7 +116,7 @@ Explain with simple examples using our restaurant tipping context.
 
 Get help with data cleaning and transformation:
 
-```python
+```ipython
 %%llm
 Generate code to clean and prepare the tips dataset:
 1. Create a new 'tip_percentage' column (tip as a percentage of total bill)
@@ -131,7 +131,7 @@ Include explanations for each preprocessing step.
 
 Ask for help creating predictive models:
 
-```python
+```ipython
 %%llm
 Write code to build three different models to predict tip percentage:
 1. A simple linear regression model
@@ -145,7 +145,7 @@ Include feature selection, model training, evaluation metrics, and a comparison 
 
 After running analyses, ask the LLM to help interpret results:
 
-```python
+```ipython
 # First, run your analysis code and capture the output
 # Then paste relevant results as context
 
@@ -176,7 +176,7 @@ Interpret these model results for predicting tip percentage:
 
 Use CellMage to help create professional reports:
 
-```python
+```ipython
 %%llm
 Based on our analysis of the restaurant tipping dataset, generate a structured report with these sections:
 1. Executive Summary (2-3 paragraphs)
@@ -193,7 +193,7 @@ Write this for a restaurant management audience.
 
 Use the iterative nature of CellMage to refine your analysis:
 
-```python
+```ipython
 %%llm
 The scatter plot showing tip amount vs total bill revealed a potential non-linear relationship.
 Suggest three different transformations we could apply, and generate code to:
@@ -207,7 +207,7 @@ Suggest three different transformations we could apply, and generate code to:
 
 ### Time Series Analysis
 
-```python
+```ipython
 # First load a time series dataset
 ts_data = pd.read_csv('https://raw.githubusercontent.com/jbrownlee/Datasets/master/airline-passengers.csv')
 ts_data['Month'] = pd.to_datetime(ts_data['Month'])
@@ -227,7 +227,7 @@ Include well-commented code and explanations.
 
 ### Exploratory Data Analysis (EDA) Pipeline
 
-```python
+```ipython
 %%llm
 Create a reusable EDA function that I can apply to any dataset. The function should:
 1. Provide basic statistics (missing values, duplicates, descriptive stats)
@@ -242,7 +242,7 @@ Make it modular and well-commented so I can adapt it for future datasets.
 
 ### Interactive Dashboard Code Generator
 
-```python
+```ipython
 %%llm
 Generate code for a simple Plotly Dash application that creates an interactive dashboard for the tips dataset with:
 1. A dropdown to select variables for the x and y axes

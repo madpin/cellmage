@@ -36,7 +36,7 @@ JIRA_API_TOKEN=your_jira_api_token
 
 To fetch a specific ticket:
 
-```python
+```ipython
 %jira PROJECT-123
 ```
 
@@ -48,7 +48,7 @@ This fetches the ticket and adds it as a user message in the chat history.
 
 You can also use JQL (Jira Query Language) to fetch multiple tickets:
 
-```python
+```ipython
 %jira --jql "project = PROJECT AND assignee = currentUser() ORDER BY updated DESC" --max 3
 ```
 
@@ -62,22 +62,22 @@ You can also use JQL (Jira Query Language) to fetch multiple tickets:
 ### Examples
 
 Fetch a ticket and add it to history:
-```python
+```ipython
 %jira PROJECT-123
 ```
 
 Fetch a ticket and add it as system context:
-```python
+```ipython
 %jira PROJECT-123 --system
 ```
 
 Just view a ticket without adding to history:
-```python
+```ipython
 %jira PROJECT-123 --show
 ```
 
 Fetch your recent tickets:
-```python
+```ipython
 %jira --jql "assignee = currentUser() ORDER BY updated DESC" --max 5
 ```
 
@@ -85,7 +85,7 @@ Fetch your recent tickets:
 
 After loading a Jira ticket with `%jira`, you can refer to it in your LLM prompts:
 
-```python
+```ipython
 # First, fetch a ticket
 %jira PROJECT-123
 
@@ -103,7 +103,7 @@ This allows you to use Jira tickets as context for your LLM queries, making it e
 If you encounter authentication errors:
 
 1. **Verify your environment variables**:
-   ```python
+   ```ipython
    import os
    print("JIRA_URL:", os.environ.get("JIRA_URL"))
    print("JIRA_USER_EMAIL:", os.environ.get("JIRA_USER_EMAIL"))

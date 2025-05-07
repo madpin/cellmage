@@ -18,7 +18,7 @@ Before diving into advanced techniques, make sure:
 - You understand how to use the `%%llm` magic command
 - You have CellMage loaded in your notebook:
 
-```python
+```ipython
 %load_ext cellmage.integrations.ipython_magic
 ```
 
@@ -28,7 +28,7 @@ Before diving into advanced techniques, make sure:
 
 Assign specific roles to guide the LLM's perspective and expertise:
 
-```python
+```ipython
 %%llm
 You are an experienced database architect specializing in NoSQL systems.
 
@@ -45,7 +45,7 @@ This technique works because it activates specific knowledge domains within the 
 
 For complex scenarios, define multiple roles and relationships:
 
-```python
+```ipython
 %%llm
 You will act as three different experts having a roundtable discussion:
 1. A cloud infrastructure specialist
@@ -61,7 +61,7 @@ Present the perspective of each expert in turn, highlighting areas of agreement 
 
 Request precise output formats for easier parsing or integration:
 
-```python
+```ipython
 %%llm
 Analyze the strengths and weaknesses of React, Vue, and Angular.
 
@@ -83,7 +83,7 @@ Format your response as a JSON object with this structure:
 
 Provide examples of the pattern you want the LLM to follow:
 
-```python
+```ipython
 %%llm
 Convert these requirements into user stories using the format: "As a [role], I want [capability] so that [benefit]."
 
@@ -104,7 +104,7 @@ Now convert these:
 
 Guide the LLM through explicit reasoning steps:
 
-```python
+```ipython
 %%llm
 Problem: A company needs to optimize their delivery routes. They have 5 delivery trucks and 20 locations to deliver to. What approach would you recommend?
 
@@ -120,7 +120,7 @@ Think through this step by step:
 
 Impose specific constraints to shape the response:
 
-```python
+```ipython
 %%llm
 Write a Python function that finds all prime numbers up to n using the Sieve of Eratosthenes.
 
@@ -136,7 +136,7 @@ Constraints:
 
 Combine personas with custom system instructions for even more control:
 
-```python
+```ipython
 # Set a base persona
 %llm_config --persona code_expert
 
@@ -159,7 +159,7 @@ def process(x):
 
 Ask the LLM to critique and improve its own responses:
 
-```python
+```ipython
 %%llm
 Write a function to efficiently find the longest palindromic substring in a string.
 
@@ -176,7 +176,7 @@ Then, provide an improved version based on your critique.
 
 Manage context strategically to overcome token limitations:
 
-```python
+```ipython
 # First, set up relevant context
 %llm_config --snippet data_schema.py --snippet requirements.md
 
@@ -192,7 +192,7 @@ Based on the database schema and requirements I've shared:
 
 Prompt the LLM to apply knowledge from one domain to another:
 
-```python
+```ipython
 %%llm
 Explain how principles from evolutionary biology could be applied to improve machine learning algorithms.
 
@@ -209,7 +209,7 @@ Here are some powerful template structures you can adapt:
 
 ### Decision Matrix Template
 
-```python
+```ipython
 %%llm
 Create a decision matrix comparing these options: [OPTIONS]
 
@@ -228,7 +228,7 @@ End with a recommendation based on the highest weighted score.
 
 ### Systematic Problem-Solving Template
 
-```python
+```ipython
 %%llm
 Problem: [DESCRIBE PROBLEM]
 

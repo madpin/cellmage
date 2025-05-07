@@ -10,11 +10,11 @@ This guide will help you resolve common issues that you might encounter while us
 
 **Solutions:**
 1. Verify your API key is set correctly:
-   ```python
+   ```ipython
    %llm_config --status  # Check if API key is set
    ```
 2. Check that your API base URL is correct if using a custom endpoint:
-   ```python
+   ```ipython
    %llm_config --api-base https://your-custom-endpoint
    ```
 3. Check your internet connection and any required VPN settings.
@@ -26,7 +26,7 @@ This guide will help you resolve common issues that you might encounter while us
 
 **Solutions:**
 1. Check your persona/snippet directories configuration:
-   ```python
+   ```ipython
    %llm_config --status  # View configured directories
    ```
 2. Verify that the persona/snippet exists in the specified directory:
@@ -35,7 +35,7 @@ This guide will help you resolve common issues that you might encounter while us
    ls ./llm_snippets/  # List available snippets
    ```
 3. Try using the absolute path to your persona/snippet:
-   ```python
+   ```ipython
    %llm --persona /absolute/path/to/persona.md
    ```
 
@@ -63,13 +63,13 @@ This guide will help you resolve common issues that you might encounter while us
 
 **Solutions:**
 1. Verify that the required environment variables are set:
-   ```python
+   ```ipython
    import os
    print("JIRA_API_TOKEN set:", bool(os.environ.get("JIRA_API_TOKEN")))
    # Similar for other service tokens
    ```
 2. Check that URLs are correctly formatted (include https://):
-   ```python
+   ```ipython
    print(os.environ.get("JIRA_URL"))  # Should start with https://
    ```
 3. Regenerate your API tokens/PATs if they might have expired.
@@ -84,7 +84,7 @@ This guide will help you resolve common issues that you might encounter while us
    Kernel > Restart
    ```
 2. Reinstall the CellMage extension:
-   ```python
+   ```ipython
    %reload_ext cellmage
    ```
 
@@ -94,15 +94,15 @@ This guide will help you resolve common issues that you might encounter while us
 
 **Solutions:**
 1. Use streaming responses to reduce memory footprint:
-   ```python
+   ```ipython
    %llm --stream "Your prompt here"
    ```
 2. Reduce context size by being more selective with snippets:
-   ```python
+   ```ipython
    %llm --clear-snippets  # Clear existing snippets
    ```
 3. Use smaller models when possible:
-   ```python
+   ```ipython
    %llm_config --model gpt-4o-mini
    ```
 
@@ -112,7 +112,7 @@ This guide will help you resolve common issues that you might encounter while us
 
 To get more detailed logs:
 
-```python
+```ipython
 import logging
 from cellmage.utils.logging import setup_logging
 setup_logging(level=logging.DEBUG)
@@ -124,7 +124,7 @@ Logs will be written to `cellmage.log` in your working directory.
 
 To see the exact requests being sent to the LLM API:
 
-```python
+```ipython
 %llm_config --debug-mode True
 ```
 
@@ -134,7 +134,7 @@ This will print the full request and response objects to the log.
 
 To monitor your token usage:
 
-```python
+```ipython
 %llm_stats  # Shows token usage statistics
 ```
 

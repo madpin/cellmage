@@ -38,7 +38,7 @@ To create a GitLab Personal Access Token:
 
 To fetch a specific repository:
 
-```python
+```ipython
 %gitlab namespace/project
 ```
 
@@ -50,7 +50,7 @@ This fetches the repository summary and adds it as a user message in the chat hi
 
 You can also fetch a specific merge request from a repository:
 
-```python
+```ipython
 %gitlab namespace/project --mr 123
 ```
 
@@ -64,27 +64,27 @@ You can also fetch a specific merge request from a repository:
 ### Examples
 
 Fetch a repository and add it to history:
-```python
+```ipython
 %gitlab namespace/project
 ```
 
 Fetch a repository and add it as system context:
-```python
+```ipython
 %gitlab namespace/project --system
 ```
 
 Just view a repository summary without adding to history:
-```python
+```ipython
 %gitlab namespace/project --show
 ```
 
 Fetch a merge request:
-```python
+```ipython
 %gitlab namespace/project --mr 123
 ```
 
 View a merge request without adding to history:
-```python
+```ipython
 %gitlab namespace/project --mr 123 --show
 ```
 
@@ -92,7 +92,7 @@ View a merge request without adding to history:
 
 After loading GitLab content with `%gitlab`, you can refer to it in your LLM prompts:
 
-```python
+```ipython
 # First, fetch a repository
 %gitlab namespace/project
 
@@ -103,7 +103,7 @@ Given the GitLab repository above, can you explain the architecture of this code
 
 Or with a merge request:
 
-```python
+```ipython
 # First, fetch a merge request
 %gitlab namespace/project --mr 123
 
@@ -119,7 +119,7 @@ This integration makes it easy to use your GitLab repositories and merge request
 ### Authentication Issues
 
 1. **Verify your environment variables**:
-   ```python
+   ```ipython
    import os
    print("GITLAB_URL:", os.environ.get("GITLAB_URL"))
    print("GITLAB_PAT is set:", os.environ.get("GITLAB_PAT") is not None)

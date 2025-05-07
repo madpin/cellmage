@@ -17,7 +17,7 @@ Let's explore both options and see how to manage your conversations.
 
 To see what's in your current conversation:
 
-```python
+```ipython
 # Show the full conversation history
 %llm_config --show-history
 ```
@@ -32,7 +32,7 @@ This displays all messages in the current session, including:
 
 To start fresh without any previous context:
 
-```python
+```ipython
 # Clear the conversation history but keep the system prompt
 %llm_config --clear-history
 
@@ -46,7 +46,7 @@ To start fresh without any previous context:
 
 The simplest way to save your current conversation:
 
-```python
+```ipython
 # Save with an automatically generated name
 %llm_config --save
 ```
@@ -57,7 +57,7 @@ This creates a conversation named with a timestamp and the first few words of yo
 
 For better organization, name your conversations:
 
-```python
+```ipython
 # Save with a descriptive name
 %llm_config --save "data_analysis_project"
 ```
@@ -68,7 +68,7 @@ The full name will include your provided name plus a timestamp: `data_analysis_p
 
 CellMage can automatically save your conversations:
 
-```python
+```ipython
 # Enable auto-saving
 %llm_config --auto-save
 
@@ -84,7 +84,7 @@ When auto-save is enabled, your conversation is saved after each interaction.
 
 To see what conversations you've saved:
 
-```python
+```ipython
 # List all saved conversations
 %llm_config --list-sessions
 ```
@@ -95,7 +95,7 @@ This shows all your saved conversations with their IDs, names, and timestamps.
 
 To load a previously saved conversation:
 
-```python
+```ipython
 # Load by full ID
 %llm_config --load "data_analysis_project_20250507_123456"
 
@@ -109,7 +109,7 @@ The loaded conversation replaces your current conversation history.
 
 SQLite storage (the default) provides powerful search capabilities:
 
-```python
+```ipython
 # First, load the SQLite extension
 %load_ext cellmage.integrations.sqlite_magic
 
@@ -124,7 +124,7 @@ SQLite storage (the default) provides powerful search capabilities:
 
 The `%sqlite` magic command offers many useful features:
 
-```python
+```ipython
 # View the status of your storage
 %sqlite --status
 
@@ -148,7 +148,7 @@ The `%sqlite` magic command offers many useful features:
 
 If you prefer file-based storage instead of SQLite:
 
-```python
+```ipython
 # Configure CellMage to use Markdown storage
 %llm_config --set-override storage_type file
 ```
@@ -172,7 +172,7 @@ Markdown storage saves each conversation as a separate `.md` file in your `llm_c
 
 For different projects, you can use separate conversation stores:
 
-```python
+```ipython
 # Set a custom SQLite database path
 %llm_config --set-override sqlite_path ~/projects/project_a/conversations.db
 ```

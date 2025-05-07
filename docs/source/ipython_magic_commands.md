@@ -6,7 +6,7 @@ Welcome to the official spell book of CellMage! Here you'll find all the magical
 
 Before casting any spells, you must first invite the magical presence into your notebook:
 
-```python
+```ipython
 %load_ext cellmage.integrations.ipython_magic
 ```
 
@@ -26,7 +26,7 @@ The CellMage grimoire contains these powerful spells:
 
 This versatile spell allows you to adjust your magical settings and manage your resources.
 
-```python
+```ipython
 %llm_config [magical_parameters]
 ```
 
@@ -60,7 +60,7 @@ This versatile spell allows you to adjust your magical settings and manage your 
 
 #### 📖 Spell Examples
 
-```python
+```ipython
 # Discover your magical name shortcuts
 %llm_config --list-mappings
 
@@ -93,7 +93,7 @@ This versatile spell allows you to adjust your magical settings and manage your 
 
 This powerful enchantment has the same abilities as `%llm_config` but also creates a magical field around your notebook, turning every cell into a direct communication with the AI wizard.
 
-```python
+```ipython
 %llm_config_persistent [magical_parameters]
 ```
 
@@ -105,7 +105,7 @@ All the same magical parameters as `%llm_config` except for `--adapter`.
 
 #### 📖 Spell Example
 
-```python
+```ipython
 # Create an ambient magic field with the coding assistant persona
 %llm_config_persistent --persona coding_assistant --model gpt-4o
 ```
@@ -116,7 +116,7 @@ After casting this spell, you can simply write a question in any cell (no `%%llm
 
 This counter-spell removes the ambient magic field, returning your notebook to its normal state.
 
-```python
+```ipython
 %disable_llm_config_persistent
 ```
 
@@ -124,7 +124,7 @@ This counter-spell removes the ambient magic field, returning your notebook to i
 
 This cell magic allows you to send a specific message directly to the AI wizard.
 
-```python
+```ipython
 %%llm [magical_parameters]
 Your message to the magical AI...
 ```
@@ -147,12 +147,12 @@ Your message to the magical AI...
 
 #### 📖 Spell Examples
 
-```python
+```ipython
 %%llm --persona data_alchemist --model gpt-4o
 Transform this dataset into golden insights about customer behavior.
 ```
 
-```python
+```ipython
 %%llm -t 0.9 --param top_p 0.95
 Craft a magical tale about a programmer who discovers an ancient spell book
 containing Python code that can alter reality.
@@ -162,7 +162,7 @@ containing Python code that can alter reality.
 
 When the ambient magic field is active, this spell allows you to execute regular Python code without magical interpretation.
 
-```python
+```ipython
 %%py
 # This scroll contains regular Python incantations
 fibonacci_spell = lambda n: n if n <= 1 else fibonacci_spell(n-1) + fibonacci_spell(n-2)

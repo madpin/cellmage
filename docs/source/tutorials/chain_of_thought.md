@@ -18,7 +18,7 @@ Before diving in, ensure you:
 - Are familiar with [Advanced Prompting](advanced_prompting.md) concepts
 - Have CellMage loaded in your notebook:
 
-```python
+```ipython
 %load_ext cellmage.integrations.ipython_magic
 ```
 
@@ -34,7 +34,7 @@ Chain of Thought is a prompting technique that encourages LLMs to break down com
 
 Let's start with a simple example:
 
-```python
+```ipython
 %%llm
 Problem: If a shirt originally costs $25 and is on sale for 20% off,
 then with an additional 15% off with a coupon, what is the final price?
@@ -48,7 +48,7 @@ Notice how adding "Please solve this step-by-step" encourages the model to show 
 
 For more control over the reasoning process, outline the steps explicitly:
 
-```python
+```ipython
 %%llm
 Problem: A train travels at 120 km/h for 2.5 hours, then at 90 km/h for 1.5 hours. What is the average speed for the entire journey?
 
@@ -63,7 +63,7 @@ Solve using these steps:
 
 Encourage the model to ask itself relevant questions during the reasoning process:
 
-```python
+```ipython
 %%llm
 Problem: A company needs to assign 7 employees to 3 different projects. Each project requires at least 2 employees. How many different ways can they assign employees to projects?
 
@@ -80,7 +80,7 @@ Use self-questioning to solve this:
 
 Have the model explore multiple approaches and compare them:
 
-```python
+```ipython
 %%llm
 Problem: Find the minimum number of coins needed to make change for $0.67 using quarters ($0.25), dimes ($0.10), nickels ($0.05), and pennies ($0.01).
 
@@ -102,7 +102,7 @@ Compare the results and explain which approach is more efficient and why.
 
 Assign specific roles to enhance reasoning quality:
 
-```python
+```ipython
 %%llm --persona analytical_thinker
 Problem: A software team is deciding between two architectures:
 - Microservices: More scalable but complex to maintain
@@ -120,7 +120,7 @@ For each perspective, show your reasoning step by step before making a final rec
 
 Break down complex problems into manageable subproblems:
 
-```python
+```ipython
 %%llm
 Problem: Design a database schema for an online bookstore that handles inventory, customer accounts, orders, reviews, and recommendations.
 
@@ -139,7 +139,7 @@ Work through each step methodically before moving to the next.
 
 Use "what if" scenarios to explore alternatives and deepen understanding:
 
-```python
+```ipython
 %%llm
 Problem: A startup has $50,000 to allocate between marketing and product development. They need to decide on the optimal allocation.
 
@@ -158,7 +158,7 @@ For each scenario, think through the likely outcomes step by step.
 
 Handle complex problems by applying CoT recursively:
 
-```python
+```ipython
 %%llm
 Problem: Evaluate the time and space complexity of implementing a solution to find all possible subsets of a set of n distinct integers.
 
@@ -180,7 +180,7 @@ Show your reasoning at each step and substep.
 
 Incorporate verification steps to catch errors in reasoning:
 
-```python
+```ipython
 %%llm
 Problem: There are 5 red balls, 3 blue balls, and 2 green balls in a bag. If you draw 2 balls without replacement, what is the probability that both balls are the same color?
 
@@ -201,7 +201,7 @@ Solve with verification:
 
 ### Mathematical Reasoning
 
-```python
+```ipython
 %%llm
 Problem: Prove that the sum of the first n odd numbers equals n².
 
@@ -218,7 +218,7 @@ Guide your proof:
 
 ### Algorithmic Design
 
-```python
+```ipython
 %%llm
 Design an algorithm to find the longest palindromic substring in a string.
 
@@ -235,7 +235,7 @@ Reasoning process:
 
 ### Ethical Decision Making
 
-```python
+```ipython
 %%llm
 Scenario: An AI system that predicts recidivism rates shows different accuracy rates across demographic groups. Should it be deployed in the criminal justice system?
 

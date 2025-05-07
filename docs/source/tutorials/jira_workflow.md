@@ -29,7 +29,7 @@ export JIRA_API_TOKEN=your_atlassian_api_token
 
 Let's start with basic ticket fetching and analysis:
 
-```python
+```ipython
 # Load the CellMage extension
 %load_ext cellmage.integrations.ipython_magic
 
@@ -39,7 +39,7 @@ Let's start with basic ticket fetching and analysis:
 
 ### Fetching a Single Ticket
 
-```python
+```ipython
 # Fetch a specific Jira ticket and add it to chat history
 %jira PROJECT-123
 
@@ -53,7 +53,7 @@ and what's the current status?
 
 Jira Query Language (JQL) lets you fetch multiple tickets matching specific criteria:
 
-```python
+```ipython
 # Fetch recent tickets assigned to you
 %jira --jql "assignee = currentUser() ORDER BY updated DESC" --max 5
 
@@ -67,7 +67,7 @@ and identify any blockers or dependencies between them.
 
 The `%jira` magic command includes several options to customize your workflow:
 
-```python
+```ipython
 # Add a ticket as system message instead of user message
 %jira PROJECT-123 --system
 
@@ -85,7 +85,7 @@ The `%jira` magic command includes several options to customize your workflow:
 
 ### 1. Sprint Planning Assistant
 
-```python
+```ipython
 # Fetch all tickets in the upcoming sprint
 %jira --jql "sprint in futureSprints() AND project = PROJECT ORDER BY priority DESC" --max 15
 
@@ -100,7 +100,7 @@ Based on these tickets, help me prepare for sprint planning:
 
 ### 2. Sprint Retrospective Summary
 
-```python
+```ipython
 # Fetch all tickets completed in the last sprint
 %jira --jql "project = PROJECT AND sprint in closedSprints() AND status = Done AND sprint = 'Sprint 42'" --max 20
 
@@ -115,7 +115,7 @@ Create a comprehensive sprint retrospective summary based on these tickets:
 
 ### 3. Status Report Generator
 
-```python
+```ipython
 # Fetch your in-progress tickets
 %jira --jql "assignee = currentUser() AND status in ('In Progress', 'Review') ORDER BY updated DESC" --max 10
 
@@ -132,7 +132,7 @@ Format it in a clear, concise way suitable for an email.
 
 ### 4. Technical Documentation Generator
 
-```python
+```ipython
 # Fetch a feature ticket with all its subtasks
 %jira FEATURE-456
 %jira --jql "parent = FEATURE-456" --max 15
@@ -149,7 +149,7 @@ Based on this feature and its subtasks, generate technical documentation that in
 
 ### 5. Ticket Quality Improvement
 
-```python
+```ipython
 # Fetch a specific ticket that needs improvement
 %jira PROJECT-789
 
@@ -168,7 +168,7 @@ This ticket seems unclear. Please suggest improvements to make it more actionabl
 
 Using specialized personas enhances your Jira workflows:
 
-```python
+```ipython
 # Create a Product Manager persona in llm_personas/product_manager.md
 """
 ---
@@ -200,7 +200,7 @@ Review this user story and suggest improvements to make it clearer and more acti
 
 Connect code changes with Jira tickets:
 
-```python
+```ipython
 # Fetch both a Jira ticket and related GitHub PR
 %jira PROJECT-123
 %github username/repository --pr 456
@@ -214,7 +214,7 @@ Identify any gaps or requirements that aren't fully implemented.
 
 Combine Jira and Confluence for comprehensive context:
 
-```python
+```ipython
 # Load the Confluence integration
 %load_ext cellmage.integrations.confluence_magic
 

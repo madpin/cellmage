@@ -32,7 +32,7 @@ This approach is particularly useful for project-specific settings and avoids ex
 
 Use the `%llm_config` magic command to change settings during a session:
 
-```python
+```ipython
 # View current configuration
 %llm_config --status
 
@@ -192,7 +192,7 @@ CellMage will automatically search all specified directories when looking for pe
 
 The `%llm_config` magic command provides a flexible way to configure CellMage during a session without modifying environment variables or `.env` files. Here are some common use cases:
 
-```python
+```ipython
 # View current configuration
 %llm_config --status
 
