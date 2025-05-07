@@ -17,7 +17,8 @@ sphinx:
   configuration: docs/source/conf.py
   fail_on_warning: true
 
-# Optionally build your docs in additional formats such as PDF and ePub
-formats:
-  - pdf
-  - epub
+# Commenting out formats section as the PDF and EPUB builds are failing
+# due to unsupported Unicode characters in LaTeX (emoji characters)
+# formats:
+#   - pdf
+#   - epub
