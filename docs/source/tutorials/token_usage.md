@@ -173,7 +173,7 @@ Write Python code to:
 
 System messages persist in context, so use them wisely:
 
-```python
+```ipython
 # Set a concise but informative system message
 %llm_config --sys-snippet project_context.md
 

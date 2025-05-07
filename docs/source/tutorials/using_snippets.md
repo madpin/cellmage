@@ -31,7 +31,7 @@ CELLMAGE_SNIPPETS_DIRS=~/global_snippets,./project_specific_snippets
 
 Let's create two simple snippets: a Python utility function and a project description.
 
-```python
+```ipython
 # First, create the snippets directory if it doesn't exist
 !mkdir -p llm_snippets
 ```
@@ -136,7 +136,7 @@ There are several ways to use snippets in your conversations:
 
 This adds the snippet content as if the user had typed it:
 
-```python
+```ipython
 # Load the CellMage extension if you haven't already
 %load_ext cellmage.integrations.ipython_magic
 
@@ -149,18 +149,13 @@ Review the utility functions I provided. What improvements or additional functio
 would you suggest to make this more comprehensive for data analysis?
 ```
 
-### 2. Add a Snippet as a System Message
+### 2. Documentation Snippets
 
-This adds the snippet content to the system instructions, giving it higher priority:
+For technical questions, provide documentation:
 
-```python
-# Add the project description as a system message
-%llm_config --sys-snippet project_description.md
-
-# Now ask about project-specific analysis
-%%llm
-Based on the project description, what visualizations would be most helpful
-for exploring the relationship between customer demographics and purchasing patterns?
+```ipython
+%%llm --snippet api_documentation.md
+How would I implement a function to authenticate with this API and retrieve user data?
 ```
 
 ### 3. Use a Snippet Just for One Call
@@ -222,7 +217,7 @@ I'm seeing a bug where the function fails when given empty input. How can I fix 
 
 For technical questions, provide documentation:
 
-```python
+```ipython
 %%llm --snippet api_documentation.md
 How would I implement a function to authenticate with this API and retrieve user data?
 ```
@@ -241,7 +236,7 @@ including their contact information and total spend.
 
 Keep the LLM informed about your project:
 
-```python
+```ipython
 %%llm --sys-snippet project_goals.md
 Given our project goals, what metrics should we track to measure success?
 ```

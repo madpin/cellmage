@@ -50,7 +50,7 @@ CELLMAGE_PERSONAS_DIRS=~/global_personas,./project_specific_personas
 
 Let's create a simple data analyst persona:
 
-```python
+```ipython
 # First, create the personas directory if it doesn't exist
 !mkdir -p llm_personas
 ```
@@ -81,7 +81,7 @@ Avoid making unfounded claims about causality unless explicitly supported by the
 
 Let's use our new persona:
 
-```python
+```ipython
 # Load the CellMage extension if you haven't already
 %load_ext cellmage.integrations.ipython_magic
 
