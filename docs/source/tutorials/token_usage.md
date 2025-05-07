@@ -153,7 +153,7 @@ Analyze these architectural tradeoffs between microservices and monolithic desig
 
 Be concise and specific in your prompts:
 
-```python
+```ipython
 # Less efficient prompt (more tokens)
 %%llm
 I have a CSV file with user data including names, email addresses, signup dates,

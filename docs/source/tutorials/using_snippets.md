@@ -40,7 +40,7 @@ Let's create two simple snippets: a Python utility function and a project descri
 
 Create the file `llm_snippets/data_utils.py`:
 
-```python
+```ipython
 def calculate_metrics(data_series):
     """
     Calculate common statistical metrics for a numeric data series.
@@ -162,7 +162,7 @@ How would I implement a function to authenticate with this API and retrieve user
 
 You can use a snippet just for a single prompt without affecting the overall conversation:
 
-```python
+```ipython
 %%llm --snippet data_utils.py
 Explain how the detect_outliers function works and suggest an additional method
 that could be implemented for outlier detection.
@@ -174,7 +174,7 @@ that could be implemented for outlier detection.
 
 To see what snippets are currently active:
 
-```python
+```ipython
 # List current snippets
 %llm_config --status
 ```
@@ -185,7 +185,7 @@ The status display will show any currently active snippets.
 
 To see all available snippets:
 
-```python
+```ipython
 # List all available snippets
 %llm_config --list-snippets
 ```
@@ -194,7 +194,7 @@ To see all available snippets:
 
 To remove an active snippet:
 
-```python
+```ipython
 # Remove a specific snippet
 %llm_config --remove-snippet data_utils.py
 
@@ -208,7 +208,7 @@ To remove an active snippet:
 
 When asking LLMs to help with code, provide relevant files:
 
-```python
+```ipython
 %%llm --snippet my_module.py --snippet test_module.py
 I'm seeing a bug where the function fails when given empty input. How can I fix it?
 ```
@@ -226,7 +226,7 @@ How would I implement a function to authenticate with this API and retrieve user
 
 When discussing databases, provide schema information:
 
-```python
+```ipython
 %%llm --snippet database_schema.sql
 Write a query to find customers who purchased more than 5 items in the last month,
 including their contact information and total spend.
@@ -253,7 +253,7 @@ Given our project goals, what metrics should we track to measure success?
 
 Combining snippets with personas creates powerful workflows:
 
-```python
+```ipython
 # Load a code reviewer persona
 %llm_config --persona code_reviewer
 

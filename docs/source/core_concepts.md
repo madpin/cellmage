@@ -29,7 +29,7 @@ Understanding CellMage's internal architecture will help you make the most of it
 
 The ChatManager is the central orchestrator of CellMage. It coordinates all other components and manages the flow of information between them.
 
-```python
+```ipython
 # The ChatManager ties together all core components
 chat_manager = ChatManager(
     settings=settings,
@@ -60,7 +60,7 @@ CellMage uses two main components to manage conversations:
 - Managing conversation metadata
 - Handling search and retrieval
 
-```python
+```ipython
 # ConversationManager wraps the storage mechanism
 conversation_manager = ConversationManager(
     db_path="~/.cellmage/conversations.db",  # Where to store data
@@ -76,7 +76,7 @@ Located in: `cellmage/conversation_manager.py`
 - Managing the conversation context window
 - Handling auto-save functionality
 
-```python
+```ipython
 # HistoryManager manages the current conversation
 history_manager = HistoryManager(
     conversation_store=store,   # Where to persist history
@@ -115,7 +115,7 @@ Offer examples of better implementations when appropriate.
 
 The `FileLoader` class handles loading personas from disk:
 
-```python
+```ipython
 from cellmage.resources.file_loader import FileLoader
 
 # Initialize loader with directories to search
@@ -138,7 +138,7 @@ Snippets are reusable pieces of context that you can inject into your prompts. U
 
 Snippets are simple text files stored in the `llm_snippets` directory:
 
-```python
+```ipython
 # sample_code.py in llm_snippets directory
 def calculate_metrics(data):
     """
@@ -156,10 +156,13 @@ def calculate_metrics(data):
 
 Snippets are loaded using the same `FileLoader` class as personas:
 
-```python
+
+```ipython
 # Load a snippet
 snippet_content = loader.get_snippet("sample_code.py")
-```
+
+!PYBLOCK_END!
+
 
 Snippets can be:
 - Added as user messages (default)
@@ -180,7 +183,8 @@ The DirectLLMAdapter communicates directly with OpenAI-compatible APIs:
 - Manages request parameters and error handling
 - Works with both OpenAI API and compatible endpoints
 
-```python
+
+!IPYBLOCK_START!
 from cellmage.adapters.direct_client import DirectLLMAdapter
 
 # Initialize the adapter
@@ -195,7 +199,9 @@ response = client.send_message([
     {"role": "system", "content": "You are a helpful assistant."},
     {"role": "user", "content": "Tell me about CellMage."}
 ])
-```
+
+!PYBLOCK_END!
+
 
 Located in: `cellmage/adapters/direct_client.py`
 
@@ -207,7 +213,8 @@ The LangChainAdapter uses LangChain for more advanced capabilities:
 - Enables more complex workflows
 - Provides access to additional models through LangChain
 
-```python
+
+!IPYBLOCK_START!
 from cellmage.adapters.langchain_client import LangChainAdapter
 
 # Initialize the adapter
@@ -218,7 +225,9 @@ client = LangChainAdapter(
 
 # Using LangChain features through the adapter
 response = client.send_message(messages, temperature=0.7)
+
 ```
+
 
 Located in: `cellmage/adapters/langchain_client.py`
 
@@ -232,7 +241,8 @@ CellMage offers multiple options for persisting conversations:
 - Reliable transaction-based operations
 - Perfect for larger conversation histories
 
-```python
+
+```ipython
 from cellmage.storage.sqlite_store import SQLiteStore
 
 # Initialize the store
@@ -246,7 +256,9 @@ results = store.search_conversations("machine learning")
 
 # Add tags
 store.add_tag(conversation_id, "important")
+
 ```
+
 
 Located in: `cellmage/storage/sqlite_store.py`
 
@@ -256,14 +268,17 @@ Located in: `cellmage/storage/sqlite_store.py`
 - Easy to version control
 - Good for simple use cases
 
-```python
+
+```ipython
 from cellmage.storage.markdown_store import MarkdownStore
 
 # Initialize the store
 store = MarkdownStore(base_dir="./llm_conversations")
 
 # Operations are similar to SQLiteStore
+
 ```
+
 
 Located in: `cellmage/storage/markdown_store.py`
 
@@ -272,12 +287,15 @@ Located in: `cellmage/storage/markdown_store.py`
 - No persistence between sessions
 - Useful for testing or ephemeral usage
 
-```python
+
+!PYBLOCK_START!
 from cellmage.storage.memory_store import MemoryStore
 
 # Initialize the store
 store = MemoryStore()
-```
+
+!IPYBLOCK_END!
+
 
 Located in: `cellmage/storage/memory_store.py`
 
@@ -306,13 +324,16 @@ CellMage looks for this file in your working directory. A reference example is p
 
 Once defined, you can use your aliases with any model parameter:
 
-```python
+
+!PYBLOCK_START!
 # Using an alias
 %llm_config --model g4m
 
 # Same as
 %llm_config --model gpt-4o-mini
-```
+
+!IPYBLOCK_END!
+
 
 Located in: `cellmage/model_mapping.py`
 

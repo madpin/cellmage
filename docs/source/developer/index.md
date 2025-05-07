@@ -111,7 +111,7 @@ To create a new magic command:
 
 1. Subclass `BaseMagic` from `cellmage.integrations.base_magic`
 2. Implement the required methods:
-   ```python
+   ```ipython
    class CustomMagic(BaseMagic):
        name = "custom"
 
@@ -124,7 +124,7 @@ To create a new magic command:
            pass
    ```
 3. Register your magic with IPython:
-   ```python
+   ```ipython
    def load_ipython_extension(ipython):
        custom_magic = CustomMagic(ipython)
        ipython.register_magics(custom_magic)
@@ -136,7 +136,7 @@ To add support for a new LLM provider:
 
 1. Subclass `interfaces.LLMAdapter`
 2. Implement the required methods:
-   ```python
+   ```ipython
    class CustomAdapter(LLMAdapter):
        def send_message(self, messages, **kwargs):
            # Implementation to send messages to the custom LLM

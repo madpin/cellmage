@@ -34,7 +34,7 @@ Notice that we're using the `ipython` language specifier above, not `python`. Th
 
 ### For Regular Python Code
 
-```python
+```ipython
 def calculate_metrics(data):
     """Calculate basic statistics on the data."""
     return {
@@ -131,7 +131,7 @@ If you encounter syntax highlighting errors when building the documentation:
    `````md
    ````ipython
    %%llm
-   ```python
+   ```ipython
    def example():
        return "This is nested code"
    ```
