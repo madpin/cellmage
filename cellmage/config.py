@@ -17,6 +17,28 @@ class Settings(BaseSettings):
     loading from .env files automatically.
     """
 
+    # Explicitly define __annotations__ to help with sphinx-autodoc-typehints compatibility
+    __annotations__ = {
+        "default_model": str,
+        "default_persona": Optional[str],
+        "auto_display": bool,
+        "auto_save": bool,
+        "autosave_file": str,
+        "personas_dir": str,
+        "personas_dirs_list": List[str],
+        "snippets_dir": str,
+        "snippets_dirs_list": List[str],
+        "conversations_dir": str,
+        "storage_type": str,
+        "store_raw_responses": bool,
+        "model_mappings_file": Optional[str],
+        "auto_find_mappings": bool,
+        "request_headers": dict,
+        "log_level": str,
+        "console_log_level": str,
+        "log_file": str,
+    }
+
     # Default settings
     default_model: str = Field(
         default="gpt-4.1-nano", description="Default LLM model to use for chat"
