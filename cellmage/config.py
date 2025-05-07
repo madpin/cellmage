@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     Configuration settings for the application using Pydantic.
 
     This class provides strongly-typed configuration settings that are automatically
-    loaded from environment variables with the CELLMAGE_ prefix. It also supports
+    loaded from environment variables with the ``CELLMAGE_`` prefix. It also supports
     loading from .env files automatically.
     """
 

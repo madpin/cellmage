@@ -9,6 +9,12 @@ import os
 import sys
 from datetime import datetime
 
+from pygments.lexer import RegexLexer, bygroups
+from pygments.token import Comment, Keyword, Name, Text
+
+# Add a custom directive for IPython blocks to avoid lexer issues
+from sphinx.highlighting import lexers
+
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -47,6 +53,48 @@ extensions = [
 
 # Tell myst-parser to assign header anchors for h1-h3.
 myst_heading_anchors = 3
+
+# Configure MyST Parser to use custom language lexers
+myst_highlight_code_blocks = True
+
+
+class IPythonLexer(RegexLexer):
+    """
+    Custom lexer for IPython/Jupyter cells that is more tolerant of special characters
+    like $, ?, !, etc. that appear in LLM outputs and prompts.
+    """
+
+    name = "IPython"
+    aliases = ["ipython"]
+    filenames = ["*.ipy"]
+
+    tokens = {
+        "root": [
+            # Magic commands
+            (r"(%%)([a-zA-Z_][a-zA-Z0-9_]*)(.*?)$", bygroups(Keyword, Name.Namespace, Text)),
+            (r"(%)([a-zA-Z_][a-zA-Z0-9_]*)(.*?)$", bygroups(Keyword, Name.Namespace, Text)),
+            (r"(!)(.*?)$", bygroups(Keyword, Text)),
+            # Regular Python code
+            (r"[^%!#\n]+", Text),
+            (r"#.*$", Comment.Single),
+            (r"\n", Text),
+            (r".", Text),
+        ],
+    }
+
+
+# Register the custom lexer
+lexers["ipython"] = IPythonLexer()
+
+# Set up MyST Parser to recognize ipython blocks
+myst_enable_extensions = [
+    "colon_fence",  # Alternative to backticks for code fences
+    "deflist",  # Definition lists
+    "dollarmath",  # Inline and block math with $
+    "smartquotes",  # Smart quotes
+    "substitution",  # Variable substitution
+    "tasklist",  # Task lists
+]
 
 suppress_warnings = ["myst.header"]
 

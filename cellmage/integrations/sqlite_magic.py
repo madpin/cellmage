@@ -511,7 +511,20 @@ class SQLiteCellMagics(BaseMagics):
 @argument("--param", nargs=2, metavar=("KEY", "VALUE"), action="append")
 @cell_magic("llm")
 def llm_magic(ip, line, cell):
-    """Default %%llm magic that uses SQLite storage."""
+    """Default %%llm magic that uses SQLite storage.
+
+    Options:
+
+        -p, --persona     Use specific persona for THIS call only.
+        -m, --model       Use specific model for THIS call only.
+        -t, --temperature Set temperature for THIS call.
+        --max-tokens      Set max_tokens for THIS call.
+        --no-stream       Do not stream output.
+        --param KEY VALUE Set any other LLM param ad-hoc.
+
+    Returns:
+        None
+    """
     if not _IPYTHON_AVAILABLE:
         print("❌ IPython not available", file=sys.stderr)
         return

@@ -7,7 +7,7 @@ CellMage provides integration with Jira through the `%jira` magic command, allow
 To use the Jira integration, install CellMage with the `jira` extra:
 
 ```bash
-pip install cellmage[jira]
+pip install "cellmage[jira]"
 ```
 
 ## Configuration
@@ -18,11 +18,21 @@ The Jira integration requires the following environment variables:
 - `JIRA_USER_EMAIL`: The email address associated with your Jira account
 - `JIRA_API_TOKEN`: Your Jira API token/personal access token (PAT)
 
-You can set these in a `.env` file in your working directory or directly in your environment.
+You can set these in a `.env` file in your working directory or directly in your environment:
 
-## Using the `%jira` Magic Command
+```bash
+# In your terminal
+export JIRA_URL="https://your-company.atlassian.net"
+export JIRA_USER_EMAIL="your.email@company.com"
+export JIRA_API_TOKEN="your_jira_api_token"
 
-### Basic Usage
+# Or in a .env file
+JIRA_URL=https://your-company.atlassian.net
+JIRA_USER_EMAIL=your.email@company.com
+JIRA_API_TOKEN=your_jira_api_token
+```
+
+## Basic Usage
 
 To fetch a specific ticket:
 
@@ -32,12 +42,14 @@ To fetch a specific ticket:
 
 This fetches the ticket and adds it as a user message in the chat history.
 
+## Advanced Usage
+
 ### Using JQL Queries
 
 You can also use JQL (Jira Query Language) to fetch multiple tickets:
 
 ```python
-%jira --jql 'project = PROJECT AND assignee = currentUser() ORDER BY updated DESC' --max 3
+%jira --jql "project = PROJECT AND assignee = currentUser() ORDER BY updated DESC" --max 3
 ```
 
 ### Command Options
@@ -66,14 +78,14 @@ Just view a ticket without adding to history:
 
 Fetch your recent tickets:
 ```python
-%jira --jql 'assignee = currentUser() ORDER BY updated DESC' --max 5
+%jira --jql "assignee = currentUser() ORDER BY updated DESC" --max 5
 ```
 
 ## Using Jira Tickets with LLM Queries
 
 After loading a Jira ticket with `%jira`, you can refer to it in your LLM prompts:
 
-```ipython
+```python
 # First, fetch a ticket
 %jira PROJECT-123
 
@@ -83,3 +95,45 @@ Given the Jira ticket above, what are the key requirements I need to implement?
 ```
 
 This allows you to use Jira tickets as context for your LLM queries, making it easier to work with project-specific information.
+
+## Troubleshooting
+
+### Authentication Issues
+
+If you encounter authentication errors:
+
+1. **Verify your environment variables**:
+   ```python
+   import os
+   print("JIRA_URL:", os.environ.get("JIRA_URL"))
+   print("JIRA_USER_EMAIL:", os.environ.get("JIRA_USER_EMAIL"))
+   print("JIRA_API_TOKEN is set:", os.environ.get("JIRA_API_TOKEN") is not None)
+   ```
+
+2. **Check API token validity**:
+   - Ensure your API token has not expired
+   - Verify you have the correct permissions for the Jira instance
+   - Regenerate your token if necessary
+
+### Permission Problems
+
+If you can authenticate but can't access certain tickets:
+
+1. **Verify you have access to the ticket/project** in the Jira web interface
+2. **Check for permission restrictions** on the tickets you're trying to access
+3. **JQL query permissions**: Ensure you have permission to run the JQL queries you're using
+
+### Other Issues
+
+1. **Connection timeout**: Check your network connection and proxy settings
+2. **Rate limiting**: If making many API calls, you may hit rate limits
+3. **Empty responses**: Make sure the ticket exists and your JQL query returns results
+
+For persistent issues, examine the CellMage log:
+
+```python
+import logging
+from cellmage.utils.logging import setup_logging
+setup_logging(level=logging.DEBUG)
+# The logs will be written to cellmage.log in your working directory
+```

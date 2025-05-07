@@ -4,6 +4,18 @@
 
 CellMage is your magical companion for Jupyter notebooks, transforming ordinary code cells into powerful LLM interactions! Think of it as having an AI wizard 🧙‍♂️ sitting right next to you while you code, ready to assist whenever you summon it.
 
+Under the hood, CellMage consists of several powerful magical components working together:
+
+- **🧠 ChatManager**: The central orchestrator that handles LLM interactions and manages the conversation flow
+- **📜 HistoryManager**: Keeps track of your conversation history and manages message persistence
+- **🎭 Personas**: Predefined AI personalities with specific system prompts and parameters
+- **📋 Snippets**: Reusable context blocks that can be injected into conversations
+- **🔌 Adapters**: Connects to different LLM providers (OpenAI, compatible APIs, and more)
+- **💾 Storage**: Saves your conversations using SQLite (default) or Markdown files for easy reference
+- **🧩 Integrations**: Links CellMage to external tools like Jira, GitHub, GitLab, and Confluence
+
+All these components work seamlessly together to create a frictionless LLM experience in your notebook environment.
+
 ## ✨ A Sprinkle of Magic Dust
 
 With CellMage, you can:
@@ -36,5 +48,6 @@ Tell me a fun fact about wizards in computing history.
 - 📝 Writers crafting documentation with AI help
 - 🎓 Students learning new concepts interactively
 - 🔍 Researchers analyzing complex information
+- ⚙️ Automating repetitive LLM tasks in data workflows
 
 Ready to start your magical journey? Check out the [IPython Magic Commands](ipython_magic_commands.md) to learn all the spells in your new wizard toolkit!
