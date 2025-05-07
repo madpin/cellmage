@@ -96,7 +96,15 @@ myst_enable_extensions = [
     "tasklist",  # Task lists
 ]
 
-suppress_warnings = ["myst.header"]
+suppress_warnings = [
+    "myst.header",
+    "myst.directive",
+    "ref.ref",
+    "toc.not_readable",
+    "app.add_directive",
+    "autosectionlabel.*",
+    "image.not_readable",
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -200,7 +208,11 @@ latex_elements = {
 
 class ShutupSphinxAutodocTypehintsFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
+        # Ignore warnings about forward references that can't be resolved
         if "Cannot resolve forward reference" in record.msg:
+            return False
+        # Ignore warnings about failed guarded type imports from pydantic
+        if "Failed guarded type import" in record.msg and "pydantic" in record.msg:
             return False
         return True
 
