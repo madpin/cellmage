@@ -1,193 +1,195 @@
-# 🧙 CellMage IPython Magic Commands
+# 🧙 The Spell Book: CellMage Magic Commands
 
-CellMage provides a set of powerful IPython magic commands that enable you to interact with Large Language Models (LLMs) directly within your Jupyter or IPython notebooks. This document provides a comprehensive reference for all available magic commands and their arguments.
+Welcome to the official spell book of CellMage! Here you'll find all the magical incantations (IPython magic commands) that allow you to summon the power of Large Language Models directly within your enchanted notebooks. Master these spells to become a true wizard of AI!
 
-## Loading the Extension
+## 📜 Summoning the Magic
 
-Before using any of the magic commands, you need to load the CellMage extension in your notebook:
+Before casting any spells, you must first invite the magical presence into your notebook:
 
 ```python
-%load_ext cellmage
+%load_ext cellmage.integrations.ipython_magic
 ```
 
-## Available Magic Commands
+## 🪄 Your Magical Arsenal
 
-CellMage provides the following magic commands:
+The CellMage grimoire contains these powerful spells:
 
-1. `%llm_config` - Configure the LLM session state and manage resources
-2. `%llm_config_persistent` - Configure the LLM session and enable ambient mode
-3. `%disable_llm_config_persistent` - Disable ambient mode
-4. `%%llm` - Execute a cell as an LLM prompt
-5. `%%py` - Execute a cell as normal Python code (when ambient mode is active)
+1. `%llm_config` - Configure your magical powers and manage your arcane resources
+2. `%llm_config_persistent` - Activate the ambient magic field (where all cells become magical)
+3. `%disable_llm_config_persistent` - Dispel the ambient magic field
+4. `%%llm` - Cast a directed spell to the LLM wizard
+5. `%%py` - Execute mundane Python code (when ambient magic is active)
 
-## Detailed Command Reference
+## ✨ The Complete Spell Compendium
 
-### 1. `%llm_config`
+### 1. `%llm_config` - The Configuration Spell
 
-The `%llm_config` line magic is used to configure your LLM session state and manage resources.
+This versatile spell allows you to adjust your magical settings and manage your resources.
 
 ```python
-%llm_config [arguments]
+%llm_config [magical_parameters]
 ```
 
-#### Available Arguments
+#### 🔮 Magical Parameters
 
-| Argument | Description |
-|----------|-------------|
-| `-p`, `--persona` | Select and activate a persona by name |
-| `--show-persona` | Show the currently active persona details |
-| `--list-personas` | List all available persona names |
-| `--set-override KEY VALUE` | Set a temporary LLM param override (e.g., `--set-override temperature 0.5`) |
-| `--remove-override KEY` | Remove a specific override key |
-| `--clear-overrides` | Clear all temporary LLM param overrides |
-| `--show-overrides` | Show the currently active overrides |
-| `--clear-history` | Clear the current chat history (keeps system prompt) |
-| `--show-history` | Display the current message history |
-| `--save [FILENAME]` | Save session. If no name is provided, uses current session ID. '.md' added automatically |
-| `--load SESSION_ID` | Load session from specified identifier (filename without .md) |
-| `--list-sessions` | List saved session identifiers |
-| `--auto-save` | Enable automatic saving of conversations to the conversations directory |
-| `--no-auto-save` | Disable automatic saving of conversations |
-| `--list-snippets` | List available snippet names |
-| `--snippet NAME` | Add user snippet content before sending prompt (can be used multiple times) |
-| `--sys-snippet NAME` | Add system snippet content before sending prompt (can be used multiple times) |
-| `--status` | Show current status (persona, overrides, history length) |
-| `--model NAME` | Set the default model for the LLM client |
-| `--adapter {direct,langchain}` | Switch to a different LLM adapter implementation |
-| `--list-mappings` | List current model name mappings |
-| `--add-mapping ALIAS FULL_NAME` | Add a model name mapping (e.g., `--add-mapping g4 gpt-4`) |
-| `--remove-mapping ALIAS` | Remove a model name mapping |
+| Arcane Parameter | What It Does |
+|------------------|--------------|
+| `-p`, `--persona` | Transform the AI into a different magical identity |
+| `--show-persona` | Reveal the current persona's true nature |
+| `--list-personas` | Summon a list of all available personas |
+| `--set-override KEY VALUE` | Apply a magical override to a parameter (e.g., `--set-override temperature 0.5`) |
+| `--remove-override KEY` | Remove a specific magical override |
+| `--clear-overrides` | Dispel all magical overrides |
+| `--show-overrides` | Reveal all active magical overrides |
+| `--clear-history` | Erase your conversation history from memory (but keep system prompt) |
+| `--show-history` | Unfold the scroll of your conversation history |
+| `--save [FILENAME]` | Preserve your magical session in a scroll for later use |
+| `--load SESSION_ID` | Recall a previously preserved magical session |
+| `--list-sessions` | Reveal all preserved magical sessions |
+| `--auto-save` | Enable automatic preservation of your magical conversations |
+| `--no-auto-save` | Disable automatic preservation |
+| `--list-snippets` | Reveal all available magical text fragments |
+| `--snippet NAME` | Incorporate a magical text fragment into your next spell |
+| `--sys-snippet NAME` | Add a system-level magical fragment to your next spell |
+| `--status` | Reveal your current magical status and power levels |
+| `--model NAME` | Change which magical entity you're communicating with |
+| `--adapter {direct,langchain}` | Switch to a different magical communication method |
+| `--list-mappings` | Show your magical name translations |
+| `--add-mapping ALIAS FULL_NAME` | Create a new magical name shortcut |
+| `--remove-mapping ALIAS` | Remove a magical name shortcut |
 
-#### Examples
+#### 📖 Spell Examples
 
 ```python
-# List current model mappings
+# Discover your magical name shortcuts
 %llm_config --list-mappings
 
-# Add a model alias
-%llm_config --add-mapping g4 gpt-4
+# Create a magical shortcut
+%llm_config --add-mapping g4o gpt-4o
 
-# Remove a model alias
-%llm_config --remove-mapping g4
-# Set a specific persona
+# Remove a magical shortcut
+%llm_config --remove-mapping g4o
+
+# Summon the Python expert persona
 %llm_config --persona python_expert
 
-# Change the default model
+# Communicate with a specific magical entity
 %llm_config --model gpt-4o
 
-# Set a parameter override
+# Adjust your spell's creativity
 %llm_config --set-override temperature 0.7
 
-# Add a snippet to be included in the next LLM request
+# Include a magical scroll in your next communication
 %llm_config --snippet code_context.py
 
-# Show current session status
+# Check your magical status
 %llm_config --status
 
-# Switch to a different adapter
+# Switch to a different magical communication method
 %llm_config --adapter langchain
 ```
 
-### 2. `%llm_config_persistent`
+### 2. `%llm_config_persistent` - The Ambient Magic Spell
 
-The `%llm_config_persistent` line magic has the same functionality as `%llm_config` but also enables "ambient mode," which processes all regular code cells as LLM prompts. Note that the `--adapter` parameter is not available for this command.
+This powerful enchantment has the same abilities as `%llm_config` but also creates a magical field around your notebook, turning every cell into a direct communication with the AI wizard.
 
 ```python
-%llm_config_persistent [arguments]
+%llm_config_persistent [magical_parameters]
 ```
 
-When ambient mode is active, any cell you execute that doesn't start with a magic command (`%` or `%%`) or shell command (`!`) will be sent as a prompt to the LLM, and the response will be displayed below the cell.
+When the ambient magic field is active, any scroll (cell) you activate that doesn't start with a magical rune (`%` or `%%`) or command rune (`!`) will be sent as a message to the AI wizard, and their response will appear below.
 
-#### Available Arguments
+#### 🔮 Magical Parameters
 
-All the same arguments as `%llm_config` except for `--adapter`.
+All the same magical parameters as `%llm_config` except for `--adapter`.
 
-#### Example
+#### 📖 Spell Example
 
 ```python
-# Enable ambient mode with a specific persona
+# Create an ambient magic field with the coding assistant persona
 %llm_config_persistent --persona coding_assistant --model gpt-4o
 ```
 
-After running this command, you can simply type a prompt in a regular cell (no `%%llm` needed) and run it to get a response from the LLM.
+After casting this spell, you can simply write a question in any cell (no `%%llm` needed) and run it to receive wisdom from the AI wizard!
 
-### 3. `%disable_llm_config_persistent`
+### 3. `%disable_llm_config_persistent` - The Dispel Magic Spell
 
-This line magic disables ambient mode, returning to normal cell execution behavior.
+This counter-spell removes the ambient magic field, returning your notebook to its normal state.
 
 ```python
 %disable_llm_config_persistent
 ```
 
-### 4. `%%llm`
+### 4. `%%llm` - The Direct Communication Spell
 
-The `%%llm` cell magic allows you to send the cell content as a prompt to the LLM.
-
-```python
-%%llm [arguments]
-Your prompt text here...
-```
-
-#### Available Arguments
-
-| Argument | Description |
-|----------|-------------|
-| `-p`, `--persona` | Use specific persona for THIS call only |
-| `-m`, `--model` | Use specific model for THIS call only |
-| `-t`, `--temperature` | Set temperature for THIS call |
-| `--max-tokens` | Set max_tokens for THIS call |
-| `--no-history` | Do not add this exchange to history |
-| `--no-stream` | Do not stream output (wait for full response) |
-| `--no-rollback` | Disable auto-rollback check for this cell run |
-| `--param KEY VALUE` | Set any other LLM param ad-hoc (e.g., `--param top_p 0.9`). Can be used multiple times |
-| `--list-snippets` | List available snippet names |
-| `--snippet NAME` | Add user snippet content before sending prompt (can be used multiple times) |
-| `--sys-snippet NAME` | Add system snippet content before sending prompt (can be used multiple times) |
-
-#### Examples
+This cell magic allows you to send a specific message directly to the AI wizard.
 
 ```python
-%%llm --persona data_scientist --model gpt-4o
-Explain the concept of p-values in statistics in simple terms.
+%%llm [magical_parameters]
+Your message to the magical AI...
+```
+
+#### 🔮 Magical Parameters
+
+| Arcane Parameter | What It Does |
+|------------------|--------------|
+| `-p`, `--persona` | Temporarily summon a different magical identity |
+| `-m`, `--model` | Temporarily communicate with a different magical entity |
+| `-t`, `--temperature` | Adjust the creativity of THIS spell only |
+| `--max-tokens` | Limit the length of the magical response |
+| `--no-history` | Cast a spell that leaves no trace in your history |
+| `--no-stream` | Receive the complete magical response at once (no gradual appearance) |
+| `--no-rollback` | Prevent automatic spell recovery if something goes wrong |
+| `--param KEY VALUE` | Set any other magical parameter for this spell only |
+| `--list-snippets` | Reveal all available magical fragments |
+| `--snippet NAME` | Include a magical fragment in this spell |
+| `--sys-snippet NAME` | Include a system-level magical fragment in this spell |
+
+#### 📖 Spell Examples
+
+```python
+%%llm --persona data_alchemist --model gpt-4o
+Transform this dataset into golden insights about customer behavior.
 ```
 
 ```python
-%%llm -t 0.8 --param top_p 0.95
-Generate a creative story about a wizard who codes in Python.
+%%llm -t 0.9 --param top_p 0.95
+Craft a magical tale about a programmer who discovers an ancient spell book
+containing Python code that can alter reality.
 ```
 
-### 5. `%%py`
+### 5. `%%py` - The Mundane Code Spell
 
-The `%%py` cell magic executes the cell as normal Python code, bypassing ambient mode. This is useful when ambient mode is enabled but you want to execute a specific cell as regular Python code without LLM processing.
+When the ambient magic field is active, this spell allows you to execute regular Python code without magical interpretation.
 
 ```python
 %%py
-# This code will run as normal Python
-x = 10
-print(f"The value is {x}")
+# This scroll contains regular Python incantations
+fibonacci_spell = lambda n: n if n <= 1 else fibonacci_spell(n-1) + fibonacci_spell(n-2)
+print(f"The 10th number in the sequence is {fibonacci_spell(10)}")
 ```
 
-## Ambient Mode
+## 🌟 The Ambient Magic Field
 
-Ambient mode is a powerful feature that, when enabled, allows any regular cell to be automatically processed as an LLM prompt. This eliminates the need to prepend each prompt with `%%llm`.
+The ambient magic field is a powerful enchantment that, when activated, allows any regular cell to be automatically processed as a communication with the AI wizard. This eliminates the need to mark each message with the `%%llm` rune.
 
-- To enable ambient mode: `%llm_config_persistent`
-- To disable ambient mode: `%disable_llm_config_persistent`
+- To create the field: `%llm_config_persistent`
+- To dispel the field: `%disable_llm_config_persistent`
 
-When ambient mode is active, cells that start with magics (`%`, `%%`) or shell commands (`!`) are still executed normally, but all other cells are sent to the LLM.
+When the ambient magic field is active, cells that start with magical runes (`%`, `%%`) or command runes (`!`) still function normally, but all other cells become direct communications with the AI wizard.
 
-If you need to execute Python code while ambient mode is active, use the `%%py` cell magic.
+If you need to cast regular Python spells while the ambient field is active, use the `%%py` magic rune.
 
-> **⚠️ Warning:** Ambient mode may intercept Jupyter's internal background functions like `__jupyter_exec_background__()` which are used for autocomplete and other IDE features. If you notice unexpected behavior (such as code completion not working properly or internal Jupyter commands being sent to the LLM as prompts), disable ambient mode using `%disable_llm_config_persistent` and use explicit `%%llm` cell magic instead.
+> **⚠️ Warning:** The ambient magic field may sometimes intercept Jupyter's internal background functions like `__jupyter_exec_background__()` which are used for autocomplete and other IDE features. If your magical workspace begins acting strangely (such as code completion not working properly or internal Jupyter commands being sent to the AI wizard as messages), dispel the ambient magic using `%disable_llm_config_persistent` and use explicit `%%llm` runes instead.
 
-## Status Information
+## 📊 Magical Status Indicators
 
-After each successful LLM call (via `%%llm` or ambient mode), a status bar is displayed showing:
+After each successful communication with the AI wizard (via `%%llm` or ambient magic), a status bar displays:
 
-- Success indicator (✅)
-- Duration of the call (⏱️)
-- Token counts (input/output) (📥/📤)
-- Estimated cost (🪙)
-- Model used
+- Success rune (✅)
+- Duration of the magical communication (⏱️)
+- Token counts (magical energy consumed/received) (📥/📤)
+- Estimated cost in magical currency (🪙)
+- Which magical entity responded
 
-This information helps you track your LLM usage and costs.
+This information helps you track your magical energy usage and costs.

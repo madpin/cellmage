@@ -1,13 +1,23 @@
 version: 2
 
-sphinx:
-  configuration: docs/source/conf.py
-  fail_on_warning: true
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.9"
 
 python:
-  version: "3.9"
   install:
     - method: pip
       path: .
       extra_requirements:
-        - dev
+        - docs
+        - all
+
+sphinx:
+  configuration: docs/source/conf.py
+  fail_on_warning: true
+
+# Re-enabling PDF and EPUB formats now that we've added LaTeX emoji support
+# formats:
+#   - pdf
+#   - epub

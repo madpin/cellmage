@@ -1,9 +1,11 @@
-# **cellmage**
+# 🪄 **CellMage: Your Notebook LLM Wizard** 🎩
+
+Welcome to the magical world of CellMage! ✨ Where your Jupyter notebooks transform into powerful LLM workspaces with just a sprinkle of magic commands.
 
 ```{toctree}
 :maxdepth: 2
 :hidden:
-:caption: Getting started
+:caption: 🚀 Getting started
 
 installation
 overview
@@ -17,16 +19,20 @@ confluence_integration
 
 ```{toctree}
 :hidden:
-:caption: Development
+:caption: 🧙‍♂️ Development & Community
 
 refactored_magic_architecture
 CHANGELOG
 CONTRIBUTING
-License <https://raw.githubusercontent.com/allenai/cellmage/main/LICENSE>
+License <https://raw.githubusercontent.com/madpin/cellmage/main/LICENSE>
 GitHub Repository <https://github.com/madpin/cellmage>
 ```
 
-## Indices and tables
+## 🔮 Explore the Magic
+
+Crafted with ❤️ and 🧙‍♂️ magic in Dublin, Ireland 🇮🇪
+
+Jump right in and discover how CellMage can transform your data science workflow with LLMs!
 
 ```{eval-rst}
 * :ref:`genindex`
