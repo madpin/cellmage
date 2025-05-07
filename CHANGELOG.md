@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v0.5.14](https://github.com/madpin/cellmage/releases/tag/v0.5.14) - 2025-05-07
+
+### Added
+- Implemented LLM-powered changelog generation with support for multiple LLM models and updated related documentation.
+- Added configuration handlers for the `%llm_config` magic command.
+- Introduced pre-commit configuration and updated dependencies to improve code quality checks.
+- Added build configuration for Ubuntu 22.04 and Python 3.9 in the Read the Docs YAML configuration.
+- Added documentation dependencies for Sphinx and related tools.
+- Added GitHub integration with magic commands and utility functions.
+- Added SQLite-based storage for conversation history, featuring tagging, statistics, and raw API response storage, alongside updated documentation and example usage.
+- Added Confluence integration with magic commands and updated documentation accordingly.
+- Added Jira integration with magic commands and utility functions, including enhanced token tracking in ticket content and improved session management.
+- Added support for custom headers in LLM requests and updated configuration settings.
+- Added model mapping functionality and enhanced IPython magic commands.
+- Added autosaved conversations and enhanced OpenAI chat models notebook.
+- Added new personas for code architect, code writer, and non-technical documentation specialist, along with example persona and snippet files.
+- Added message deduplication in ChatManager and improved snippet handling in IPython magic commands.
+- Added example scripts, comprehensive tests, and initial test and snippet files for the cellmage library.
+- Added CellMage notebook, tutorial notebooks for CellMage magic functions, and ambient mode testing notebook.
+- Added role specifications for software personas and documented Thiago's profile.
+- Enhanced virtual environment setup with optional dependencies and caching improvements.
+- Enhanced release process by adding support for minor and major version increments and automatic version updates in the release scripts and Makefile.
+- Enhanced changelog generation script to support multiple LLM models and improved model handling.
+- Added LaTeX emoji support and re-enabled PDF and EPUB formats in Read the Docs configuration.
+- Added `.data/conversations.db` to `.gitignore` to exclude conversation database files.
+
+### Changed
+- Refactored IPython magic commands to use a base class for common functionality and improved logging and debug information in ChatManager, HistoryManager, and ConfigMagics.
+- Refactored ChatManager and IPythonContextProvider for improved response handling, message deduplication, and token counting, preserving system messages and keeping the last occurrence of duplicates.
+- Refactored header preparation in DirectLLMAdapter and LangChainAdapter, replacing LiteLLMAdapter with DirectLLMAdapter across the codebase, updating configuration handling and notebook examples accordingly.
+- Refactored Makefile and Jira integration tests for improved consistency and clarity.
+- Refactored logging in GitHub, GitLab, and Jira magic commands to use `logger.debug` for improved traceability.
+- Refactored snippet directory handling to exclusively use `llm_snippets` instead of `snippets`.
+- Refactored version update logic in release scripts for clarity using separate sed commands.
+- Refactored code for improved readability and maintainability by simplifying multi-line statements, enhancing logging messages, and adjusting line breaks and formatting in various modules.
+- Refactored import statements to streamline `TYPE_CHECKING` usage and removed unused imports.
+- Updated default LLM model reference to `gpt-4.1-mini` for improved performance and later to `gpt-4.1-nano`.
+- Updated Python version requirement to 3.9 across configuration files.
+- Updated project references from 'my-package' to 'cellmage' throughout all files, including documentation, workflows, and scripts.
+- Updated README.md to introduce CellMage, enhance clarity and engagement, refine feature descriptions and installation instructions, update author information, and document beverage preference.
+- Enhanced persona handling in ChatManager and IPython magic commands with detailed logging for persona requests and system message management.
+- Enhanced history and session management with improved session listing output, error handling, and metadata consistency.
+- Enhanced token usage tracking and reporting in ChatManager and DirectLLMAdapter.
+- Enhanced IPython context provider with UUID support and improved display handling.
+- Enhanced documentation and IPython magic commands, including improved ambient mode handling and new notebook examples.
+- Enhanced release scripts to update version automatically if a tag exists.
+- Enhanced virtual environment installation commands to include all optional dependencies and fixed pip install command syntax.
+- Enhanced changelog generation script and documentation.
+
+### Fixed
+- Fixed formatting issues in log messages and print statements across multiple files.
+- Fixed token display direction in IPythonContextProvider to correctly indicate input and output tokens.
+- Fixed pip install command syntax and updated requirements for consistency.
+- Fixed virtual environment installation to include all dependencies.
+- Fixed comment out of formats section in Read the Docs configuration due to PDF and EPUB build failures, then re-enabled these formats with LaTeX emoji support.
+- Cleaned up whitespace and formatting inconsistencies across multiple files.
+- Fixed code block syntax in Confluence and Jira integration documentation for better clarity.
+- Corrected installation commands to include all
+
+
 ### ✨ Added
 - ✨ Enhanced documentation with more wizardry and magical metaphors
 - 🎩 Improved landing page with a warm welcome to the magical world of CellMage
