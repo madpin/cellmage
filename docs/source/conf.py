@@ -108,6 +108,45 @@ html_theme_options = {
     ],
 }
 
+# -- LaTeX configuration for handling emoji characters ----------------------
+
+# LaTeX preamble with emoji support
+latex_elements = {
+    "preamble": r"""
+    % Enable emoji support using the coloremoji package
+    \usepackage{fontspec}
+    \usepackage{xcolor}
+    \usepackage{newunicodechar}
+
+    % Define emoji replacement macros
+    \newcommand{\emojimageprefix}{emoji-images/}
+    \newcommand{\emojiimage}[1]{\includegraphics[height=1em]{#1}}
+
+    % Define replacements for specific emojis used in our docs
+    \newunicodechar{🧙}{[\texttt{wizard}]}
+    \newunicodechar{⚠}{[\texttt{warning}]}
+    \newunicodechar{✅}{[\texttt{check}]}
+    \newunicodechar{⏱}{[\texttt{timer}]}
+    \newunicodechar{📥}{[\texttt{inbox}]}
+    \newunicodechar{📤}{[\texttt{outbox}]}
+    \newunicodechar{🪙}{[\texttt{coin}]}
+    \newunicodechar{👤}{[\texttt{user}]}
+    \newunicodechar{📋}{[\texttt{clipboard}]}
+    \newunicodechar{⚙️}{[\texttt{gear}]}
+    \newunicodechar{❌}{[\texttt{cross}]}
+    \newunicodechar{📝}{[\texttt{note}]}
+    \newunicodechar{👁️}{[\texttt{eye}]}
+    \newunicodechar{💻}{[\texttt{computer}]}
+    \newunicodechar{🤖}{[\texttt{robot}]}
+    """,
+    # Use xelatex for better unicode support
+    "latex_engine": "xelatex",
+    # Adjust other latex settings as needed
+    "sphinxsetup": "verbatimwithframe=false, verbatimsep=2pt",
+    "fncychap": "",  # Disable fancy chapter titles
+    "extraclassoptions": "openany,oneside",
+}
+
 # -- Hack to get rid of stupid warnings from sphinx_autodoc_typehints --------
 
 
