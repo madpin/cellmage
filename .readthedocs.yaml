@@ -18,6 +18,6 @@ sphinx:
   fail_on_warning: true
 
 # Re-enabling PDF and EPUB formats now that we've added LaTeX emoji support
-formats:
-  - pdf
-  - epub
+# formats:
+#   - pdf
+#   - epub
