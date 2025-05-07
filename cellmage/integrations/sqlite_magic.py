@@ -523,6 +523,7 @@ def llm_magic(ip, line, cell):
         --param KEY VALUE Set any other LLM param ad-hoc.
 
     Returns:
+
         None
     """
     if not _IPYTHON_AVAILABLE:
