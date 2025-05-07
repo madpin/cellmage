@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### ✨ Added
+- ✨ Enhanced documentation with more wizardry and magical metaphors
+- 🎩 Improved landing page with a warm welcome to the magical world of CellMage
+- 🧙‍♂️ Expanded overview page with fun, engaging descriptions and quick-start guide
+
+### 🔮 Changed
+- 🪄 Made documentation style more consistent with the project's magical theme
+- ✨ Improved readability with better use of emojis and formatting
+
+### 🧹 Fixed
+- 🐛 Fixed various documentation inconsistencies and gaps
+
 ## [v0.5.13](https://github.com/madpin/cellmage/releases/tag/v0.5.13) - 2025-05-07
 
 ### Added
@@ -66,8 +78,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cleared out empty Jupyter notebooks for markdown and model mappings demos.
 - Removed version variable and simplified error messages in the `get_default_manager` function.
 - Removed legacy test files for the cellmage library.
--
-
 
 ## [v0.5.12](https://github.com/madpin/cellmage/releases/tag/v0.5.12) - 2025-05-07
 
@@ -106,7 +116,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.4.3](https://github.com/madpin/cellmage/releases/tag/v0.4.3) - 2025-05-01
 
 ## [v0.4.2](https://github.com/madpin/cellmage/releases/tag/v0.4.2) - 2025-04-29
-
 
 ## [v0.4.1](https://github.com/madpin/cellmage/releases/tag/v0.4.1) - 2025-04-29
 
