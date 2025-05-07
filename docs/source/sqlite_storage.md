@@ -89,7 +89,7 @@ philosophical_convos = store.get_conversations_with_tag("philosophy")
 
 If you have old conversations stored in markdown files:
 
-```python
+```text
 # Import a specific markdown conversation
 %sqlite --import-md path/to/conversation.md
 

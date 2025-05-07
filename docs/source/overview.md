@@ -17,7 +17,7 @@ With CellMage, you can:
 
 ## 🚀 Getting Started in 10 Seconds
 
-```python
+```text
 # Install the magic
 !pip install cellmage
 
