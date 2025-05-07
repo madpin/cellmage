@@ -1,28 +1,54 @@
-# 🪄 **CellMage: Your Notebook LLM Wizard** 🎩
+# 🪄 CellMage: Your Notebook LLM Wizard 🎩
 
-Welcome to the magical world of CellMage! ✨ Where your Jupyter notebooks transform into powerful LLM workspaces with just a sprinkle of magic commands.
+Welcome to the magical world of CellMage! ✨ Where your Jupyter notebooks transform into powerful LLM workspaces with just a sprinkle of magic commands. CellMage helps you seamlessly integrate Large Language Models into your data science and coding workflows, making complex tasks simpler and more intuitive.
+
+Whether you're looking to chat with AI, generate code, summarize documents, or connect to services like Jira and GitHub, CellMage provides the spells you need.
 
 ```{toctree}
 :maxdepth: 2
 :hidden:
-:caption: 🚀 Getting started
+:caption: 🚀 Getting Started
 
-installation
 overview
+installation
+```
+
+```{toctree}
+:maxdepth: 2
+:hidden:
+:caption: 📖 User Guide
+
 ipython_magic_commands
+core_concepts
+configuration
 sqlite_storage
-jira_integration
-gitlab_integration
-github_integration
-confluence_integration
+integrations/index
+tutorials/index
+troubleshooting
+```
+
+```{toctree}
+:maxdepth: 2
+:hidden:
+:caption: 🔮 API Reference
+
+api/index
+```
+
+```{toctree}
+:maxdepth: 2
+:hidden:
+:caption: 🧙‍♂️ Developer Guide
+
+developer/index
+refactored_magic_architecture
+CHANGELOG
 ```
 
 ```{toctree}
 :hidden:
-:caption: 🧙‍♂️ Development & Community
+:caption: 💬 Community & Links
 
-refactored_magic_architecture
-CHANGELOG
 CONTRIBUTING
 License <https://raw.githubusercontent.com/madpin/cellmage/main/LICENSE>
 GitHub Repository <https://github.com/madpin/cellmage>

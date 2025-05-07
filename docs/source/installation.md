@@ -51,23 +51,82 @@ pip install -e ".[dev,all]"
 
 ## ⚡ Configuration Charm
 
-Set up your magical environment by configuring your API keys:
+### 🔑 Essential API Keys
+
+CellMage requires an API key to communicate with your LLM service provider. This is the most important configuration step:
 
 ```bash
-# Using environment variables
+# Using environment variables (recommended for security)
 export CELLMAGE_API_KEY="your_openai_api_key"
-export CELLMAGE_DEFAULT_MODEL="gpt-4o"
-
-# Or create a .env file in your working directory
-echo "CELLMAGE_API_KEY=your_openai_api_key" > .env
-echo "CELLMAGE_DEFAULT_MODEL=gpt-4o" >> .env
+# OR use OPENAI_API_KEY if you prefer
+export OPENAI_API_KEY="your_openai_api_key"
 ```
+
+### 📄 Using .env Files
+
+CellMage automatically reads from a `.env` file in your working directory, which is a convenient way to set configuration without exposing sensitive information:
+
+```bash
+# Create a .env file with your configuration
+cat > .env << EOF
+# Essential configuration
+CELLMAGE_API_KEY=your_openai_api_key
+CELLMAGE_DEFAULT_MODEL=gpt-4o
+CELLMAGE_API_BASE=https://api.openai.com/v1
+
+# Optional: Storage configuration
+CELLMAGE_SQLITE_PATH=~/.cellmage/conversations.db
+CELLMAGE_PERSONAS_DIRS=~/my_personas,./project_personas
+CELLMAGE_SNIPPETS_DIRS=~/my_snippets,./project_snippets
+EOF
+```
+
+### 🔮 Environment Variables Reference
+
+#### Essential Variables
+| Environment Variable | Description | Default Value |
+|---------------------|-------------|--------------|
+| `CELLMAGE_API_KEY` or `OPENAI_API_KEY` | Your LLM API key | None (Required) |
+| `CELLMAGE_API_BASE` | API base URL | https://api.openai.com/v1 |
+| `CELLMAGE_DEFAULT_MODEL` | Default model to use | gpt-4o-mini |
+
+#### Storage Variables
+| Environment Variable | Description | Default Value |
+|---------------------|-------------|--------------|
+| `CELLMAGE_PERSONAS_DIRS` | Comma-separated list of directories containing personas | ./llm_personas |
+| `CELLMAGE_SNIPPETS_DIRS` | Comma-separated list of directories containing snippets | ./llm_snippets |
+| `CELLMAGE_CONVERSATIONS_DIR` | Directory for saving conversations | ./llm_conversations |
+| `CELLMAGE_SQLITE_PATH` | Path to SQLite database | ~/.cellmage/conversations.db |
+| `CELLMAGE_ADAPTER` | LLM adapter type (direct or langchain) | direct |
+| `CELLMAGE_STORAGE_TYPE` | Storage type to use (sqlite, memory, file) | sqlite |
+
+#### Integration Variables
+| Service | Required Environment Variables |
+|---------|----------------------------|
+| **Jira** | `JIRA_URL`, `JIRA_USER_EMAIL`, `JIRA_API_TOKEN` |
+| **Confluence** | `CONFLUENCE_URL` (or `JIRA_URL`), `JIRA_USER_EMAIL`, `JIRA_API_TOKEN` |
+| **GitHub** | `GITHUB_TOKEN` |
+| **GitLab** | `GITLAB_URL`, `GITLAB_PAT` or `GITLAB_PRIVATE_TOKEN` |
+
+### 📚 Model Aliasing
+
+CellMage supports model aliasing to create shortcuts for model names. You can define aliases in a `cellmage_models.yml` file in your working directory:
+
+```yaml
+# Example cellmage_models.yml
+mappings:
+  gpt4: gpt-4o
+  gpt4-mini: gpt-4o-mini
+  gpt3: gpt-3.5-turbo
+```
+
+A reference example can be found in `cellmage/examples/cellmage_models.yml`. This allows you to use shorter aliases like `%llm_config --model gpt4` instead of full model names.
 
 ## 🪄 Your First Incantation
 
 Let's verify that your CellMage installation is working properly:
 
-```python
+```ipython
 # In your Jupyter Notebook
 %load_ext cellmage.integrations.ipython_magic
 

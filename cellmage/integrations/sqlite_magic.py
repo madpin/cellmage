@@ -508,18 +508,21 @@ class SQLiteCellMagics(BaseMagics):
 @argument("-t", "--temperature", type=float, help="Set temperature for THIS call.")
 @argument("--max-tokens", type=int, dest="max_tokens", help="Set max_tokens for THIS call.")
 @argument("--no-stream", action="store_false", dest="stream", help="Do not stream output.")
-@argument("--param", nargs=2, metavar=("KEY", "VALUE"), action="append")
+@argument(
+    "--param",
+    nargs=2,
+    metavar=("KEY", "VALUE"),
+    action="append",
+    help="Set any other LLM param ad-hoc (e.g., --param top_p 0.9).",
+)
 @cell_magic("llm")
 def llm_magic(ip, line, cell):
-    """Default %%llm magic that uses SQLite storage."""
     if not _IPYTHON_AVAILABLE:
         print("❌ IPython not available", file=sys.stderr)
         return
 
-    # Create magics class instance
     magics = SQLiteCellMagics(ip)
 
-    # Forward to sqlite_llm implementation
     return magics.sqlite_llm_magic(line, cell)
 
 
