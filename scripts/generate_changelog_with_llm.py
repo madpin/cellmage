@@ -125,6 +125,10 @@ def generate_changelog_with_llm(
     if not models:
         models = DEFAULT_MODELS
 
+    # Ensure models is a flat list of strings
+    if models and isinstance(models[0], list):
+        models = models[0]
+
     # Log the API configuration (without exposing the key)
     logger.info(f"Using models in order: {', '.join(models)}")
     if api_base:
@@ -283,21 +287,27 @@ def main():
     # Get API base from environment variables (optional)
     api_base = os.environ.get("CELLMAGE_API_BASE") or os.environ.get("OPENAI_API_BASE")
 
-    # Get model name (optional)
-    model = os.environ.get("MODEL", DEFAULT_MODELS)
+    # Get models from environment variable MODEL or use default
+    model_from_env = os.environ.get("MODEL")
+    default_model = DEFAULT_MODELS[0] if DEFAULT_MODELS else "gpt-4.1-mini"
+    model = model_from_env if model_from_env else default_model
 
     # Get model list from command line or environment
     if args.models:
         model_list = args.models.split(",")
         logger.info(f"Using models from command line: {', '.join(model_list)}")
     else:
-        model_list = (
-            os.environ.get("MODEL_LIST", "").split(",") if os.environ.get("MODEL_LIST") else [model]
-        )
-        if len(model_list) > 1:
+        model_list_env = os.environ.get("MODEL_LIST")
+        if model_list_env:
+            model_list = model_list_env.split(",")
             logger.info(f"Using models from MODEL_LIST: {', '.join(model_list)}")
         else:
-            logger.info(f"Using single model: {model}")
+            # If no model list specified, use the single model or default models
+            model_list = [model] if isinstance(model, str) else DEFAULT_MODELS
+            if isinstance(model, str):
+                logger.info(f"Using single model: {model}")
+            else:
+                logger.info(f"Using default models: {', '.join(DEFAULT_MODELS)}")
 
     # Get version
     current_version = get_current_version()
