@@ -508,7 +508,13 @@ class SQLiteCellMagics(BaseMagics):
 @argument("-t", "--temperature", type=float, help="Set temperature for THIS call.")
 @argument("--max-tokens", type=int, dest="max_tokens", help="Set max_tokens for THIS call.")
 @argument("--no-stream", action="store_false", dest="stream", help="Do not stream output.")
-@argument("--param", nargs=2, metavar=("KEY", "VALUE"), action="append")
+@argument(
+    "--param",
+    nargs=2,
+    metavar=("KEY", "VALUE"),
+    action="append",
+    help="Set any other LLM param ad-hoc (e.g., --param top_p 0.9).",
+)
 @cell_magic("llm")
 def llm_magic(ip, line, cell):
     if not _IPYTHON_AVAILABLE:
