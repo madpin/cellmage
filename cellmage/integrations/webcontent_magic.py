@@ -56,14 +56,14 @@ logger = logging.getLogger(__name__)
 class WebContentMagics(BaseMagics):
     """IPython magic commands for fetching website content and adding it to chat history."""
 
-    def __init__(self, shell):
+    def __init__(self, shell=None, **kwargs):
         """Initialize the website content magic utility."""
         if not _IPYTHON_AVAILABLE:
             logger.warning("IPython not found. WebContentMagics are disabled.")
             return
 
         try:
-            super().__init__(shell)
+            super().__init__(shell, **kwargs)
         except Exception as e:
             logger.warning(f"Error ?? initializing WebContentMagics: {e}")
 

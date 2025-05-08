@@ -30,6 +30,24 @@ except ImportError:
 
     _JIRA_AVAILABLE = False
 
+# Import GoogleDocsUtils conditionally since it requires optional dependencies
+try:
+    from .gdocs_utils import GoogleDocsUtils
+
+    _GDOCS_AVAILABLE = True
+except ImportError:
+    # Define a placeholder for better error messages when the dependency is missing
+    class GoogleDocsUtils:
+        """Placeholder for GoogleDocsUtils class when Google API packages are not installed."""
+
+        def __init__(self, *args, **kwargs):
+            raise ImportError(
+                "The Google API packages are required to use GoogleDocsUtils. "
+                "Install them with 'pip install cellmage[gdocs]'"
+            )
+
+    _GDOCS_AVAILABLE = False
+
 __all__ = [
     "setup_logging",
     "display_files_as_table",
@@ -37,4 +55,5 @@ __all__ = [
     "list_directory_files",
     "display_directory",
     "JiraUtils",
+    "GoogleDocsUtils",
 ]

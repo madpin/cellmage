@@ -107,6 +107,7 @@ EOF
 | **Confluence** | `CONFLUENCE_URL` (or `JIRA_URL`), `JIRA_USER_EMAIL`, `JIRA_API_TOKEN` |
 | **GitHub** | `GITHUB_TOKEN` |
 | **GitLab** | `GITLAB_URL`, `GITLAB_PAT` or `GITLAB_PRIVATE_TOKEN` |
+| **Google Docs** | `CELLMAGE_GDOCS_AUTH_TYPE`, `CELLMAGE_GDOCS_TOKEN_PATH`, `CELLMAGE_GDOCS_CREDENTIALS_PATH` (for OAuth) or `CELLMAGE_GDOCS_SERVICE_ACCOUNT_PATH` (for service account) |
 
 ### 📚 Model Aliasing
 
