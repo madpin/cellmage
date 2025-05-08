@@ -21,6 +21,7 @@ installation
 magic_commands
 core_concepts
 configuration
+magic_command_cheatsheet
 sqlite_storage
 integrations/index
 tutorials/index

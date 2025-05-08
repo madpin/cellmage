@@ -2,6 +2,52 @@
 
 This section provides detailed API documentation for CellMage's modules and classes.
 
+```{toctree}
+:maxdepth: 2
+:caption: API Reference
+:hidden:
+
+generated/cellmage.chat_manager
+generated/cellmage.conversation_manager
+generated/cellmage.history_manager
+generated/cellmage.models
+generated/cellmage.config
+generated/cellmage.exceptions
+generated/cellmage.adapters
+generated/cellmage.adapters.direct_client
+generated/cellmage.adapters.langchain_client
+generated/cellmage.interfaces
+generated/cellmage.storage
+generated/cellmage.storage.memory_store
+generated/cellmage.storage.markdown_store
+generated/cellmage.storage.sqlite_store
+generated/cellmage.resources.file_loader
+generated/cellmage.resources.memory_loader
+generated/cellmage.utils.date_utils
+generated/cellmage.utils.file_utils
+generated/cellmage.utils.logging_utils
+generated/cellmage.utils.markdown_utils
+generated/cellmage.utils.model_utils
+generated/cellmage.utils.token_counter
+generated/cellmage.context_providers
+generated/cellmage.context_providers.ipython_context_provider
+generated/cellmage.integrations
+generated/cellmage.integrations.base_magic
+generated/cellmage.integrations.confluence_magic
+generated/cellmage.integrations.github_magic
+generated/cellmage.integrations.gitlab_magic
+generated/cellmage.integrations.jira_magic
+generated/cellmage.integrations.sqlite_magic
+generated/cellmage.integrations.webcontent_magic
+generated/cellmage.magic_commands
+generated/cellmage.magic_commands.ipython
+generated/cellmage.magic_commands.ipython.common
+generated/cellmage.magic_commands.ipython.config_magic
+generated/cellmage.magic_commands.ipython.llm_magic
+generated/cellmage.magic_commands.ipython.ambient_magic
+generated/cellmage.ambient_mode
+```
+
 ## Core APIs
 
 ```{eval-rst}
