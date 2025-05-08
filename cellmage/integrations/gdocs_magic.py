@@ -13,7 +13,6 @@ from typing import Any, Dict
 try:
     from IPython.core.magic import line_magic, magics_class
     from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
-    from IPython.display import Markdown, display
 
     _IPYTHON_AVAILABLE = True
 except ImportError:
@@ -116,6 +115,51 @@ class GoogleDocsMagic(BaseMagics):
         help="Only display the content without adding it to chat history",
     )
     @argument(
+        "--search", type=str, help="Search for Google Docs files containing the specified term"
+    )
+    @argument(
+        "--content", action="store_true", help="Retrieve and display content for search results"
+    )
+    @argument(
+        "--max-results", type=int, default=10, help="Maximum number of search results to return"
+    )
+    @argument(
+        "--max-content",
+        type=int,
+        default=3,
+        help="Maximum number of documents to retrieve content for",
+    )
+    @argument("--author", type=str, help="Filter documents by author/owner email")
+    @argument(
+        "--created-after",
+        "--created",  # Added alias for backward compatibility
+        type=str,
+        help="Filter documents created after this date (YYYY-MM-DD or natural language like '3 days ago')",
+    )
+    @argument(
+        "--created-before",
+        type=str,
+        help="Filter documents created before this date (YYYY-MM-DD or natural language)",
+    )
+    @argument(
+        "--modified-after",
+        "--updated",  # Added alias
+        "--modified",  # Added alias for backward compatibility
+        type=str,
+        help="Filter documents modified after this date (YYYY-MM-DD or natural language)",
+    )
+    @argument(
+        "--modified-before",
+        type=str,
+        help="Filter documents modified before this date (YYYY-MM-DD or natural language)",
+    )
+    @argument(
+        "--order-by",
+        choices=["relevance", "modifiedTime", "createdTime", "name"],
+        default="relevance",
+        help="How to order search results",
+    )
+    @argument(
         "--auth-type",
         choices=["oauth", "service_account"],
         default=settings.gdocs_auth_type,
@@ -124,12 +168,20 @@ class GoogleDocsMagic(BaseMagics):
     @line_magic("gdocs")
     def gdocs(self, line):
         """
-        Fetch Google Docs content and add it to the conversation history.
+        Fetch or search Google Docs content.
 
         Usage:
-            %gdocs [doc_id_or_url]
-            %gdocs [doc_id_or_url] --system
-            %gdocs [doc_id_or_url] --show
+            %gdocs [doc_id_or_url]                         # Fetch a specific document by ID or URL
+            %gdocs [doc_id_or_url] --system                # Add as system message
+            %gdocs [doc_id_or_url] --show                  # Only display content
+            %gdocs --search "term"                         # Search for documents containing "term"
+            %gdocs --search "term" --max-results 20        # Search with custom result limit
+            %gdocs --search "term" --content               # Search and fetch content for top documents
+            %gdocs --search "term" --content --max-content 5   # Fetch content for more documents
+            %gdocs --search "term" --author "email@example.com" # Filter by author
+            %gdocs --search "term" --created-after "2023-01-01" # Filter by creation date
+            %gdocs --search "term" --modified-before "2023-12-31" # Filter by modification date
+            %gdocs --search "term" --order-by "name"       # Order results by name
 
         Args:
             line: Command line arguments.
@@ -152,8 +204,179 @@ class GoogleDocsMagic(BaseMagics):
             print(f"❌ Error parsing arguments: {e}", file=sys.stderr)
             return
 
+        # Check if this is a search request
+        if args.search:
+            try:
+                # Create a fresh instance with the specified auth type
+                gdocs_utils = GoogleDocsUtils(auth_type=args.auth_type)
+
+                print(f"🔍 Searching for documents matching: '{args.search}'")
+
+                # We need to handle the case where --created is used instead of --created-after
+                created_after_value = None
+                if hasattr(args, "created") and args.created:
+                    created_after_value = args.created
+                elif args.created_after:
+                    created_after_value = args.created_after
+
+                # We need to handle the case where --modified is used instead of --modified-after
+                modified_after_value = None
+                if hasattr(args, "modified") and args.modified:
+                    modified_after_value = args.modified
+                elif args.modified_after:
+                    modified_after_value = args.modified_after
+
+                # Perform the search with advanced filters
+                documents = gdocs_utils.search_documents(
+                    search_query=args.search.replace('"', ""),  # Remove quotes from search term
+                    max_results=args.max_results,
+                    author=args.author,
+                    created_after=created_after_value,
+                    created_before=args.created_before,
+                    modified_after=modified_after_value,
+                    modified_before=args.modified_before,
+                    order_by=args.order_by,
+                )
+
+                if not documents:
+                    print(f"ℹ️ No documents found matching '{args.search}'.")
+                    return
+
+                # Display results in a formatted table
+                from IPython.display import Markdown, display
+
+                # Create a markdown table with the results
+                table = [
+                    "# Google Docs Search Results",
+                    "",
+                    "| # | Document Title | Created | Last Updated | Owner | URL |",
+                    "| --- | --- | --- | --- | --- | --- |",
+                ]
+
+                # Use all documents, not just the first args.max_results
+                for i, doc in enumerate(documents, 1):
+                    # Try to get additional metadata if available
+                    created_date = doc.get("createdTime", "N/A")
+                    modified_date = doc.get("modifiedTime", "N/A")
+                    owner = doc.get("owners", [{"displayName": "N/A"}])[0].get("displayName", "N/A")
+
+                    table.append(
+                        f"| {i} | {doc['name']} | {created_date} | {modified_date} | {owner} | [{doc['id']}]({doc['url']}) |"
+                    )
+
+                # Add header row after every 50 items for better readability if there are many results
+                if len(documents) > 50:
+                    for i in range(50, len(documents), 50):
+                        if i < len(table):
+                            table.insert(
+                                i + 4, "| --- | --- | --- | --- | --- | --- |"
+                            )  # +4 for the header rows
+
+                # Format the search results as markdown
+                search_results_md = "\n".join(table)
+
+                # When using --show, display the results
+                if args.show:
+                    display(Markdown(search_results_md))
+                    print(f"ℹ️ Found {len(documents)} documents matching '{args.search}'.")
+
+                    # Don't show the "not added to history" message yet if we're going to fetch content
+                    if not args.content:
+                        print("ℹ️ Content displayed only. Not added to history.")
+                else:
+                    # Add to conversation history as a user message by default
+                    # Create a unique ID for this collection of documents
+                    search_id = f"gdocs_search_{args.search.replace(' ', '_')}"
+
+                    success = self._add_to_history(
+                        content=search_results_md,
+                        source_type="google_docs_search_results",
+                        source_id=search_id,
+                        as_system_msg=args.system,
+                    )
+
+                    if success:
+                        msg_type = "system" if args.system else "user"
+                        print(f"✅ Found {len(documents)} documents matching '{args.search}'.")
+                        print(f"✅ Google Docs search results added as {msg_type} message")
+                    else:
+                        print(
+                            "❌ Failed to add Google Docs search results to history.",
+                            file=sys.stderr,
+                        )
+
+                # Fetch content for top documents if --content is specified
+                if args.content:
+                    print(
+                        f"📄 Fetching content for the top {min(args.max_content, len(documents))} documents... (You can change that with --max-content X)"
+                    )
+                    try:
+                        # Use the parallel fetching method
+                        docs_with_content = gdocs_utils.fetch_documents_content_parallel(
+                            documents, max_docs=args.max_content
+                        )
+
+                        # Add each document content as a separate message in the conversation history
+                        for doc in docs_with_content:
+                            doc_title = doc["name"]
+                            doc_id = doc["id"]
+                            doc_url = doc["url"]
+                            doc_content = doc["content"]
+
+                            # Format the document header for clearer identification
+                            header = f"# {doc_title}\nDocument ID: {doc_id}\nURL: {doc_url}\n\n"
+
+                            # For display only (--show flag)
+                            if args.show:
+                                display(Markdown(header + doc_content))
+                                display(Markdown("---\n" + 160 * "-" + "\n---\n"))
+                                print(
+                                    f"ℹ️ Content from '{doc_title}' displayed only. Not added to history."
+                                )
+                            else:
+                                # Add to conversation history as a separate message
+                                doc_message_id = f"gdocs_doc_{doc_id}"
+                                success = self._add_to_history(
+                                    content=header + doc_content,
+                                    source_type="google_docs_document",
+                                    source_id=doc_message_id,
+                                    as_system_msg=args.system,
+                                )
+
+                                if success:
+                                    msg_type = "system" if args.system else "user"
+                                    print(f"✅ Document '{doc_title}' added as {msg_type} message")
+                                else:
+                                    print(
+                                        f"❌ Failed to add document '{doc_title}' to history.",
+                                        file=sys.stderr,
+                                    )
+
+                    except Exception as e:
+                        print(f"❌ Error fetching document content: {e}", file=sys.stderr)
+                        logger.exception("Error fetching document content in parallel")
+
+                if args.show:
+                    # Final confirmation after showing all content
+                    print("ℹ️ All content displayed only. Not added to history.")
+
+                return
+
+            except ImportError as e:
+                print(f"❌ Error: {str(e)}", file=sys.stderr)
+            except ValueError as e:
+                print(f"❌ Error: {str(e)}", file=sys.stderr)
+            except RuntimeError as e:
+                print(f"❌ Error: {str(e)}", file=sys.stderr)
+            except Exception as e:
+                print(f"❌ Unexpected error: {str(e)}", file=sys.stderr)
+                logger.exception("Error in Google Docs magic search")
+            return
+
+        # Handling a specific document request
         if not args.doc_id_or_url:
             print("❌ Missing document ID or URL parameter.", file=sys.stderr)
+            print('Usage: %gdocs <doc_id_or_url> or %gdocs --search "term"', file=sys.stderr)
             return
 
         try:

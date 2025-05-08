@@ -4,6 +4,7 @@ Utility functions and helpers.
 This module contains utility functions used throughout the cellmage library.
 """
 
+from .date_utils import parse_date_input
 from .file_utils import (
     display_directory,
     display_files_as_table,
@@ -56,4 +57,5 @@ __all__ = [
     "display_directory",
     "JiraUtils",
     "GoogleDocsUtils",
+    "parse_date_input",
 ]

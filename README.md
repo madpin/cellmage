@@ -534,6 +534,21 @@ Fetch content from Google Documents directly into your notebook using the `%gdoc
     %gdocs your_google_doc_id --auth-type service_account
     ```
 
+*   **Searching for Documents:**
+    ```python
+    # Search for documents by content or title
+    %gdocs --search "project documentation"
+
+    # Filter search results
+    %gdocs --search "project documentation" --author "user@example.com"
+    %gdocs --search "project documentation" --created-after "last week"
+    %gdocs --search "project documentation" --modified-before "2023-12-31"
+
+    # Fetch content from search results (default: top 3)
+    %gdocs --search "project documentation" --content
+    %gdocs --search "project documentation" --content --max-content 5
+    ```
+
 *   **Using with LLM Queries:**
     ```python
     # First, fetch the Google Document

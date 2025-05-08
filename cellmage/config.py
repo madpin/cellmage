@@ -43,6 +43,8 @@ class Settings(BaseSettings):
         "gdocs_service_account_path": str,
         "gdocs_auth_type": str,
         "gdocs_scopes": List[str],
+        "gdocs_search_results_max": int,
+        "gdocs_search_content_max": int,
     }
 
     # Default settings
@@ -123,8 +125,17 @@ class Settings(BaseSettings):
         description="Google Docs authentication type (oauth or service_account)",
     )
     gdocs_scopes: List[str] = Field(
-        default=["https://www.googleapis.com/auth/documents.readonly"],
+        default=[
+            "https://www.googleapis.com/auth/documents.readonly",
+            "https://www.googleapis.com/auth/drive.readonly",
+        ],
         description="Google Docs OAuth scopes",
+    )
+    gdocs_search_results_max: int = Field(
+        default=100, description="Maximum number of search results to return"
+    )
+    gdocs_search_content_max: int = Field(
+        default=1000, description="Maximum content size to retrieve from search results"
     )
 
     model_config = SettingsConfigDict(

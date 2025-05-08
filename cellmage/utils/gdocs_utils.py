@@ -10,9 +10,7 @@ from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
 from ..config import settings
-
-# Flag to check if Google API modules are available
-_GDOCS_AVAILABLE = False
+from .date_utils import parse_date_input
 
 try:
     import pickle
@@ -25,6 +23,8 @@ try:
 
     _GDOCS_AVAILABLE = True
 except ImportError:
+    _GDOCS_AVAILABLE = False
+
     # Define placeholder types for type checking when google packages are not available
     class service_account:
         class Credentials:
@@ -114,6 +114,7 @@ class GoogleDocsUtils:
     """
 
     _service: Optional[Any] = None
+    _drive_service: Optional[Any] = None
 
     def __init__(
         self,
@@ -273,7 +274,21 @@ class GoogleDocsUtils:
                 raise RuntimeError(f"Failed to initialize Google Docs API service: {str(e)}")
         return self._service
 
-    @hashable_lru_cache(maxsize=64)
+    @property
+    def drive_service(self):
+        """Lazy-initialized Google Drive API service."""
+        if self._drive_service is None:
+            try:
+                logger.info("Initializing Google Drive API service...")
+                creds = self._get_credentials()
+                self._drive_service = build("drive", "v3", credentials=creds)
+                logger.info("Google Drive API service initialized successfully.")
+            except Exception as e:
+                logger.error(f"Failed to initialize Google Drive API service: {e}", exc_info=True)
+                raise RuntimeError(f"Failed to initialize Google Drive API service: {str(e)}")
+        return self._drive_service
+
+    @hashable_lru_cache(maxsize=64, typed=False)
     def get_document(self, document_id: str) -> Dict[str, Any]:
         """Fetch a Google Document by ID (cached).
 
@@ -340,48 +355,186 @@ class GoogleDocsUtils:
             document: The document structure from the API.
 
         Returns:
-            Plain text content of the document.
+            Plain text content of the document with Markdown formatting.
         """
         text = []
 
-        # Add document title
-        title = document.get("title", "Untitled Document")
-        text.append(f"# {title}\n")
+        # We don't add the title here anymore as it will be added in format_document_for_llm
+        # to avoid duplication
 
         # Process document body
         if "body" in document and "content" in document["body"]:
             for element in document["body"]["content"]:
                 if "paragraph" in element:
-                    paragraph_text = []
-                    for para_element in element["paragraph"].get("elements", []):
-                        if "textRun" in para_element:
-                            paragraph_text.append(para_element["textRun"].get("content", ""))
-                    if paragraph_text:
-                        text.append("".join(paragraph_text))
+                    paragraph = element["paragraph"]
 
-                # Handle tables (simplified - just extract text)
+                    # Handle paragraph formatting based on namedStyleType
+                    style_type = paragraph.get("paragraphStyle", {}).get(
+                        "namedStyleType", "NORMAL_TEXT"
+                    )
+
+                    # Check if this is a list item
+                    if "bullet" in paragraph:
+                        # Get list info
+                        list_id = paragraph["bullet"].get("listId", "")
+                        nesting_level = paragraph["bullet"].get("nestingLevel", 0)
+
+                        # Extract text with formatting
+                        paragraph_text = []
+                        for para_element in paragraph.get("elements", []):
+                            processed_text = self._process_paragraph_element(para_element)
+                            if processed_text:
+                                paragraph_text.append(processed_text)
+
+                        # Combine text and add appropriate list marker
+                        if paragraph_text:
+                            indent = "  " * nesting_level
+                            list_marker = "-"  # Default to unordered list
+
+                            # Check if this is an ordered list
+                            list_info = document.get("lists", {}).get(list_id, {})
+                            list_properties = list_info.get("listProperties", {})
+                            nested_properties = list_properties.get("nestingLevels", [{}])[
+                                min(
+                                    nesting_level,
+                                    len(list_properties.get("nestingLevels", [{}])) - 1,
+                                )
+                            ]
+
+                            if nested_properties.get("glyphType") == "DECIMAL":
+                                list_marker = "1."  # Use 1. for all items - Markdown will render the correct numbers
+
+                            text.append(f"{indent}{list_marker} {''.join(paragraph_text)}")
+                    else:
+                        # Regular paragraph (non-list)
+                        if style_type.startswith("HEADING"):
+                            # Convert headings to appropriate Markdown headers
+                            heading_level = int(style_type.split("_")[1])
+                            # Limit heading level to a max of 6 (Markdown standard)
+                            heading_prefix = "#" * min(heading_level, 6) + " "
+                        else:
+                            heading_prefix = ""
+
+                        # Extract text with formatting
+                        paragraph_text = []
+                        for para_element in paragraph.get("elements", []):
+                            processed_text = self._process_paragraph_element(para_element)
+                            if processed_text:
+                                paragraph_text.append(processed_text)
+
+                        if paragraph_text:
+                            text.append(f"{heading_prefix}{''.join(paragraph_text)}")
+
+                # Handle tables (with improved formatting)
                 elif "table" in element:
+                    # Check if we need to add a line break if tables come right after other content
+                    if text and not text[-1].endswith("\n"):
+                        text.append("")
+
                     for row in element["table"].get("tableRows", []):
                         row_texts = []
                         for cell in row.get("tableCells", []):
                             cell_text = []
                             for cell_content in cell.get("content", []):
                                 if "paragraph" in cell_content:
+                                    para_texts = []
                                     for cell_para in cell_content["paragraph"].get("elements", []):
-                                        if "textRun" in cell_para:
-                                            cell_text.append(
-                                                cell_para["textRun"].get("content", "")
-                                            )
-                            row_texts.append("".join(cell_text).strip())
-                        if row_texts:
-                            text.append(" | ".join(row_texts))
+                                        processed_text = self._process_paragraph_element(cell_para)
+                                        if processed_text:
+                                            para_texts.append(processed_text)
+                                    if para_texts:
+                                        cell_text.append("".join(para_texts))
+                            row_texts.append(" ".join(cell_text).strip())
 
-                # Handle lists (simplified extraction)
-                elif "list" in element:
-                    # Lists are complex in the API - this is simplified
-                    text.append("- List item (simplified extraction)")
+                        if row_texts:
+                            text.append("| " + " | ".join(row_texts) + " |")
 
         return "\n".join(text)
+
+    def _process_paragraph_element(self, element: Dict[str, Any]) -> Optional[str]:
+        """Process a paragraph element and convert it to Markdown with appropriate formatting.
+
+        Args:
+            element: A paragraph element from the Google Docs API
+
+        Returns:
+            Formatted text in Markdown, or None if the element couldn't be processed
+        """
+        if "textRun" in element:
+            content = element["textRun"].get("content", "")
+            text_style = element["textRun"].get("textStyle", {})
+            return self._apply_text_formatting(content, text_style)
+
+        # Process person mentions (People chips / @mentions)
+        elif "person" in element:
+            # Extract from the person element (this is the correct structure for @mentions)
+            person = element.get("person", {})
+            person_properties = person.get("personProperties", {})
+
+            person_name = person_properties.get("name", "Unknown")
+            person_email = person_properties.get("email", "")
+
+            mention_text = f"@{person_name}"
+            if person_email:
+                mention_text = f"{mention_text} ({person_email})"
+
+            return mention_text
+
+        # Process other special elements like equations, footnotes, etc.
+        elif "horizontalRule" in element:
+            return "\n---\n"
+        elif "footnoteReference" in element:
+            return f"[^{element.get('footnoteReference', {}).get('footnoteId', '')}]"
+        elif "pageBreak" in element:
+            return "\n\n[Page Break]\n\n"
+        elif "inlineObjectElement" in element:
+            # Could be an image or other embedded object
+            return "[Embedded Object]"
+
+        return None
+
+    def _apply_text_formatting(self, content: str, text_style: Dict[str, Any]) -> str:
+        """Apply text formatting (bold, italic, etc.) to content.
+
+        Args:
+            content: The text content to format
+            text_style: The style dictionary from the Google Docs API
+
+        Returns:
+            Formatted text in Markdown
+        """
+        if not content:
+            return content
+
+        # Strip trailing newlines but preserve them to add back later
+        trailing_newlines = ""
+        while content.endswith("\n"):
+            trailing_newlines += "\n"
+            content = content[:-1]
+
+        # Handle hyperlinks - this needs to be done before other formatting
+        if text_style.get("link") and text_style["link"].get("url"):
+            url = text_style["link"]["url"]
+            # Format as Markdown link
+            content = f"[{content}]({url})"
+
+        # Apply text formatting - after links are handled
+        if text_style.get("bold"):
+            content = f"**{content}**"
+
+        if text_style.get("italic"):
+            content = f"*{content}*"
+
+        if text_style.get("underline"):
+            content = f"__{content}__"
+
+        if text_style.get("strikethrough"):
+            content = f"~~{content}~~"
+
+        # Add back trailing newlines
+        content += trailing_newlines
+
+        return content
 
     def format_document_for_llm(self, document_id: str) -> str:
         """Fetch a Google Document by ID and format it for LLM input.
@@ -407,6 +560,10 @@ class GoogleDocsUtils:
                 name = user.get("displayName", "Unknown User")
                 metadata.append(f"Last modified by: {name}")
 
+            # Add last modified date if available
+            if "modifiedTime" in document:
+                metadata.append(f"Last modified: {document.get('modifiedTime')}")
+
             # Format the final content
             formatted_content = "\n".join(metadata) + "\n\n" + content
 
@@ -418,6 +575,213 @@ class GoogleDocsUtils:
             error_message = f"# Error Fetching Google Doc\n\nFailed to fetch or format document {document_id}: {str(e)}"
             return error_message
 
+    def search_documents(
+        self,
+        search_query: str = "",
+        max_results: int = 10,
+        author: str = None,
+        created_after: str = None,
+        created_before: str = None,
+        modified_after: str = None,
+        modified_before: str = None,
+        order_by: str = "relevance",
+    ) -> List[Dict[str, Any]]:
+        """Search for Google Docs files matching the given criteria.
+
+        Args:
+            search_query: The search term to look for in document titles and content.
+            max_results: Maximum number of results to return (default: 10).
+            author: Filter by document author/owner (comma or space-separated for multiple authors).
+            created_after: Filter by creation date (format: YYYY-MM-DD or natural language like '3 days ago').
+            created_before: Filter by creation date (format: YYYY-MM-DD or natural language).
+            modified_after: Filter by last modified date (format: YYYY-MM-DD or natural language).
+            modified_before: Filter by last modified date (format: YYYY-MM-DD or natural language).
+            order_by: How to order results ('relevance', 'modifiedTime', 'createdTime', 'name').
+
+        Returns:
+            A list of documents, each as a dict with document metadata.
+
+        Raises:
+            RuntimeError: If the search fails.
+        """
+        logger.info(
+            f"Searching for Google Docs documents matching criteria. Query: '{search_query}'"
+        )
+        try:
+            # Start with the base query for Google Docs
+            query_parts = ["mimeType='application/vnd.google-apps.document'"]
+
+            # Add search term if provided
+            if search_query:
+                query_parts.append(
+                    f"(name contains '{search_query}' or fullText contains '{search_query}')"
+                )
+
+            # Filter by author(s) if provided
+            if author:
+                # Handle multiple authors (comma or space separated)
+                authors = [a.strip() for a in author.replace(",", " ").split() if a.strip()]
+                if authors:
+                    if len(authors) == 1:
+                        query_parts.append(f"'{authors[0]}' in owners")
+                    else:
+                        # For multiple authors, use OR condition
+                        author_conditions = [f"'{a}' in owners" for a in authors]
+                        query_parts.append(f"({' or '.join(author_conditions)})")
+
+            # Parse and filter by dates if provided (support natural language dates)
+            if created_after:
+                parsed_date = parse_date_input(created_after)
+                if parsed_date:
+                    query_parts.append(f"createdTime > '{parsed_date}T00:00:00'")
+
+            if created_before:
+                parsed_date = parse_date_input(created_before)
+                if parsed_date:
+                    query_parts.append(f"createdTime < '{parsed_date}T23:59:59'")
+
+            if modified_after:
+                parsed_date = parse_date_input(modified_after)
+                if parsed_date:
+                    query_parts.append(f"modifiedTime > '{parsed_date}T00:00:00'")
+
+            if modified_before:
+                parsed_date = parse_date_input(modified_before)
+                if parsed_date:
+                    query_parts.append(f"modifiedTime < '{parsed_date}T23:59:59'")
+
+            # Combine all query parts
+            query = " and ".join(query_parts)
+
+            # Determine sort order
+            order_param = None
+            if order_by == "modifiedTime":
+                order_param = "modifiedTime desc"  # Most recently modified first
+            elif order_by == "createdTime":
+                order_param = "createdTime desc"  # Most recently created first
+            elif order_by == "name":
+                order_param = "name"  # Alphabetical by name
+            # No sort parameter needed for 'relevance' - it's the default
+
+            # Fields to fetch - include creation time, modification time, and owners
+            fields = "files(id, name, webViewLink, createdTime, modifiedTime, owners)"
+
+            # Make the API call
+            results = (
+                self.drive_service.files()
+                .list(
+                    q=query,
+                    spaces="drive",
+                    fields=fields,
+                    pageSize=max_results,
+                    orderBy=order_param,
+                )
+                .execute()
+            )
+
+            documents = []
+            files = results.get("files", [])
+
+            for file in files:
+                # Extract owner information if available
+                owners = file.get("owners", [])
+                owner_info = owners[0] if owners else {"displayName": "Unknown"}
+
+                doc = {
+                    "id": file.get("id"),
+                    "name": file.get("name", "Untitled"),
+                    "url": file.get(
+                        "webViewLink", f"https://docs.google.com/document/d/{file.get('id')}/edit"
+                    ),
+                    "createdTime": file.get("createdTime"),
+                    "modifiedTime": file.get("modifiedTime"),
+                    "owner": owner_info.get("displayName", "Unknown"),
+                    "owners": file.get("owners", []),
+                }
+                documents.append(doc)
+
+            logger.info(f"Found {len(documents)} Google Docs documents matching the criteria")
+            return documents
+
+        except Exception as e:
+            logger.error(f"Error searching for documents: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to search for documents: {str(e)}")
+
+    def fetch_documents_content_parallel(
+        self, documents: List[Dict[str, str]], max_docs: int = 3
+    ) -> List[Dict[str, str]]:
+        """Fetch content from multiple documents in parallel.
+
+        Args:
+            documents: List of document dicts with 'id', 'name', and 'url' keys.
+            max_docs: Maximum number of documents to fetch content for (default: 3).
+
+        Returns:
+            A list of documents with added 'content' key containing the formatted document content.
+        """
+        import concurrent.futures
+
+        logger.info(f"Fetching content from {min(max_docs, len(documents))} documents in parallel")
+
+        # Limit to max_docs
+        docs_to_fetch = documents[:max_docs]
+        result_docs = []
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # Create a future for each document
+            future_to_doc = {
+                executor.submit(self.format_document_for_llm, doc["id"]): doc
+                for doc in docs_to_fetch
+            }
+
+            # Process results as they complete
+            for future in concurrent.futures.as_completed(future_to_doc):
+                doc = future_to_doc[future]
+                try:
+                    content = future.result()
+                    doc_with_content = doc.copy()
+                    doc_with_content["content"] = content
+                    result_docs.append(doc_with_content)
+                    logger.info(f"Successfully fetched content for document: {doc['name']}")
+                except Exception as e:
+                    logger.error(
+                        f"Error fetching content for document {doc['id']}: {e}", exc_info=True
+                    )
+                    # Add the document with an error message
+                    doc_with_error = doc.copy()
+                    doc_with_error["content"] = (
+                        f"# Error Fetching Document\n\nFailed to fetch content for document '{doc['name']}': {str(e)}"
+                    )
+                    result_docs.append(doc_with_error)
+
+        logger.info(f"Completed fetching content for {len(result_docs)} documents")
+        return result_docs
+
+    def format_documents_for_llm(self, documents_with_content: List[Dict[str, str]]) -> str:
+        """Format multiple documents with content into a single markdown string for LLM.
+
+        Args:
+            documents_with_content: List of document dicts with 'content' key.
+
+        Returns:
+            A formatted markdown string containing all documents content.
+        """
+        result = ["# Google Docs Search Results\n"]
+
+        for i, doc in enumerate(documents_with_content, 1):
+            result.append(f"## Google Document {i}: {doc['name']}")
+            result.append(f"Document ID: {doc['id']}")
+            result.append(f"URL: {doc['url']}\n")
+
+            # Add the document content (already formatted as markdown)
+            result.append(doc["content"])
+
+            # Add separator between documents except for the last one
+            if i < len(documents_with_content):
+                result.append("\n---\n")
+
+        return "\n".join(result)
+
     def close(self) -> None:
         """Close the Google Docs API service resources."""
         if self._service:
@@ -426,6 +790,13 @@ class GoogleDocsUtils:
             logger.info("Google Docs API service closed.")
         else:
             logger.debug("Google Docs API service was never initialized.")
+
+        if self._drive_service:
+            logger.info("Closing Google Drive API service.")
+            self._drive_service = None
+            logger.info("Google Drive API service closed.")
+        else:
+            logger.debug("Google Drive API service was never initialized.")
 
     def __enter__(self):
         """Context manager entry point."""
