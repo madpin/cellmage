@@ -7,7 +7,7 @@ Welcome to the official spell book of CellMage! Here you'll find all the magical
 Before casting any spells, you must first invite the magical presence into your notebook:
 
 ```ipython
-%load_ext cellmage.integrations.ipython_magic
+%load_ext cellmage
 ```
 
 ## 🪄 Your Magical Arsenal
@@ -448,7 +448,7 @@ Here are some example incantations to help you get started on your magical journ
 
 ```ipython
 # Load the magical extension
-%load_ext cellmage.integrations.ipython_magic
+%load_ext cellmage
 
 # Set the default model and persona
 %llm_config --model gpt-4o --persona python_expert

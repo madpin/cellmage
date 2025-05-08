@@ -19,7 +19,7 @@ CellMage provides two main types of magic commands:
 - **Line Magic** (`%command`): Single-line commands that configure behavior or trigger specific actions
 - **Cell Magic** (`%%command`): Transforms the entire cell into a prompt for the LLM
 
-Learn more in [IPython Magic Commands](./ipython_magic_commands.md).
+Learn more in [Magic Commands](./magic_commands.md).
 
 ## 🏗️ Internal Architecture
 
@@ -242,7 +242,7 @@ CellMage offers multiple options for persisting conversations:
 - Perfect for larger conversation histories
 
 
-```ipython
+```python
 from cellmage.storage.sqlite_store import SQLiteStore
 
 # Initialize the store
@@ -256,7 +256,6 @@ results = store.search_conversations("machine learning")
 
 # Add tags
 store.add_tag(conversation_id, "important")
-
 ```
 
 
@@ -288,13 +287,13 @@ Located in: `cellmage/storage/markdown_store.py`
 - Useful for testing or ephemeral usage
 
 
-!PYBLOCK_START!
+```python
 from cellmage.storage.memory_store import MemoryStore
 
 # Initialize the store
 store = MemoryStore()
 
-!IPYBLOCK_END!
+```
 
 
 Located in: `cellmage/storage/memory_store.py`
@@ -325,14 +324,14 @@ CellMage looks for this file in your working directory. A reference example is p
 Once defined, you can use your aliases with any model parameter:
 
 
-!PYBLOCK_START!
+```python
 # Using an alias
 %llm_config --model g4m
 
 # Same as
 %llm_config --model gpt-4o-mini
 
-!IPYBLOCK_END!
+```
 
 
 Located in: `cellmage/model_mapping.py`

@@ -19,7 +19,7 @@ Before diving in, ensure you:
 - Have CellMage loaded in your notebook:
 
 ```ipython
-%load_ext cellmage.integrations.ipython_magic
+%load_ext cellmage
 ```
 
 ## 🧠 Understanding Chain of Thought

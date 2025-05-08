@@ -51,13 +51,7 @@ Let's start with basic repository analysis:
 
 ```ipython
 # Load the CellMage extension
-%load_ext cellmage.integrations.ipython_magic
-
-# For GitHub repositories
-%load_ext cellmage.integrations.github_magic
-
-# For GitLab repositories
-%load_ext cellmage.integrations.gitlab_magic
+%load_ext cellmage
 ```
 
 ### Fetching a GitHub Repository

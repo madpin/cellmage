@@ -138,7 +138,7 @@ This adds the snippet content as if the user had typed it:
 
 ```ipython
 # Load the CellMage extension if you haven't already
-%load_ext cellmage.integrations.ipython_magic
+%load_ext cellmage
 
 # Add the data_utils.py file as context
 %llm_config --snippet data_utils.py

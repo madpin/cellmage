@@ -33,7 +33,7 @@ class TestConfigMagicRefactoring:
         magic = ConfigMagics()
 
         # Check that all handlers are initialized
-        assert len(magic.handlers) == 8
+        assert len(magic.handlers) == 9
 
         # Check handler types
         handler_types = [type(handler) for handler in magic.handlers]

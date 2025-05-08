@@ -83,7 +83,7 @@ Let's use our new persona:
 
 ```ipython
 # Load the CellMage extension if you haven't already
-%load_ext cellmage.integrations.ipython_magic
+%load_ext cellmage
 
 # List available personas to confirm yours is detected
 %llm_config --list-personas

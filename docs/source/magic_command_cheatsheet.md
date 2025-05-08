@@ -219,7 +219,7 @@ When ambient mode is active, this magic command lets you execute a specific cell
 
 ```python
 # Load the extension
-%load_ext cellmage.integrations.ipython_magic
+%load_ext cellmage
 
 # Set the default model and persona
 %llm_config --model gpt-4o --persona python_expert
@@ -244,7 +244,7 @@ print(pd.__version__)
 
 ```python
 # Load Confluence extension
-%load_ext cellmage.integrations.confluence_magic
+%load_ext cellmage
 
 # Fetch a Confluence page
 %confluence TEAM:Project Overview
@@ -253,12 +253,12 @@ print(pd.__version__)
 %confluence --cql "space = DEV AND title ~ 'Architecture'"
 
 # Load GitHub extension
-%load_ext cellmage.integrations.github_magic
+%load_ext cellmage
 
 # Get a specific GitHub issue
 %github myorg/myrepo --issue 42
 
 # Get web content
-%load_ext cellmage.integrations.webcontent_magic
+%load_ext cellmage
 %webcontent https://example.com/article
 ```

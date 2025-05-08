@@ -34,7 +34,7 @@ With CellMage, you can:
 !pip install cellmage
 
 # Load the extension
-%load_ext cellmage.integrations.ipython_magic
+%load_ext cellmage
 
 # Cast your first spell!
 %%llm
@@ -50,4 +50,4 @@ Tell me a fun fact about wizards in computing history.
 - 🔍 Researchers analyzing complex information
 - ⚙️ Automating repetitive LLM tasks in data workflows
 
-Ready to start your magical journey? Check out the [IPython Magic Commands](ipython_magic_commands.md) to learn all the spells in your new wizard toolkit!
+Ready to start your magical journey? Check out the [Magic Commands](magic_commands.md) to learn all the spells in your new wizard toolkit!

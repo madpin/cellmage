@@ -43,7 +43,7 @@ Use the `%llm_config` magic command to change settings during a session:
 %llm_config --set-override temperature 0.7
 ```
 
-See the [Magic Commands](./ipython_magic_commands.md) documentation for a complete reference of all available configuration commands.
+See the [Magic Commands](./magic_commands.md) documentation for a complete reference of all available configuration commands.
 
 ### 4. Model Mapping File
 
@@ -235,4 +235,4 @@ The `%llm_config` magic command provides a flexible way to configure CellMage du
 %llm_config --add-mapping g4t gpt-4-turbo
 ```
 
-For a complete reference of all available `%llm_config` options, see the [Magic Commands](./ipython_magic_commands.md) documentation.
+For a complete reference of all available `%llm_config` options, see the [Magic Commands](./magic_commands.md) documentation.

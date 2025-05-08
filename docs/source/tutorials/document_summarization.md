@@ -17,7 +17,7 @@ Before diving in, make sure:
 - You have basic knowledge of Python
 - You have CellMage loaded in your notebook:
   ```ipython
-  %load_ext cellmage.integrations.ipython_magic
+  %load_ext cellmage
   ```
 - You have document handling libraries installed:
   ```bash

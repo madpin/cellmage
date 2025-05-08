@@ -18,7 +18,7 @@ Before diving in, make sure:
 - You have a Jupyter notebook environment set up
 - You have CellMage installed and loaded:
   ```ipython
-  %load_ext cellmage.integrations.ipython_magic
+  %load_ext cellmage
   ```
 - You have common data science packages installed:
   ```bash

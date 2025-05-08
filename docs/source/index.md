@@ -18,7 +18,7 @@ installation
 :hidden:
 :caption: 📖 User Guide
 
-ipython_magic_commands
+magic_commands
 core_concepts
 configuration
 sqlite_storage

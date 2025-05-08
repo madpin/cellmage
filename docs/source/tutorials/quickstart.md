@@ -32,7 +32,7 @@ Open a new Jupyter notebook and let's get started. You'll first need to load the
 
 ```ipython
 # Load the CellMage magical extension
-%load_ext cellmage.integrations.ipython_magic
+%load_ext cellmage
 
 # Let's check that everything is working correctly
 %llm_config --status

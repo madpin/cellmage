@@ -16,14 +16,53 @@ from ...ambient_mode import (
     disable_ambient_mode,
     enable_ambient_mode,
     is_ambient_mode_enabled,
+    register_ambient_handler,
 )
 from ...context_providers.ipython_context_provider import get_ipython_context_provider
 from .common import _IPYTHON_AVAILABLE, IPythonMagicsBase, logger
+
+# Global instance of AmbientModeMagics to use for the module-level function
+_ambient_magic_instance = None
+
+
+def get_ambient_magics_instance(shell=None):
+    """
+    Get or create a global instance of AmbientModeMagics.
+
+    Args:
+        shell: The IPython shell to associate with the instance
+
+    Returns:
+        An instance of AmbientModeMagics
+    """
+    global _ambient_magic_instance
+    if _ambient_magic_instance is None:
+        _ambient_magic_instance = AmbientModeMagics(shell)
+    return _ambient_magic_instance
+
+
+def process_cell_as_prompt(cell_content: str) -> None:
+    """
+    Module-level function that processes a cell as a prompt.
+    This delegates to the AmbientModeMagics class instance.
+
+    Args:
+        cell_content: The content of the cell to process
+    """
+    instance = get_ambient_magics_instance()
+    instance.process_cell_as_prompt(cell_content)
 
 
 @magics_class
 class AmbientModeMagics(IPythonMagicsBase):
     """Magic commands for ambient mode functionality in CellMage."""
+
+    def __init__(self, shell=None):
+        """Initialize the AmbientModeMagics class."""
+        super().__init__(shell)
+        # Register our module-level process_cell_as_prompt function as the ambient handler
+        register_ambient_handler(process_cell_as_prompt)
+        logger.info("Registered ambient handler from AmbientModeMagics")
 
     @magic_arguments()
     @argument("-p", "--persona", type=str, help="Select and activate a persona by name.")

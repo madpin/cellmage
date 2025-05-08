@@ -26,7 +26,7 @@ class TestMagicCommands(unittest.TestCase):
             self.skipTest("IPython not available")
 
     @patch("cellmage.magic_commands.ipython.load_magics")
-    def test_ipython_magic_loading(self, mock_load_magics):
+    def test_magic_commands_loading(self, mock_load_magics):
         """Test that the magic command loader properly calls the IPython magic loader."""
         # Import the module under test
         from cellmage.magic_commands import load_ipython_extension

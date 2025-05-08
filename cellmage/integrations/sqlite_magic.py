@@ -44,30 +44,16 @@ logger = logging.getLogger(__name__)
 # Check if SQLite storage components are available
 try:
     from ..ambient_mode import disable_ambient_mode, is_ambient_mode_enabled
-    from ..chat_manager import ChatManager
     from ..context_providers.ipython_context_provider import (
         get_ipython_context_provider,
     )
     from ..conversation_manager import ConversationManager
     from ..magic_commands import history, persistence
+    from ..magic_commands.ipython.common import get_chat_manager
 
     _SQLITE_AVAILABLE = True
 except ImportError:
     _SQLITE_AVAILABLE = False
-
-
-def get_chat_manager():
-    """
-    Create and return a ChatManager instance.
-    This is a fallback function to replace the missing get_chat_manager from chat_manager module.
-    """
-    from ..context_providers.ipython_context_provider import (
-        get_ipython_context_provider,
-    )
-
-    logger.info("Creating new ChatManager instance")
-    context_provider = get_ipython_context_provider()
-    return ChatManager(context_provider=context_provider)
 
 
 @magics_class
@@ -547,22 +533,16 @@ def load_ipython_extension(ipython):
         # Register the standalone llm magic (alias for sqlite_llm)
         ipython.register_magic_function(llm_magic, magic_kind="cell", magic_name="llm")
 
-        # Import and register the llm_config line magic from ipython_magic.py
+        # Try to load the llm_config line magic from the new magic_commands module
         try:
-            from .ipython_magic import NotebookLLMMagics
+            from ..magic_commands.ipython.config_magic import ConfigMagics
 
-            notebook_magics = NotebookLLMMagics(ipython)
-
-            # Register the notebook magics class which includes llm_config
-            ipython.register_magics(notebook_magics)
-
-            # No need for the warning check that was causing the message
-            # Just log that we registered the magics successfully
-            logger.info("Registered NotebookLLMMagics class which includes llm_config")
-
+            config_magics = ConfigMagics(ipython)
+            ipython.register_magics(config_magics)
+            logger.info("Registered ConfigMagics class with llm_config magic")
         except Exception as e:
-            logger.exception(f"Failed to register llm_config line magic: {e}")
-            print(f"❌ Failed to register llm_config line magic: {e}", file=sys.stderr)
+            logger.warning(f"Failed to register llm_config line magic: {e}")
+            print(f"⚠️ llm_config command not available: {e}", file=sys.stderr)
 
         # Update shell page title if possible
         try:

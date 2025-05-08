@@ -22,7 +22,7 @@ Before diving in, make sure:
   ```
 - You have CellMage loaded in your notebook:
   ```ipython
-  %load_ext cellmage.integrations.ipython_magic
+  %load_ext cellmage
   ```
 
 ## 🔑 Step 1: Setting Up Confluence Integration
