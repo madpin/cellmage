@@ -37,6 +37,12 @@ class Settings(BaseSettings):
         "log_level": str,
         "console_log_level": str,
         "log_file": str,
+        # Image settings
+        "image_default_width": int,
+        "image_default_quality": float,
+        "image_formats_allowed": List[str],
+        "image_formats_llm_compatible": List[str],
+        "image_target_format": str,
         # Google Docs integration settings
         "gdocs_token_path": str,
         "gdocs_credentials_path": str,
@@ -60,6 +66,23 @@ class Settings(BaseSettings):
         default=True, description="Whether to automatically display chat messages"
     )
     auto_save: bool = Field(default=True, description="Whether to automatically save conversations")
+
+    # Image settings
+    image_default_width: int = Field(default=1024, description="Default width for resizing images")
+    image_default_quality: float = Field(
+        default=0.75, description="Default quality for image compression (0.0-1.0)"
+    )
+    image_formats_allowed: List[str] = Field(
+        default=["jpg", "jpeg", "png", "webp", "gif"],
+        description="Image formats supported by the system",
+    )
+    image_formats_llm_compatible: List[str] = Field(
+        default=["jpg", "jpeg", "png", "webp"],
+        description="Image formats compatible with LLM providers",
+    )
+    image_target_format: str = Field(
+        default="png", description="Target format for incompatible image formats"
+    )
     autosave_file: str = Field(
         default="autosaved_conversation", description="Filename for auto-saved conversations"
     )

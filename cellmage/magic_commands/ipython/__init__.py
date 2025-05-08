@@ -34,6 +34,15 @@ def load_magics(ipython: Optional[InteractiveShell] = None) -> None:
         from .config_magic import ConfigMagics
         from .llm_magic import CoreLLMMagics
 
+        # Register the image magic from integrations
+        try:
+            from cellmage.integrations.image_magic import ImageMagics
+
+            ipython.register_magics(ImageMagics)
+            logger.info("Registered ImageMagics (for %img)")
+        except Exception as e:
+            logger.warning(f"Could not register ImageMagics: {e}")
+
         # Register the magic classes
         ipython.register_magics(CoreLLMMagics)
         ipython.register_magics(ConfigMagics)
