@@ -12,6 +12,7 @@ CellMage's power extends beyond just LLM interactions. It seamlessly integrates 
 ../github_integration
 ../gitlab_integration
 ../webcontent_integration
+../gdocs_integration
 ```
 
 ## Integration Features
@@ -56,6 +57,14 @@ Fetch, clean, and extract content from websites to use as context for your promp
 
 ```ipython
 %webcontent https://example.com  # Extract and import website content
+```
+
+### Google Docs Integration
+
+Import content from Google Documents directly into your LLM context.
+
+```ipython
+%gdocs https://docs.google.com/document/d/YOUR_DOC_ID/edit  # Import document content
 ```
 
 ## Adding Your Own Integrations

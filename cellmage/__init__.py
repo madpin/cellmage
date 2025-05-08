@@ -191,6 +191,19 @@ def load_ipython_extension(ipython):
         except Exception as e:
             logger.warning(f"Failed to load WebContent integration: {e}")
 
+        # 6. Try to load GDocs integration
+        try:
+            from .integrations.gdocs_magic import load_ipython_extension as load_gdocs
+
+            load_gdocs(ipython)
+            logger.info("Loaded Google Docs integration")
+        except ImportError:
+            logger.info(
+                "Google Docs API libraries not available. Google Docs integration not loaded."
+            )
+        except Exception as e:
+            logger.warning(f"Failed to load Google Docs integration: {e}")
+
         if not primary_extension_loaded:
             print("⚠️ CellMage core functionality could not be loaded")
 

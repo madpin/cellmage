@@ -150,6 +150,22 @@ GITLAB_PAT=your_gitlab_personal_access_token
 GITLAB_PRIVATE_TOKEN=your_gitlab_personal_access_token
 ```
 
+### Google Docs Integration
+
+```ini
+# OAuth configuration (default)
+CELLMAGE_GDOCS_AUTH_TYPE=oauth
+CELLMAGE_GDOCS_TOKEN_PATH=~/.cellmage/gdocs_token.pickle
+CELLMAGE_GDOCS_CREDENTIALS_PATH=~/.cellmage/gdocs_credentials.json
+
+# Or service account configuration
+CELLMAGE_GDOCS_AUTH_TYPE=service_account
+CELLMAGE_GDOCS_SERVICE_ACCOUNT_PATH=~/.cellmage/gdocs_service_account.json
+
+# Optional: Override the scopes (comma-separated)
+CELLMAGE_GDOCS_SCOPES=https://www.googleapis.com/auth/documents.readonly
+```
+
 ## 🔒 Custom Headers
 
 CellMage supports custom headers for LLM requests using the `CELLMAGE_HEADER_` prefix:

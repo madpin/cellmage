@@ -30,6 +30,7 @@ It's designed for **data scientists, software engineers, researchers, and studen
 *   **🦊 GitLab Integration:** Import repositories and merge requests as context for your LLM prompts, with token size estimates.
 *   **🐱 GitHub Integration:** Import repositories and pull requests as context for your LLM prompts, with token size estimates.
 *   **🌐 WebContent Integration:** Fetch, clean, and extract content from websites to use as context for your LLM prompts.
+*   **📄 Google Docs Integration:** Import content from Google Documents directly into your LLM context.
 
 ---
 
@@ -71,6 +72,12 @@ pip install "cellmage[confluence]"
 
 ```bash
 pip install "cellmage[webcontent]"
+```
+
+*(Optional)* For Google Docs integration:
+
+```bash
+pip install "cellmage[gdocs]"
 ```
 
 *(Optional)* For all features:
@@ -487,7 +494,57 @@ Fetch, clean, and extract content from websites directly into your notebook usin
     Summarize the key points from the website content above and highlight the most important information.
     ```
 
-### 11. SQLite Storage
+### 11. Google Docs Integration
+
+Fetch content from Google Documents directly into your notebook using the `%gdocs` magic command.
+
+*   **Installation:**
+    ```bash
+    pip install "cellmage[gdocs]"
+    ```
+
+*   **Configuration:**
+    Set these environment variables in a `.env` file or your environment:
+    ```
+    # OAuth configuration (default)
+    CELLMAGE_GDOCS_AUTH_TYPE=oauth
+    CELLMAGE_GDOCS_TOKEN_PATH=~/.cellmage/gdocs_token.pickle
+    CELLMAGE_GDOCS_CREDENTIALS_PATH=~/.cellmage/gdocs_credentials.json
+
+    # Or service account configuration
+    CELLMAGE_GDOCS_AUTH_TYPE=service_account
+    CELLMAGE_GDOCS_SERVICE_ACCOUNT_PATH=~/.cellmage/gdocs_service_account.json
+    ```
+
+*   **Basic Usage:**
+    ```python
+    # Fetch a Google Document by its ID and add it to chat history
+    %gdocs your_google_doc_id
+
+    # Fetch a document using its URL
+    %gdocs https://docs.google.com/document/d/YOUR_DOC_ID/edit
+
+    # Fetch a Google Document and add as system context
+    %gdocs your_google_doc_id --system
+
+    # Just display the content of a Google Document without adding to history
+    %gdocs your_google_doc_id --show
+
+    # Use a specific authentication type
+    %gdocs your_google_doc_id --auth-type service_account
+    ```
+
+*   **Using with LLM Queries:**
+    ```python
+    # First, fetch the Google Document
+    %gdocs your_google_doc_id
+
+    # Then, reference it in your prompt
+    %%llm
+    Based on the Google Document above, summarize the key points and provide actionable insights.
+    ```
+
+### 12. SQLite Storage
 
 CellMage now uses SQLite as the default storage backend for improved performance and reliability:
 

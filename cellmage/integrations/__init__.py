@@ -8,6 +8,7 @@ This package contains modules that integrate CellMage with other systems.
 from . import (
     base_magic,
     confluence_magic,
+    gdocs_magic,
     github_magic,
     gitlab_magic,
     ipython_magic,
@@ -25,4 +26,5 @@ __all__ = [
     "github_magic",
     "confluence_magic",
     "webcontent_magic",
+    "gdocs_magic",
 ]

@@ -37,6 +37,12 @@ class Settings(BaseSettings):
         "log_level": str,
         "console_log_level": str,
         "log_file": str,
+        # Google Docs integration settings
+        "gdocs_token_path": str,
+        "gdocs_credentials_path": str,
+        "gdocs_service_account_path": str,
+        "gdocs_auth_type": str,
+        "gdocs_scopes": List[str],
     }
 
     # Default settings
@@ -99,6 +105,28 @@ class Settings(BaseSettings):
     console_log_level: str = Field(default="WARNING", description="Console logging level")
     log_file: str = Field(default="cellmage.log", description="Log file path")
 
+    # Google Docs integration settings
+    gdocs_token_path: str = Field(
+        default="gdocs_token.pickle:~/.cellmage/gdocs_token.pickle",
+        description="Path to Google Docs OAuth token pickle file (colon-separated for multiple locations)",
+    )
+    gdocs_credentials_path: str = Field(
+        default="gdocs_credentials.json:~/.cellmage/gdocs_credentials.json",
+        description="Path to Google Docs OAuth client credentials JSON file (colon-separated for multiple locations)",
+    )
+    gdocs_service_account_path: str = Field(
+        default="gdocs_service_account.json:~/.cellmage/gdocs_service_account.json",
+        description="Path to Google Docs service account JSON file (colon-separated for multiple locations)",
+    )
+    gdocs_auth_type: str = Field(
+        default="oauth",
+        description="Google Docs authentication type (oauth or service_account)",
+    )
+    gdocs_scopes: List[str] = Field(
+        default=["https://www.googleapis.com/auth/documents.readonly"],
+        description="Google Docs OAuth scopes",
+    )
+
     model_config = SettingsConfigDict(
         env_prefix="CELLMAGE_",
         case_sensitive=False,
@@ -132,8 +160,20 @@ class Settings(BaseSettings):
             data["snippets_dirs"] = dirs
             logger.debug(f"Set snippets_dirs from environment: {dirs}")
 
+        # Process Google Docs environment variables
+        env_gdocs_scopes = os.environ.get("CELLMAGE_GDOCS_SCOPES")
+        if env_gdocs_scopes:
+            scopes = [s.strip() for s in env_gdocs_scopes.replace(";", ",").split(",") if s.strip()]
+            data["gdocs_scopes"] = scopes
+            logger.debug(f"Set gdocs_scopes from environment: {scopes}")
+
         # Call parent init
         super().__init__(**data)
+
+        # For Google Docs paths, expand user paths
+        self.gdocs_token_path = os.path.expanduser(self.gdocs_token_path)
+        self.gdocs_credentials_path = os.path.expanduser(self.gdocs_credentials_path)
+        self.gdocs_service_account_path = os.path.expanduser(self.gdocs_service_account_path)
 
         # Check if conversations_dir exists and enable auto_save if it does
         if os.path.exists(self.conversations_dir) and os.path.isdir(self.conversations_dir):
