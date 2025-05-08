@@ -16,6 +16,7 @@ from .persistence_config_handler import PersistenceConfigHandler
 from .persona_config_handler import PersonaConfigHandler
 from .snippet_config_handler import SnippetConfigHandler
 from .status_display_handler import StatusDisplayHandler
+from .token_count_handler import TokenCountHandler
 
 __all__ = [
     "BaseConfigHandler",
@@ -27,4 +28,5 @@ __all__ = [
     "ModelSetupHandler",
     "AdapterConfigHandler",
     "StatusDisplayHandler",
+    "TokenCountHandler",
 ]

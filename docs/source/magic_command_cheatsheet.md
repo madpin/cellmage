@@ -184,10 +184,15 @@ When ambient mode is active, this magic command lets you execute a specific cell
 | `document_id` | Google Document ID |
 | `--system` | Add as system message instead of user message |
 | `--show` | Display content without adding to history |
-| `--text` | Use plain text format instead of Markdown (Markdown is default) |
-| `--no-headers` | Exclude document headers from output |
-| `--no-lists` | Don't format lists specially |
-| `--no-tables` | Don't include tables |
+| `--search` *QUERY* | Search for Google Docs files containing the specified term |
+| `--content` | Retrieve and display content for search results |
+| `--max-results` *NUMBER* | Maximum number of search results to return (default: 10) |
+| `--max-content` *NUMBER* | Maximum number of documents to retrieve content for (default: 3) |
+| `--timeout` *SECONDS* | Request timeout in seconds (default: 300) |
+| `--author` *EMAIL* | Filter documents by author/owner email (comma-separated for multiple) |
+| `--modified-after`, `--updated` *DATE* | Filter by modification date (YYYY-MM-DD or natural language) |
+| `--order-by` *FIELD* | How to order search results (relevance, modifiedTime, createdTime, name) |
+| `--auth-type` *TYPE* | Authentication type to use (oauth or service_account) |
 
 ### 7. `%sqlite` - SQLite Storage Management
 

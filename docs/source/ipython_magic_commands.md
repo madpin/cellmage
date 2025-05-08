@@ -12,13 +12,23 @@ Before casting any spells, you must first invite the magical presence into your 
 
 ## 🪄 Your Magical Arsenal
 
-The CellMage grimoire contains these powerful spells:
+The CellMage grimoire contains these powerful core spells:
 
 1. `%llm_config` - Configure your magical powers and manage your arcane resources
 2. `%llm_config_persistent` - Activate the ambient magic field (where all cells become magical)
 3. `%disable_llm_config_persistent` - Dispel the ambient magic field
 4. `%%llm` - Cast a directed spell to the LLM wizard
 5. `%%py` - Execute mundane Python code (when ambient magic is active)
+
+And these integration enchantments:
+
+6. `%confluence` - Summon knowledge from the Confluence realm
+7. `%jira` - Call upon the wisdom of Jira issue trackers
+8. `%github` - Channel the power of GitHub repositories
+9. `%gitlab` - Draw upon the essence of GitLab projects
+10. `%webcontent` - Extract magical insights from the web
+11. `%gdocs` - Commune with the scrolls of Google Docs
+12. `%sqlite` - Manage your spellbook archives
 
 ## ✨ The Complete Spell Compendium
 
@@ -169,6 +179,244 @@ fibonacci_spell = lambda n: n if n <= 1 else fibonacci_spell(n-1) + fibonacci_sp
 print(f"The 10th number in the sequence is {fibonacci_spell(10)}")
 ```
 
+### 6. `%confluence` - The Confluence Crystal Ball
+
+This enchantment allows you to peer into the Confluence realm and retrieve knowledge stored there.
+
+```ipython
+%confluence [identifier] [magical_parameters]
+```
+
+#### 🔮 Magical Parameters
+
+| Arcane Parameter | What It Does |
+|------------------|--------------|
+| `identifier` | Page identifier (SPACE:Title format or page ID) |
+| `--cql QUERY` | Confluence Query Language search query |
+| `--max NUMBER` | Maximum number of results for CQL queries (default: 5) |
+| `--system` | Add content as a system message (rather than user) |
+| `--show` | Display the content without adding to history |
+| `--text` | Use plain text format instead of Markdown (Markdown is default) |
+| `--no-content` | For CQL search, return only metadata without page content |
+| `--content` | For CQL search, fetch full content of each page |
+
+#### 📖 Spell Examples
+
+```ipython
+# Fetch a specific Confluence page
+%confluence ENGINEERING:System Architecture
+
+# Search Confluence with CQL
+%confluence --cql "space = DEV AND title ~ 'API Documentation'"
+```
+
+### 7. `%jira` - The Issue Tracking Telescope
+
+This spell allows you to inspect issues and tasks from the Jira realm.
+
+```ipython
+%jira [issue_key] [magical_parameters]
+```
+
+#### 🔮 Magical Parameters
+
+| Arcane Parameter | What It Does |
+|------------------|--------------|
+| `issue_key` | Jira issue key (e.g., PROJECT-123) |
+| `--jql QUERY` | JQL search query instead of a specific issue |
+| `--max NUMBER` | Maximum number of results for JQL search (default: 5) |
+| `--fields FIELDS` | Comma-separated list of fields to include |
+| `--comments` | Include issue comments |
+| `--system` | Add as system message instead of user message |
+| `--show` | Display content without adding to history |
+| `--text` | Use plain text instead of Markdown format |
+
+#### 📖 Spell Examples
+
+```ipython
+# Fetch a specific Jira issue
+%jira PROJ-123
+
+# Search for issues with JQL
+%jira --jql "project = BACKEND AND status = 'In Progress' AND assignee = currentUser()"
+```
+
+### 8. `%github` - The GitHub Repository Mirror
+
+This enchantment allows you to peer into GitHub repositories and extract information.
+
+```ipython
+%github [repo/path] [magical_parameters]
+```
+
+#### 🔮 Magical Parameters
+
+| Arcane Parameter | What It Does |
+|------------------|--------------|
+| `repo_path` | Repository owner/name or file path within a repository |
+| `--issue NUMBER` | Fetch a specific issue by number |
+| `--pr NUMBER` | Fetch a specific pull request by number |
+| `--search QUERY` | Search for issues with the given query |
+| `--max NUMBER` | Maximum number of search results (default: 5) |
+| `--comments` | Include comments on issues/PRs |
+| `--system` | Add as system message instead of user message |
+| `--show` | Display content without adding to history |
+| `--branch NAME` | Branch to use when fetching files (default: main/master) |
+
+#### 📖 Spell Examples
+
+```ipython
+# View a specific file from a GitHub repo
+%github facebook/react/README.md
+
+# Get information about an issue
+%github facebook/react --issue 42 --comments
+
+# Search for issues
+%github facebook/react --search "state management" --max 10
+```
+
+### 9. `%gitlab` - The GitLab Project Portal
+
+This spell connects to GitLab projects and extracts information.
+
+```ipython
+%gitlab [repo/path] [magical_parameters]
+```
+
+#### 🔮 Magical Parameters
+
+| Arcane Parameter | What It Does |
+|------------------|--------------|
+| `repo_path` | Project path or file path within a project |
+| `--issue NUMBER` | Fetch a specific issue by number |
+| `--mr NUMBER` | Fetch a specific merge request by number |
+| `--search QUERY` | Search for issues with the given query |
+| `--max NUMBER` | Maximum number of search results (default: 5) |
+| `--comments` | Include comments on issues/MRs |
+| `--system` | Add as system message instead of user message |
+| `--show` | Display content without adding to history |
+| `--branch NAME` | Branch to use when fetching files (default: main/master) |
+
+#### 📖 Spell Examples
+
+```ipython
+# View a specific file from a GitLab project
+%gitlab group/project/README.md
+
+# Get information about an issue
+%gitlab group/project --issue 42 --comments
+```
+
+### 10. `%webcontent` - The Web Divination Spell
+
+This enchantment extracts content from webpages and prepares it for analysis.
+
+```ipython
+%webcontent [url] [magical_parameters]
+```
+
+#### 🔮 Magical Parameters
+
+| Arcane Parameter | What It Does |
+|------------------|--------------|
+| `url` | URL of the webpage to fetch |
+| `--clean` | Clean and extract main content (default behavior) |
+| `--raw` | Get raw HTML content without cleaning |
+| `--method METHOD` | Content extraction method: trafilatura (default), bs4, or simple |
+| `--system` | Add as system message instead of user message |
+| `--show` | Display content without adding to history |
+| `--include-images` | Include image references in the output |
+| `--no-links` | Remove hyperlinks from the output |
+| `--timeout SECONDS` | Request timeout in seconds (default: 30) |
+
+#### 📖 Spell Examples
+
+```ipython
+# Get clean content from a webpage
+%webcontent https://en.wikipedia.org/wiki/Artificial_intelligence
+
+# Keep links and images in the output
+%webcontent https://blog.example.com/tutorial --include-images
+```
+
+### 11. `%gdocs` - The Google Docs Summoning Spell
+
+This enchantment allows you to access content from Google Docs and use it as context.
+
+```ipython
+%gdocs [document_id] [magical_parameters]
+```
+
+#### 🔮 Magical Parameters
+
+| Arcane Parameter | What It Does |
+|------------------|--------------|
+| `document_id` | Google Document ID or URL |
+| `--system` | Add as system message instead of user message |
+| `--show` | Display content without adding to history |
+| `--search QUERY` | Search for Google Docs files containing the specified term |
+| `--content` | Retrieve and display content for search results |
+| `--max-results NUMBER` | Maximum number of search results to return (default: 10) |
+| `--max-content NUMBER` | Maximum number of documents to retrieve content for (default: 3) |
+| `--timeout SECONDS` | Request timeout in seconds (default: 300) |
+| `--author EMAIL` | Filter documents by author/owner email (comma-separated for multiple) |
+| `--modified-after`, `--updated DATE` | Filter by modification date (YYYY-MM-DD or natural language) |
+| `--order-by FIELD` | How to order search results (relevance, modifiedTime, createdTime, name) |
+| `--auth-type TYPE` | Authentication type to use (oauth or service_account) |
+
+#### 📖 Spell Examples
+
+```ipython
+# Fetch a specific Google Document
+%gdocs 1aBcDeFgHiJkLmNoPqRsTuVwXyZ
+
+# Search for documents and retrieve content
+%gdocs --search "project proposal" --content --max-content 5
+
+# Search with filters
+%gdocs --search "meeting notes" --author john@example.com,jane@example.com --updated "2 weeks" --timeout 600
+```
+
+### 12. `%sqlite` - The Memory Archive Spell
+
+This enchantment manages your stored conversations with the magic realm.
+
+```ipython
+%sqlite [magical_parameters]
+```
+
+#### 🔮 Magical Parameters
+
+| Arcane Parameter | What It Does |
+|------------------|--------------|
+| `--status` | Show the current state of the SQLite storage |
+| `--stats` | Display statistics about stored conversations |
+| `--list` | List all stored conversations |
+| `--new` | Start a new conversation |
+| `--load ID` | Load a specific conversation by ID |
+| `--delete ID` | Delete a conversation by ID |
+| `--tag ID TAG` | Add a tag to a conversation |
+| `--search QUERY` | Search for conversations with content matching the query |
+| `--export PATH` | Export a conversation to markdown file |
+| `--import-md PATH` | Import a conversation from markdown file |
+
+#### 📖 Spell Examples
+
+```ipython
+# Show all stored conversations
+%sqlite --list
+
+# Start a new conversation
+%sqlite --new
+
+# Load a previous conversation
+%sqlite --load conversation_20250508_123456
+
+# Search for conversations about a topic
+%sqlite --search "neural networks"
+```
+
 ## 🌟 The Ambient Magic Field
 
 The ambient magic field is a powerful enchantment that, when activated, allows any regular cell to be automatically processed as a communication with the AI wizard. This eliminates the need to mark each message with the `%%llm` rune.
@@ -193,3 +441,40 @@ After each successful communication with the AI wizard (via `%%llm` or ambient m
 - Which magical entity responded
 
 This information helps you track your magical energy usage and costs.
+
+## 🧪 Example Magical Potions
+
+Here are some example incantations to help you get started on your magical journey:
+
+```ipython
+# Load the magical extension
+%load_ext cellmage.integrations.ipython_magic
+
+# Set the default model and persona
+%llm_config --model gpt-4o --persona python_expert
+
+# Ask a question with a specific model for this call only
+%%llm -m gpt-4o
+Explain the visitor pattern in software design
+
+# Enable ambient mode with specific settings
+%llm_config_persistent --model gpt-4o-mini --temperature 0.7
+
+# Execute Python code in ambient mode
+%%py
+import pandas as pd
+print(pd.__version__)
+
+# Disable ambient mode
+%disable_llm_config_persistent
+
+# Load integration extensions as needed
+%load_ext cellmage.integrations.confluence_magic
+%load_ext cellmage.integrations.github_magic
+%load_ext cellmage.integrations.webcontent_magic
+
+# Fetch content from various sources
+%confluence TEAM:Project Overview
+%github myorg/myrepo --issue 42
+%webcontent https://example.com/article
+```

@@ -8,6 +8,7 @@ import datetime
 import logging
 from typing import Any
 
+from ....utils.token_utils import count_tokens
 from .base_config_handler import BaseConfigHandler
 
 # Create a logger
@@ -71,6 +72,7 @@ class HistoryDisplayHandler(BaseConfigHandler):
             total_tokens_in = 0
             total_tokens_out = 0
             total_tokens = 0
+            estimated_messages = 0
 
             # Calculate cumulative token counts
             for msg in history:
@@ -80,6 +82,18 @@ class HistoryDisplayHandler(BaseConfigHandler):
                     msg_total = msg.metadata.get("total_tokens", 0)
                     if msg_total > 0:
                         total_tokens += msg_total
+                # If message doesn't have token metadata but has content, estimate tokens
+                elif msg.content:
+                    # Use token utils to estimate token count
+                    estimated_tokens = count_tokens(msg.content)
+                    if msg.role == "user" or msg.role == "system":
+                        total_tokens_in += estimated_tokens
+                    elif msg.role == "assistant":
+                        total_tokens_out += estimated_tokens
+                    estimated_messages += 1
+                    logger.debug(
+                        f"Estimated {estimated_tokens} tokens for message without metadata"
+                    )
 
             # If no total_tokens were found, calculate from in+out
             if total_tokens == 0:
@@ -97,6 +111,8 @@ class HistoryDisplayHandler(BaseConfigHandler):
             token_summary = f"• 📊 Total: {total_tokens} tokens"
             if total_tokens_in > 0 or total_tokens_out > 0:
                 token_summary += f" (Input: {total_tokens_in} • Output: {total_tokens_out})"
+            if estimated_messages > 0:
+                token_summary += f" (includes {estimated_messages} estimated message{'s' if estimated_messages > 1 else ''})"
             print(token_summary)
 
             if not history:
@@ -152,6 +168,19 @@ class HistoryDisplayHandler(BaseConfigHandler):
                     tokens_out = msg.metadata.get("tokens_out", 0) if msg.metadata else 0
                     model_used = msg.metadata.get("model_used", "") if msg.metadata else ""
                     cost_str = msg.metadata.get("cost_str", "") if msg.metadata else ""
+                    is_estimated = False
+
+                    # Estimate tokens if they don't exist in metadata but message has content
+                    if (tokens_in == 0 and tokens_out == 0) and msg.content:
+                        estimated_count = count_tokens(msg.content)
+                        if msg.role == "user" or msg.role == "system":
+                            tokens_in = estimated_count
+                        elif msg.role == "assistant":
+                            tokens_out = estimated_count
+                        is_estimated = True
+                        logger.debug(
+                            f"Displaying estimated tokens for message {i}: {estimated_count}"
+                        )
 
                     # Get integration source if available
                     source = msg.metadata.get("source", "") if msg.metadata else ""
@@ -194,9 +223,9 @@ class HistoryDisplayHandler(BaseConfigHandler):
                     # Display token info based on role
                     token_info = ""
                     if msg.role == "user" and tokens_in > 0:
-                        token_info = f"📥 {tokens_in} tokens"
+                        token_info = f"📥 {tokens_in} tokens{' (est.)' if is_estimated else ''}"
                     elif msg.role == "assistant" and tokens_out > 0:
-                        token_info = f"📤 {tokens_out} tokens"
+                        token_info = f"📤 {tokens_out} tokens{' (est.)' if is_estimated else ''}"
                         if cost_str:
                             token_info += f" • {cost_str}"
 

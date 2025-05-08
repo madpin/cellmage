@@ -113,7 +113,7 @@ class GoogleDocsUtils:
     Fetches and processes Google Documents, preparing data for analysis or LLM input.
     """
 
-    _service: Optional[Any] = None
+    _gdoc_service: Optional[Any] = None
     _drive_service: Optional[Any] = None
 
     def __init__(
@@ -123,6 +123,7 @@ class GoogleDocsUtils:
         credentials_path: Optional[str] = None,
         service_account_path: Optional[str] = None,
         scopes: Optional[List[str]] = None,
+        timeout: Optional[int] = None,
     ):
         """Initialize GoogleDocsUtils.
 
@@ -137,6 +138,8 @@ class GoogleDocsUtils:
                 If not provided, will check locations from CellMage config.
             scopes: OAuth 2.0 scopes.
                 Defaults to the value in CellMage config.
+            timeout: Request timeout in seconds.
+                If None, uses the value from settings.gdocs_request_timeout (default: 300).
 
         Raises:
             ImportError: If required Google API modules are not installed.
@@ -157,6 +160,7 @@ class GoogleDocsUtils:
             pass  # Continue without dotenv
 
         self.auth_type = auth_type.lower() if auth_type else settings.gdocs_auth_type
+        self.timeout = timeout if timeout is not None else settings.gdocs_request_timeout
 
         # Find the first existing path, or use the first path in the list if none exist
         self.token_path = token_path or find_first_existing_path(settings.gdocs_token_path)
@@ -176,7 +180,9 @@ class GoogleDocsUtils:
                 os.makedirs(token_dir, exist_ok=True)
 
         # Service is initialized lazily via the 'service' property
-        logger.info(f"GoogleDocsUtils initialized with auth_type: {self.auth_type}")
+        logger.info(
+            f"GoogleDocsUtils initialized with auth_type: {self.auth_type}, timeout: {self.timeout}s"
+        )
 
     def _get_credentials(self) -> Credentials:
         """Get Google API credentials based on the auth_type."""
@@ -261,18 +267,27 @@ class GoogleDocsUtils:
         return creds
 
     @property
-    def service(self):
+    def gdoc_service(self):
         """Lazy-initialized Google Docs API service."""
-        if self._service is None:
+        if self._gdoc_service is None:
             try:
                 logger.info("Initializing Google Docs API service...")
                 creds = self._get_credentials()
-                self._service = build("docs", "v1", credentials=creds)
+
+                # Set global socket timeout
+                import socket
+
+                socket.setdefaulttimeout(self.timeout)
+
+                # Build the service without http or client_options timeout parameter
+                from googleapiclient.discovery import build
+
+                self._gdoc_service = build("docs", "v1", credentials=creds)
                 logger.info("Google Docs API service initialized successfully.")
             except Exception as e:
                 logger.error(f"Failed to initialize Google Docs API service: {e}", exc_info=True)
                 raise RuntimeError(f"Failed to initialize Google Docs API service: {str(e)}")
-        return self._service
+        return self._gdoc_service
 
     @property
     def drive_service(self):
@@ -281,6 +296,15 @@ class GoogleDocsUtils:
             try:
                 logger.info("Initializing Google Drive API service...")
                 creds = self._get_credentials()
+
+                # Set global socket timeout
+                import socket
+
+                socket.setdefaulttimeout(self.timeout)
+
+                # Build the service without http or client_options timeout parameter
+                from googleapiclient.discovery import build
+
                 self._drive_service = build("drive", "v3", credentials=creds)
                 logger.info("Google Drive API service initialized successfully.")
             except Exception as e:
@@ -304,7 +328,7 @@ class GoogleDocsUtils:
         logger.info(f"Fetching Google Doc with ID: {document_id}")
         try:
             # Get the document content
-            document = self.service.documents().get(documentId=document_id).execute()
+            document = self.gdoc_service.documents().get(documentId=document_id).execute()
             logger.info(f"Successfully fetched document: {document.get('title', 'Untitled')}")
             return document
         except Exception as e:
@@ -708,18 +732,24 @@ class GoogleDocsUtils:
             raise RuntimeError(f"Failed to search for documents: {str(e)}")
 
     def fetch_documents_content_parallel(
-        self, documents: List[Dict[str, str]], max_docs: int = 3
+        self, documents: List[Dict[str, str]], max_docs: int = None
     ) -> List[Dict[str, str]]:
         """Fetch content from multiple documents in parallel.
 
         Args:
             documents: List of document dicts with 'id', 'name', and 'url' keys.
-            max_docs: Maximum number of documents to fetch content for (default: 3).
+            max_docs: Maximum number of documents to fetch content for.
+                      If None, uses the value from settings.gdocs_parallel_fetch_limit (default: 3).
 
         Returns:
             A list of documents with added 'content' key containing the formatted document content.
         """
         import concurrent.futures
+
+        # Use the config setting if max_docs is not provided
+        if max_docs is None:
+            max_docs = settings.gdocs_parallel_fetch_limit
+            logger.info(f"Using configured parallel fetch limit: {max_docs}")
 
         logger.info(f"Fetching content from {min(max_docs, len(documents))} documents in parallel")
 
@@ -784,9 +814,9 @@ class GoogleDocsUtils:
 
     def close(self) -> None:
         """Close the Google Docs API service resources."""
-        if self._service:
+        if self._gdoc_service:
             logger.info("Closing Google Docs API service.")
-            self._service = None
+            self._gdoc_service = None
             logger.info("Google Docs API service closed.")
         else:
             logger.debug("Google Docs API service was never initialized.")

@@ -6,9 +6,11 @@ This module handles the status display for the %llm_config magic command.
 
 import logging
 import os
+import sys
 from typing import Any
 
 from cellmage.ambient_mode import is_ambient_mode_enabled
+from cellmage.utils.token_utils import count_tokens
 
 from .base_config_handler import BaseConfigHandler
 
@@ -49,6 +51,7 @@ class StatusDisplayHandler(BaseConfigHandler):
         total_tokens_out = 0
         total_tokens = 0
         models_used = {}
+        estimated_messages = 0
 
         for msg in history:
             if msg.metadata:
@@ -64,6 +67,18 @@ class StatusDisplayHandler(BaseConfigHandler):
                 model = msg.metadata.get("model_used", "")
                 if model and msg.role == "assistant":
                     models_used[model] = models_used.get(model, 0) + 1
+            # If message doesn't have token metadata but has content, estimate tokens
+            elif msg.content:
+                # Use token utils to estimate token count
+                estimated_tokens = count_tokens(msg.content)
+                if msg.role == "user" or msg.role == "system":
+                    total_tokens_in += estimated_tokens
+                elif msg.role == "assistant":
+                    total_tokens_out += estimated_tokens
+                estimated_messages += 1
+                logger.debug(
+                    f"Estimated {estimated_tokens} tokens for message without metadata in status display"
+                )
 
         # If no total_tokens were calculated from metadata, use in+out sum
         if total_tokens == 0:
@@ -189,6 +204,10 @@ class StatusDisplayHandler(BaseConfigHandler):
             if total_tokens_in > 0 or total_tokens_out > 0:
                 print(f"      - Input: {total_tokens_in:,}")
                 print(f"      - Output: {total_tokens_out:,}")
+            if estimated_messages > 0:
+                print(
+                    f"      - Includes {estimated_messages} estimated message{'s' if estimated_messages > 1 else ''}"
+                )
 
         # Show models used
         if models_used:
@@ -202,8 +221,6 @@ class StatusDisplayHandler(BaseConfigHandler):
 
         # Check for Jira integration
         try:
-            import sys
-
             jira_available = "cellmage.integrations.jira_magic" in sys.modules
             print(f"    • Jira: {'✅ Loaded' if jira_available else '❌ Not loaded'}")
         except Exception:
