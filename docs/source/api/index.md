@@ -25,10 +25,14 @@ generated/cellmage.resources.file_loader
 generated/cellmage.resources.memory_loader
 generated/cellmage.utils.date_utils
 generated/cellmage.utils.file_utils
-generated/cellmage.utils.logging_utils
-generated/cellmage.utils.markdown_utils
-generated/cellmage.utils.model_utils
-generated/cellmage.utils.token_counter
+generated/cellmage.utils.logging
+generated/cellmage.utils.token_utils
+generated/cellmage.utils.confluence_utils
+generated/cellmage.utils.github_utils
+generated/cellmage.utils.gitlab_utils
+generated/cellmage.utils.jira_utils
+generated/cellmage.utils.gdocs_utils
+generated/cellmage.utils.webcontent_utils
 generated/cellmage.context_providers
 generated/cellmage.context_providers.ipython_context_provider
 generated/cellmage.integrations
@@ -57,7 +61,6 @@ generated/cellmage.ambient_mode
     cellmage.chat_manager
     cellmage.conversation_manager
     cellmage.history_manager
-    cellmage.models
     cellmage.config
     cellmage.exceptions
 ```
@@ -104,10 +107,14 @@ generated/cellmage.ambient_mode
 
     cellmage.utils.date_utils
     cellmage.utils.file_utils
-    cellmage.utils.logging_utils
-    cellmage.utils.markdown_utils
-    cellmage.utils.model_utils
-    cellmage.utils.token_counter
+    cellmage.utils.logging
+    cellmage.utils.token_utils
+    cellmage.utils.confluence_utils
+    cellmage.utils.github_utils
+    cellmage.utils.gitlab_utils
+    cellmage.utils.jira_utils
+    cellmage.utils.gdocs_utils
+    cellmage.utils.webcontent_utils
 ```
 
 ## Context Providers

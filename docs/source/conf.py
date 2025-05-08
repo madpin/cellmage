@@ -49,6 +49,7 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx_copybutton",
     "sphinx_autodoc_typehints",
+    "sphinx.ext.autosummary",
 ]
 
 # Tell myst-parser to assign header anchors for h1-h3.
