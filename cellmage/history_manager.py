@@ -91,6 +91,29 @@ class HistoryManager:
             if message.cell_id is None:
                 message.cell_id = cell_id
 
+        # Count tokens for the message if it doesn't have token metadata
+        if message.content and (
+            not message.metadata
+            or ("tokens_in" not in message.metadata and "tokens_out" not in message.metadata)
+        ):
+            # Initialize metadata if it doesn't exist
+            if not message.metadata:
+                message.metadata = {}
+
+            # Count tokens using token_utils
+            message_tokens = count_tokens(message.content)
+
+            # Store token counts based on message role
+            if message.role == "user" or message.role == "system":
+                message.metadata["tokens_in"] = message_tokens
+                self.logger.debug(f"Counted {message_tokens} input tokens for new message")
+            elif message.role == "assistant":
+                message.metadata["tokens_out"] = message_tokens
+                self.logger.debug(f"Counted {message_tokens} output tokens for new message")
+
+            # Always log the token count for debugging
+            self.logger.debug(f"Added token count ({message_tokens}) to message metadata")
+
         # Add the message to history
         self.history.append(message)
 

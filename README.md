@@ -100,10 +100,7 @@ pip install -e .[dev] # Includes dev dependencies
 
 1.  **Load the Magic:** In a Jupyter or IPython cell, load the extension:
     ```python
-    # IMPORTANT: Make sure to use the CORRECT extension path:
-    %load_ext cellmage.integrations.ipython_magic
-
-    # NOT just 'cellmage' which won't register the magic commands properly
+    %load_ext cellmage
     ```
 
 2.  **Configure API Key (One-time Setup):**
@@ -130,7 +127,7 @@ pip install -e .[dev] # Includes dev dependencies
 
 ### 1. Magic Commands
 
-*   `%load_ext cellmage.integrations.ipython_magic`: Loads the extension (usually run once per session).
+*   `%load_ext cellmage`: Loads the extension (usually run once per session).
 *   `%%llm`: Executes the entire cell content as a prompt to the configured LLM.
     ```python
     %%llm --temperature 0.8 --model gpt-4o

@@ -62,10 +62,7 @@ class ConfluenceMagics(BaseMagics):
 
         super().__init__(shell)
         try:
-            # Import here to avoid circular imports
-            from ..integrations.ipython_magic import get_chat_manager
-
-            self._get_manager = get_chat_manager
+            self._get_manager = self._get_chat_manager
             logger.info("Confluence magics initialized successfully.")
         except Exception as e:
             self._get_manager = None

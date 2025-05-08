@@ -129,6 +129,12 @@ class GoogleDocsMagic(BaseMagics):
         default=3,
         help="Maximum number of documents to retrieve content for",
     )
+    @argument(
+        "--timeout",
+        type=int,
+        default=None,
+        help="Request timeout in seconds (default: from config, typically 300)",
+    )
     @argument("--author", type=str, help="Filter documents by author/owner email")
     @argument(
         "--created-after",
@@ -207,8 +213,11 @@ class GoogleDocsMagic(BaseMagics):
         # Check if this is a search request
         if args.search:
             try:
-                # Create a fresh instance with the specified auth type
-                gdocs_utils = GoogleDocsUtils(auth_type=args.auth_type)
+                # Create a fresh instance with the specified auth type and timeout
+                gdocs_utils = GoogleDocsUtils(auth_type=args.auth_type, timeout=args.timeout)
+
+                if args.timeout:
+                    print(f"⏱ Using custom timeout of {args.timeout} seconds")
 
                 print(f"🔍 Searching for documents matching: '{args.search}'")
 
@@ -392,8 +401,11 @@ class GoogleDocsMagic(BaseMagics):
             return
 
         try:
-            # Create a fresh instance with the specified auth type
-            gdocs_utils = GoogleDocsUtils(auth_type=args.auth_type)
+            # Create a fresh instance with the specified auth type and timeout
+            gdocs_utils = GoogleDocsUtils(auth_type=args.auth_type, timeout=args.timeout)
+
+            if args.timeout:
+                print(f"⏱ Using custom timeout of {args.timeout} seconds")
 
             # Extract document ID if URL is provided
             try:

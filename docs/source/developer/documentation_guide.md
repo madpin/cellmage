@@ -73,7 +73,7 @@ and creating visualizations to communicate insights.
 To refer to other pages in the documentation:
 
 ```md
-See [IPython Magic Commands](../ipython_magic_commands.md) for more details.
+See [Magic Commands](../magic_commands.md) for more details.
 ```
 
 For external links:

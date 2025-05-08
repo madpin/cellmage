@@ -129,7 +129,7 @@ Let's verify that your CellMage installation is working properly:
 
 ```ipython
 # In your Jupyter Notebook
-%load_ext cellmage.integrations.ipython_magic
+%load_ext cellmage
 
 # Check status
 %llm_config --status

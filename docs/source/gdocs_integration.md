@@ -29,6 +29,9 @@ CELLMAGE_GDOCS_CREDENTIALS_PATH=~/.cellmage/gdocs_credentials.json
 # Or service account configuration
 CELLMAGE_GDOCS_AUTH_TYPE=service_account
 CELLMAGE_GDOCS_SERVICE_ACCOUNT_PATH=~/.cellmage/gdocs_service_account.json
+
+# Configure request timeout (default: 300 seconds)
+CELLMAGE_GDOCS_REQUEST_TIMEOUT=600
 ```
 
 ### OAuth 2.0 Authentication
@@ -131,6 +134,22 @@ You can filter search results by various criteria:
 %gdocs --search "project documentation" --order-by "modifiedTime"  # Options: relevance, modifiedTime, createdTime, name
 ```
 
+### Handling Timeouts
+
+When dealing with large documents or many documents in parallel, you might encounter timeout issues. You can customize the timeout duration:
+
+```ipython
+# Increase timeout to 10 minutes (600 seconds) for a large document search
+%gdocs --search "project documentation" --content --max-content 10 --timeout 600
+```
+
+This is especially useful when:
+- Fetching large documents
+- Retrieving content from many documents in parallel
+- Experiencing connectivity issues
+
+The default timeout is 300 seconds (5 minutes), which is sufficient for most operations. For very large operations, consider using a timeout of 600-900 seconds.
+
 ### Authentication Options
 
 You can specify the authentication type for a specific command:
@@ -166,6 +185,7 @@ To only display the document content without adding it to chat history:
 | `--content` | Retrieve and display content for search results |
 | `--max-results` | Maximum number of search results to return (default: 10) |
 | `--max-content` | Maximum number of documents to retrieve content for (default: 3) |
+| `--timeout` | Request timeout in seconds (default: 300) |
 | `--author` | Filter documents by author/owner email |
 | `--created-after` | Filter documents created after this date (YYYY-MM-DD or natural language) |
 | `--created-before` | Filter documents created before this date |

@@ -50,7 +50,8 @@ class BaseMagics(Magics):
     def _get_chat_manager(self):
         """Get the ChatManager instance."""
         try:
-            from .ipython_magic import get_chat_manager
+            # Import from the refactored magic_commands module
+            from ..magic_commands.ipython.common import get_chat_manager
 
             return get_chat_manager()
         except Exception as e:

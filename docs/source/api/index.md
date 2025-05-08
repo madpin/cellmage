@@ -1,288 +1,167 @@
-# 🔮 API Reference
+# CellMage API Reference
 
-This section provides detailed documentation for CellMage's Python API. Understanding these APIs allows you to extend CellMage or use its components programmatically outside of IPython magic commands.
+This section provides detailed API documentation for CellMage's modules and classes.
+
+```{toctree}
+:maxdepth: 2
+:caption: API Reference
+:hidden:
+
+generated/cellmage.chat_manager
+generated/cellmage.conversation_manager
+generated/cellmage.history_manager
+generated/cellmage.models
+generated/cellmage.config
+generated/cellmage.exceptions
+generated/cellmage.adapters
+generated/cellmage.adapters.direct_client
+generated/cellmage.adapters.langchain_client
+generated/cellmage.interfaces
+generated/cellmage.storage
+generated/cellmage.storage.memory_store
+generated/cellmage.storage.markdown_store
+generated/cellmage.storage.sqlite_store
+generated/cellmage.resources.file_loader
+generated/cellmage.resources.memory_loader
+generated/cellmage.utils.date_utils
+generated/cellmage.utils.file_utils
+generated/cellmage.utils.logging
+generated/cellmage.utils.token_utils
+generated/cellmage.utils.confluence_utils
+generated/cellmage.utils.github_utils
+generated/cellmage.utils.gitlab_utils
+generated/cellmage.utils.jira_utils
+generated/cellmage.utils.gdocs_utils
+generated/cellmage.utils.webcontent_utils
+generated/cellmage.context_providers
+generated/cellmage.context_providers.ipython_context_provider
+generated/cellmage.integrations
+generated/cellmage.integrations.base_magic
+generated/cellmage.integrations.confluence_magic
+generated/cellmage.integrations.github_magic
+generated/cellmage.integrations.gitlab_magic
+generated/cellmage.integrations.jira_magic
+generated/cellmage.integrations.sqlite_magic
+generated/cellmage.integrations.webcontent_magic
+generated/cellmage.magic_commands
+generated/cellmage.magic_commands.ipython
+generated/cellmage.magic_commands.ipython.common
+generated/cellmage.magic_commands.ipython.config_magic
+generated/cellmage.magic_commands.ipython.llm_magic
+generated/cellmage.magic_commands.ipython.ambient_magic
+generated/cellmage.ambient_mode
+```
 
 ## Core APIs
 
 ```{eval-rst}
-.. automodule:: cellmage
-   :members:
+.. autosummary::
+    :toctree: generated
+
+    cellmage.chat_manager
+    cellmage.conversation_manager
+    cellmage.history_manager
+    cellmage.config
+    cellmage.exceptions
 ```
 
-### Chat Manager
+## LLM Adapters
 
 ```{eval-rst}
-.. automodule:: cellmage.chat_manager
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autosummary::
+    :toctree: generated
+
+    cellmage.adapters
+    cellmage.adapters.direct_client
+    cellmage.adapters.langchain_client
+    cellmage.interfaces
 ```
 
-### Conversation Manager
+## Storage APIs
 
 ```{eval-rst}
-.. automodule:: cellmage.conversation_manager
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
+.. autosummary::
+    :toctree: generated
 
-### History Manager
-
-```{eval-rst}
-.. automodule:: cellmage.history_manager
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-### Ambient Mode
-
-```{eval-rst}
-.. automodule:: cellmage.ambient_mode
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-### Configuration
-
-```{eval-rst}
-.. automodule:: cellmage.config
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-### Models
-
-```{eval-rst}
-.. automodule:: cellmage.models
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-### Model Mapping
-
-```{eval-rst}
-.. automodule:: cellmage.model_mapping
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-### Interfaces
-
-```{eval-rst}
-.. automodule:: cellmage.interfaces
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-### Exceptions
-
-```{eval-rst}
-.. automodule:: cellmage.exceptions
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-## Adapters
-
-### Direct Client
-
-```{eval-rst}
-.. automodule:: cellmage.adapters.direct_client
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-### LangChain Client
-
-```{eval-rst}
-.. automodule:: cellmage.adapters.langchain_client
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-## Storage
-
-### SQLite Store
-
-```{eval-rst}
-.. automodule:: cellmage.storage.sqlite_store
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-### Markdown Store
-
-```{eval-rst}
-.. automodule:: cellmage.storage.markdown_store
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-### Memory Store
-
-```{eval-rst}
-.. automodule:: cellmage.storage.memory_store
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-## Integrations
-
-### Base Magic
-
-```{eval-rst}
-.. automodule:: cellmage.integrations.base_magic
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-### IPython Magic
-
-```{eval-rst}
-.. automodule:: cellmage.integrations.ipython_magic
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-### Jira Magic
-
-```{eval-rst}
-.. automodule:: cellmage.integrations.jira_magic
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-### Confluence Magic
-
-```{eval-rst}
-.. automodule:: cellmage.integrations.confluence_magic
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-### GitHub Magic
-
-```{eval-rst}
-.. automodule:: cellmage.integrations.github_magic
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-### GitLab Magic
-
-```{eval-rst}
-.. automodule:: cellmage.integrations.gitlab_magic
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
-
-### SQLite Magic
-
-```{eval-rst}
-.. automodule:: cellmage.integrations.sqlite_magic
-   :members:
-   :undoc-members:
-   :show-inheritance:
+    cellmage.storage
+    cellmage.storage.memory_store
+    cellmage.storage.markdown_store
+    cellmage.storage.sqlite_store
 ```
 
 ## Resources
 
-### File Loader
-
 ```{eval-rst}
-.. automodule:: cellmage.resources.file_loader
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
+.. autosummary::
+    :toctree: generated
 
-### Memory Loader
-
-```{eval-rst}
-.. automodule:: cellmage.resources.memory_loader
-   :members:
-   :undoc-members:
-   :show-inheritance:
+    cellmage.resources.file_loader
+    cellmage.resources.memory_loader
 ```
 
 ## Utilities
 
-### File Utils
-
 ```{eval-rst}
-.. automodule:: cellmage.utils.file_utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autosummary::
+    :toctree: generated
+
+    cellmage.utils.date_utils
+    cellmage.utils.file_utils
+    cellmage.utils.logging
+    cellmage.utils.token_utils
+    cellmage.utils.confluence_utils
+    cellmage.utils.github_utils
+    cellmage.utils.gitlab_utils
+    cellmage.utils.jira_utils
+    cellmage.utils.gdocs_utils
+    cellmage.utils.webcontent_utils
 ```
 
-### Token Utils
+## Context Providers
 
 ```{eval-rst}
-.. automodule:: cellmage.utils.token_utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autosummary::
+    :toctree: generated
+
+    cellmage.context_providers
+    cellmage.context_providers.ipython_context_provider
 ```
 
-### Logging
+## Integrations
 
 ```{eval-rst}
-.. automodule:: cellmage.utils.logging
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autosummary::
+    :toctree: generated
+
+    cellmage.integrations
+    cellmage.integrations.base_magic
+    cellmage.integrations.confluence_magic
+    cellmage.integrations.github_magic
+    cellmage.integrations.gitlab_magic
+    cellmage.integrations.jira_magic
+    cellmage.integrations.sqlite_magic
+    cellmage.integrations.webcontent_magic
 ```
 
 ## Magic Commands
 
 ```{eval-rst}
-.. automodule:: cellmage.magic_commands.core
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autosummary::
+    :toctree: generated
+
+    cellmage.magic_commands
+    cellmage.magic_commands.ipython
+    cellmage.magic_commands.ipython.common
+    cellmage.magic_commands.ipython.config_magic
+    cellmage.magic_commands.ipython.llm_magic
+    cellmage.magic_commands.ipython.ambient_magic
 ```
 
-```{eval-rst}
-.. automodule:: cellmage.magic_commands.persistence
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
+## Ambient Mode
 
 ```{eval-rst}
-.. automodule:: cellmage.magic_commands.history
-   :members:
-   :undoc-members:
-   :show-inheritance:
-```
+.. autosummary::
+    :toctree: generated
 
-## Context Providers
-
-### IPython Context Provider
-
-```{eval-rst}
-.. automodule:: cellmage.context_providers.ipython_context_provider
-   :members:
-   :undoc-members:
-   :show-inheritance:
+    cellmage.ambient_mode
 ```

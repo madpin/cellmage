@@ -31,10 +31,7 @@ Let's start with basic ticket fetching and analysis:
 
 ```ipython
 # Load the CellMage extension
-%load_ext cellmage.integrations.ipython_magic
-
-# Load the Jira magic extension
-%load_ext cellmage.integrations.jira_magic
+%load_ext cellmage
 ```
 
 ### Fetching a Single Ticket

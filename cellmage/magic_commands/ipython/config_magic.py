@@ -17,6 +17,7 @@ from .config_handlers import (
     PersonaConfigHandler,
     SnippetConfigHandler,
     StatusDisplayHandler,
+    TokenCountHandler,
 )
 
 
@@ -40,6 +41,7 @@ class ConfigMagics(IPythonMagicsBase):
             ModelSetupHandler(),
             AdapterConfigHandler(),
             StatusDisplayHandler(),
+            TokenCountHandler(),
         ]
 
     def llm_magic(self, line, cell=None):
@@ -98,6 +100,16 @@ class ConfigMagics(IPythonMagicsBase):
         help="Clear the current chat history (keeps system prompt).",
     )
     @argument("--show-history", action="store_true", help="Display the current message history.")
+    @argument(
+        "--tokens",
+        action="store_true",
+        help="Show token count for the current conversation history.",
+    )
+    @argument(
+        "--token",
+        action="store_true",
+        help="Alias for --tokens, shows token count for conversation history.",
+    )
     @argument(
         "--save",
         type=str,

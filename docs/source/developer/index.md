@@ -38,7 +38,6 @@ Key components:
 - **Integrations**: Connects with external services
 - **Resources**: Manages personas and snippets
 
-For a deeper dive into the magic command architecture, see [Refactored Magic Architecture](../refactored_magic_architecture.md).
 
 ## 🧱 Core Classes
 

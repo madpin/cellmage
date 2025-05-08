@@ -174,7 +174,7 @@ def test_github_add_to_history(ip_instance):
         with mock.patch("cellmage.utils.github_utils.GitHubUtils", return_value=mock_github_utils):
             # Need to patch at the module level where the function is called
             with mock.patch(
-                "cellmage.integrations.ipython_magic.get_chat_manager"
+                "cellmage.magic_commands.ipython.common.get_chat_manager"
             ) as mock_get_manager:
                 # Create the mock chat manager structure
                 mock_chat_manager = mock.MagicMock()

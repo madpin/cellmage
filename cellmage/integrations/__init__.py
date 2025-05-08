@@ -1,17 +1,15 @@
 """
 Integration modules for CellMage.
 
-This package contains modules that integrate CellMage with other systems.
+This package provides integrations with various third-party services and systems.
 """
 
-# Import the IPython magic modules for easy access
 from . import (
     base_magic,
     confluence_magic,
     gdocs_magic,
     github_magic,
     gitlab_magic,
-    ipython_magic,
     jira_magic,
     sqlite_magic,
     webcontent_magic,
@@ -19,12 +17,11 @@ from . import (
 
 __all__ = [
     "base_magic",
-    "ipython_magic",
-    "jira_magic",
-    "gitlab_magic",
-    "sqlite_magic",
-    "github_magic",
     "confluence_magic",
-    "webcontent_magic",
     "gdocs_magic",
+    "github_magic",
+    "gitlab_magic",
+    "jira_magic",
+    "sqlite_magic",
+    "webcontent_magic",
 ]

@@ -152,17 +152,6 @@ class GitHubMagics(BaseMagics):
 
         return self.github_utils.format_pull_request_for_llm(pr_data)
 
-    def _get_chat_manager(self):
-        """Get the ChatManager instance."""
-        try:
-            from ..integrations.ipython_magic import get_chat_manager
-
-            return get_chat_manager()
-        except Exception as e:
-            logger.error(f"Error getting ChatManager: {e}")
-            print(f"❌ Error getting ChatManager: {e}")
-            return None
-
     def _add_to_history(
         self, content: str, source_type: str, source_id: str, as_system_msg: bool = False
     ) -> bool:

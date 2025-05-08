@@ -6,6 +6,7 @@ the ability to treat regular code cells as LLM prompts automatically.
 """
 
 import logging
+from importlib import import_module
 from typing import Any, Callable, List
 
 # Set up logging
@@ -25,9 +26,7 @@ def register_ambient_handler(handler_func: Callable[[str], None]) -> None:
     """
     global _ambient_handler
     _ambient_handler = handler_func
-    logger.info(
-        f"Registered ambient mode handler: {handler_func.__module__}.{handler_func.__name__}"
-    )
+    logger.info(f"Registered ambient handler: {handler_func.__module__}.{handler_func.__name__}")
 
 
 def get_ambient_handler() -> Callable[[str], None]:
@@ -60,6 +59,11 @@ def enable_ambient_mode(ipython_shell: Any) -> bool:
 
     if not ipython_shell:
         logger.error("Cannot enable ambient mode: No IPython shell provided")
+        return False
+
+    # Check if an ambient handler is registered
+    if _ambient_handler is None:
+        logger.error("Cannot enable ambient mode: No ambient handler registered")
         return False
 
     # Register the transformer if it's not already registered
@@ -144,59 +148,41 @@ def _auto_process_cells(lines: List[str]) -> List[str]:
         logger.debug("Skipping ambient mode for code completion function")
         return lines
 
-    # Replace the cell content with code that will call process_cell_as_prompt
+    # Replace the cell content with code that will call the ambient handler
     # This is the magic - instead of executing the cell content directly,
-    # we execute code that will send it to the LLM
+    # we execute code that will send it to the LLM via our handler
 
-    # Generate cleaner code with proper spacing and clear separation between statements
-    # Use multiple approaches to find the NotebookLLMMagics instance for better reliability
+    # Get the module and name of the ambient handler function
+    if _ambient_handler is None:
+        logger.error("Ambient handler not registered, cannot process cell")
+        return [
+            "print('Error: Ambient handler not registered. "
+            'Please run "%load_ext cellmage.integrations" first.\', file=sys.stderr)'
+        ]
+
+    handler_module = _ambient_handler.__module__
+    handler_name = _ambient_handler.__name__
+
     new_lines = [
         f"""import sys
 try:
-    # Method 1: Direct import and instance lookup
-    from cellmage.integrations.ipython_magic import NotebookLLMMagics, get_chat_manager
+    # Import the module containing the ambient handler
+    from {handler_module} import {handler_name}
     from IPython import get_ipython
 
+    # Verify IPython is available
     ip = get_ipython()
     if not ip:
         print('Error: IPython shell not available', file=sys.stderr)
         raise RuntimeError('IPython shell not available')
 
-    # Try multiple methods to locate the magics instance
-    magics_instance = None
-
-    # Method 1: Look in registered magics (most reliable)
-    for magic_type in ip.magics_manager.magics.values():
-        for instance in magic_type.values():
-            if isinstance(instance, NotebookLLMMagics):
-                magics_instance = instance
-                break
-        if magics_instance:
-            break
-
-    # Method 2: Create a temporary instance as fallback
-    if not magics_instance:
-        try:
-            # Only try this if extension is loaded but instance wasn't found
-            if 'cellmage.integrations.ipython_magic' in sys.modules:
-                from cellmage.integrations.ipython_magic import NotebookLLMMagics
-                temp_instance = NotebookLLMMagics(ip)
-                if hasattr(temp_instance, 'process_cell_as_prompt'):
-                    print('Using temporary NotebookLLMMagics instance', file=sys.stderr)
-                    magics_instance = temp_instance
-        except Exception as temp_err:
-            print(f'Failed to create temporary instance: {{temp_err}}', file=sys.stderr)
-
-    # Process the cell content as a prompt if instance was found
-    if magics_instance and hasattr(magics_instance, 'process_cell_as_prompt'):
-        magics_instance.process_cell_as_prompt({repr(cell_content)})
-    else:
-        print('Error: Could not find registered NotebookLLMMagics instance. Please run \"%load_ext cellmage.integrations.ipython_magic\" first.', file=sys.stderr)
+    # Call the ambient handler directly with the cell content
+    {handler_name}({repr(cell_content)})
+except ImportError as e:
+    print(f'Error importing ambient handler: {{e}}. Is cellmage installed correctly?', file=sys.stderr)
 except RuntimeError as re:
     print(f'Runtime error: {{re}}', file=sys.stderr)
     print('You can also try restarting the kernel.', file=sys.stderr)
-except ImportError as e:
-    print(f'Error importing modules: {{e}}. Is cellmage installed correctly?', file=sys.stderr)
 except Exception as e:
     print(f'Error during ambient mode processing: {{e}}', file=sys.stderr)"""
     ]
@@ -204,16 +190,19 @@ except Exception as e:
     return new_lines
 
 
-def process_cell_as_prompt(cell_content: str, magics_instance: Any) -> None:
+def process_cell_as_prompt(cell_content: str) -> None:
     """
     Process a regular code cell as an LLM prompt.
-    This is a standalone version of the function that can be called
-    directly by the input transformer.
+    This function just delegates to the registered ambient handler.
 
     Args:
         cell_content: The content of the cell to process
-        magics_instance: The NotebookLLMMagics instance to use
     """
-    # Implementation in the magics class will handle this
-    # This is just a placeholder for the function signature
-    pass
+    if _ambient_handler is not None:
+        _ambient_handler(cell_content)
+    else:
+        logger.error("No ambient handler registered to process prompt")
+        print(
+            "Error: No ambient handler registered to process prompt",
+            file=import_module("sys").stderr,
+        )

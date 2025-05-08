@@ -45,6 +45,8 @@ class Settings(BaseSettings):
         "gdocs_scopes": List[str],
         "gdocs_search_results_max": int,
         "gdocs_search_content_max": int,
+        "gdocs_parallel_fetch_limit": int,
+        "gdocs_request_timeout": int,
     }
 
     # Default settings
@@ -136,6 +138,12 @@ class Settings(BaseSettings):
     )
     gdocs_search_content_max: int = Field(
         default=1000, description="Maximum content size to retrieve from search results"
+    )
+    gdocs_parallel_fetch_limit: int = Field(
+        default=10, description="Maximum number of parallel fetch operations for Google Docs"
+    )
+    gdocs_request_timeout: int = Field(
+        default=300, description="Timeout in seconds for Google Docs API requests"
     )
 
     model_config = SettingsConfigDict(

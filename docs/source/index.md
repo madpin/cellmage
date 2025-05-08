@@ -18,9 +18,10 @@ installation
 :hidden:
 :caption: 📖 User Guide
 
-ipython_magic_commands
+magic_commands
 core_concepts
 configuration
+magic_command_cheatsheet
 sqlite_storage
 integrations/index
 tutorials/index
