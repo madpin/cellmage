@@ -29,6 +29,7 @@ And these integration enchantments:
 10. `%webcontent` - Extract magical insights from the web
 11. `%gdocs` - Commune with the scrolls of Google Docs
 12. `%sqlite` - Manage your spellbook archives
+13. `%img` - Process and display images
 
 ## ✨ The Complete Spell Compendium
 
@@ -415,6 +416,43 @@ This enchantment manages your stored conversations with the magic realm.
 
 # Search for conversations about a topic
 %sqlite --search "neural networks"
+```
+
+### 13. `%img` - The Image Processing Portal
+
+This spell allows you to process, display, and add images to your LLM conversations.
+
+```ipython
+%img path/to/image.jpg [magical_parameters]
+```
+
+#### 🔮 Magical Parameters
+
+| Arcane Parameter | What It Does |
+|------------------|--------------|
+| `image_path` | Path to the image file to process |
+| `-r`, `--resize` WIDTH | Width to resize the image to while maintaining aspect ratio |
+| `-q`, `--quality` QUALITY | Quality for lossy image formats (0.0-1.0) |
+| `--show` | Display the image inline after processing |
+| `-i`, `--info` | Display information about the image |
+| `-a`, `--add-to-chat` | Add the image to the current chat session (default: always added) |
+| `-c`, `--convert` | Force conversion to a compatible format |
+| `-f`, `--format` FORMAT | Format to convert the image to (e.g., "jpg", "png", "webp") |
+
+#### 📖 Spell Examples
+
+```ipython
+# Process an image and add it to conversation context (no display)
+%img path/to/image.jpg
+
+# Process, display, and show information about an image
+%img path/to/image.jpg --show --info
+
+# Resize an image to 800px width and display it
+%img path/to/image.jpg --resize 800 --show
+
+# Convert an image to a different format with quality adjustment
+%img path/to/image.jpg --format webp --quality 0.85 --show
 ```
 
 ## 🌟 The Ambient Magic Field

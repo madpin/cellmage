@@ -33,6 +33,7 @@ docs:
 	rm -rf docs/build/
 	@echo "Starting documentation server on port $(PORT)..."
 	sphinx-autobuild -b html --port $(PORT) --watch cellmage/ docs/source/ docs/build/
+	rm -rf docs/build/
 
 # Run code quality checks
 run-checks:
