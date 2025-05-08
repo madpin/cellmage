@@ -11,6 +11,7 @@ CellMage's power extends beyond just LLM interactions. It seamlessly integrates 
 ../confluence_integration
 ../github_integration
 ../gitlab_integration
+../webcontent_integration
 ```
 
 ## Integration Features
@@ -47,6 +48,14 @@ Similar to GitHub, but for GitLab repositories and merge requests.
 
 ```ipython
 %gitlab project:group/project mr:15  # Get merge request details
+```
+
+### WebContent Integration
+
+Fetch, clean, and extract content from websites to use as context for your prompts.
+
+```ipython
+%webcontent https://example.com  # Extract and import website content
 ```
 
 ## Adding Your Own Integrations

@@ -29,6 +29,7 @@ It's designed for **data scientists, software engineers, researchers, and studen
 *   **📝 Confluence Wiki Integration:** Import wiki pages directly into your notebook to use as context for your LLM prompts.
 *   **🦊 GitLab Integration:** Import repositories and merge requests as context for your LLM prompts, with token size estimates.
 *   **🐱 GitHub Integration:** Import repositories and pull requests as context for your LLM prompts, with token size estimates.
+*   **🌐 WebContent Integration:** Fetch, clean, and extract content from websites to use as context for your LLM prompts.
 
 ---
 
@@ -64,6 +65,12 @@ pip install "cellmage[gitlab]"
 
 ```bash
 pip install "cellmage[confluence]"
+```
+
+*(Optional)* For WebContent integration:
+
+```bash
+pip install "cellmage[webcontent]"
 ```
 
 *(Optional)* For all features:
@@ -425,7 +432,62 @@ Connect your notebooks directly to Confluence wiki content using the `%confluenc
     Based on the Confluence page above, what are the key requirements for this project?
     ```
 
-### 10. SQLite Storage
+### 10. WebContent Integration
+
+Fetch, clean, and extract content from websites directly into your notebook using the `%webcontent` magic command.
+
+*   **Installation:**
+    ```bash
+    pip install "cellmage[webcontent]"
+    ```
+
+*   **Dependencies:**
+    The WebContent integration requires additional Python libraries:
+    ```bash
+    pip install requests beautifulsoup4 markdownify trafilatura
+    ```
+
+*   **Basic Usage:**
+    ```python
+    # Fetch website content and add it to chat history
+    %webcontent https://example.com
+
+    # Fetch content and add as system context
+    %webcontent https://example.com --system
+
+    # Just display content without adding to history
+    %webcontent https://example.com --show
+
+    # Get raw HTML content without cleaning
+    %webcontent https://example.com --raw
+    ```
+
+*   **Advanced Options:**
+    ```python
+    # Use a specific extraction method (trafilatura, bs4, or simple)
+    %webcontent https://example.com --method bs4
+
+    # Include image references in the output
+    %webcontent https://example.com --include-images
+
+    # Remove hyperlinks from the output
+    %webcontent https://example.com --no-links
+
+    # Set a custom timeout for the request
+    %webcontent https://example.com --timeout 60
+    ```
+
+*   **Using with LLM Queries:**
+    ```python
+    # First, fetch the website content
+    %webcontent https://example.com
+
+    # Then, reference it in your prompt
+    %%llm
+    Summarize the key points from the website content above and highlight the most important information.
+    ```
+
+### 11. SQLite Storage
 
 CellMage now uses SQLite as the default storage backend for improved performance and reliability:
 
