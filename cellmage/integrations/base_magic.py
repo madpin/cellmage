@@ -37,6 +37,16 @@ class BaseMagics(Magics):
 
         super().__init__(shell)
 
+    # def llm_magic(*args, **kwargs):
+    #     """
+    #     Decorator to register a function as an LLM magic command.
+
+    #     Args:
+    #         func: The function to register
+    #     """
+    #     super().llm_magic(*args, **kwargs)
+    #     return lambda func: func
+
     def _get_chat_manager(self):
         """Get the ChatManager instance."""
         try:

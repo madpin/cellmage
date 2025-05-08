@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v0.7.0](https://github.com/madpin/cellmage/releases/tag/v0.7.0) - 2025-05-08
+
+### Added
+- Added WebContent integration with `%webcontent` magic command for fetching, cleaning, and extracting content from websites
+- Added support for multiple website content extraction methods (trafilatura, BeautifulSoup, simple)
+- Added options to include/exclude images and hyperlinks from extracted web content
+- Added webcontent optional dependency in pyproject.toml
+- Updated documentation to include WebContent integration
+
 ## [v0.6.0](https://github.com/madpin/cellmage/releases/tag/v0.6.0) - 2025-05-07
 
 ## [v0.5.15](https://github.com/madpin/cellmage/releases/tag/v0.5.15) - 2025-05-07

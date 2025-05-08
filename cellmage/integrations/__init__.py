@@ -13,6 +13,7 @@ from . import (
     ipython_magic,
     jira_magic,
     sqlite_magic,
+    webcontent_magic,
 )
 
 __all__ = [
@@ -23,4 +24,5 @@ __all__ = [
     "sqlite_magic",
     "github_magic",
     "confluence_magic",
+    "webcontent_magic",
 ]

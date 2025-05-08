@@ -176,6 +176,21 @@ def load_ipython_extension(ipython):
         except Exception as e:
             logger.warning(f"Failed to load Confluence integration: {e}")
 
+        # 5. Try to load WebContent integration
+        try:
+            from .integrations.webcontent_magic import (
+                load_ipython_extension as load_webcontent,
+            )
+
+            load_webcontent(ipython)
+            logger.info("Loaded WebContent integration")
+        except ImportError:
+            logger.info(
+                "WebContent required libraries not available. WebContent integration not loaded."
+            )
+        except Exception as e:
+            logger.warning(f"Failed to load WebContent integration: {e}")
+
         if not primary_extension_loaded:
             print("⚠️ CellMage core functionality could not be loaded")
 
