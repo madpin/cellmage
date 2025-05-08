@@ -35,19 +35,33 @@ CELLMAGE_GDOCS_SERVICE_ACCOUNT_PATH=~/.cellmage/gdocs_service_account.json
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or use an existing one
-3. Enable the Google Docs API
+3. Enable the Google Docs API and Google Drive API
 4. Create OAuth 2.0 credentials and download the credentials JSON file
 5. Rename it to `gdocs_credentials.json` and place it in the `~/.cellmage/` directory
 6. The first time you use the integration, a browser window will open to authenticate
+7. Make sure to grant access to both Documents and Drive when authorizing
 
 ### Service Account Authentication
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or use an existing one
-3. Enable the Google Docs API
+3. Enable the Google Docs API and Google Drive API
 4. Create a Service Account and download the JSON key file
 5. Rename it to `gdocs_service_account.json` and place it in the `~/.cellmage/` directory
 6. Share your Google Documents with the service account email address
+
+### Required Scopes
+
+By default, CellMage uses the following scopes:
+- `https://www.googleapis.com/auth/documents.readonly` - For reading documents
+- `https://www.googleapis.com/auth/drive.readonly` - For searching and listing documents
+
+You can customize these with the `CELLMAGE_GDOCS_SCOPES` environment variable:
+
+```bash
+# Optional: Override the default scopes (comma-separated)
+CELLMAGE_GDOCS_SCOPES=https://www.googleapis.com/auth/documents.readonly,https://www.googleapis.com/auth/drive.readonly
+```
 
 ## Basic Usage
 
@@ -66,6 +80,56 @@ To fetch a document using its URL:
 This fetches the document content and adds it as a user message in the chat history.
 
 ## Advanced Usage
+
+### Searching for Documents
+
+You can search for Google Docs documents containing specific terms:
+
+```ipython
+%gdocs --search "project documentation"
+```
+
+This returns a table of matching documents with their metadata.
+
+To customize the number of search results:
+
+```ipython
+%gdocs --search "project documentation" --max-results 20
+```
+
+### Fetching Document Content from Search Results
+
+To fetch and display content from the top search results:
+
+```ipython
+%gdocs --search "project documentation" --content
+```
+
+By default, this fetches content for the top 3 documents. You can customize this:
+
+```ipython
+%gdocs --search "project documentation" --content --max-content 5
+```
+
+### Filtering Search Results
+
+You can filter search results by various criteria:
+
+```ipython
+# Filter by author/owner
+%gdocs --search "project documentation" --author "user@example.com"
+
+# Filter by creation date (supports natural language)
+%gdocs --search "project documentation" --created-after "3 days ago"
+%gdocs --search "project documentation" --created-before "2023-12-31"
+
+# Filter by modification date
+%gdocs --search "project documentation" --modified-after "last week"
+%gdocs --search "project documentation" --modified-before "2023-12-31"
+
+# Sort results
+%gdocs --search "project documentation" --order-by "modifiedTime"  # Options: relevance, modifiedTime, createdTime, name
+```
 
 ### Authentication Options
 
@@ -98,6 +162,16 @@ To only display the document content without adding it to chat history:
 | `--system` | Add as system message instead of user message |
 | `--show` | Only display the content without adding to chat history |
 | `--auth-type` | Authentication type to use (`oauth` or `service_account`) |
+| `--search` | Search for Google Docs files containing the specified term |
+| `--content` | Retrieve and display content for search results |
+| `--max-results` | Maximum number of search results to return (default: 10) |
+| `--max-content` | Maximum number of documents to retrieve content for (default: 3) |
+| `--author` | Filter documents by author/owner email |
+| `--created-after` | Filter documents created after this date (YYYY-MM-DD or natural language) |
+| `--created-before` | Filter documents created before this date |
+| `--modified-after` | Filter documents modified after this date |
+| `--modified-before` | Filter documents modified before this date |
+| `--order-by` | How to order search results (`relevance`, `modifiedTime`, `createdTime`, `name`) |
 
 ## Using Google Docs Content with LLM Queries
 
