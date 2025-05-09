@@ -18,8 +18,8 @@ def load_magics(ipython: Optional[InteractiveShell] = None) -> None:
     Args:
         ipython: The IPython shell to register magics with. If None, attempts to get it.
     """
-    import importlib
     import pkgutil
+    import importlib
     import sys
 
     try:
@@ -45,7 +45,7 @@ def load_magics(ipython: Optional[InteractiveShell] = None) -> None:
         logger.info("Registered core magic commands")
 
         # List of modules we've already loaded explicitly
-        core_modules = {"ambient_magic", "config_magic", "llm_magic", "__pycache__"}
+        core_modules = {'ambient_magic', 'config_magic', 'llm_magic', '__pycache__'}
 
         # Now dynamically discover and register any additional magic modules
         import cellmage.magic_commands.ipython as magics_pkg
@@ -55,12 +55,12 @@ def load_magics(ipython: Optional[InteractiveShell] = None) -> None:
             if mod_name in core_modules:
                 continue
 
-            full_name = f"{magics_pkg.__name__}.{mod_name}"
+            full_name = f'{magics_pkg.__name__}.{mod_name}'
             try:
                 module = importlib.import_module(full_name)
 
                 # Check if the module defines a load_ipython_extension function
-                loader = getattr(module, "load_ipython_extension", None)
+                loader = getattr(module, 'load_ipython_extension', None)
                 if callable(loader):
                     loader(ipython)
                     logger.info(f"Loaded magic commands from {mod_name}")
@@ -68,12 +68,11 @@ def load_magics(ipython: Optional[InteractiveShell] = None) -> None:
 
                 # Otherwise, look for magic classes that can be registered
                 for name, obj in module.__dict__.items():
-                    if isinstance(obj, type) and name.endswith("Magics"):
+                    if isinstance(obj, type) and name.endswith('Magics'):
                         try:
                             # Try to instantiate the magic class with ipython if it looks like it expects it
                             try:
                                 import inspect
-
                                 sig = inspect.signature(obj.__init__)
                                 if len(sig.parameters) > 1:  # More than just self
                                     magic_instance = obj(ipython)

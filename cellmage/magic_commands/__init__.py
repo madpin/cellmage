@@ -41,5 +41,25 @@ def unload_ipython_extension(ipython):
     Args:
         ipython: IPython shell instance
     """
-    # Currently no special cleanup needed
-    pass
+    try:
+        # Currently no special cleanup needed for core functionality
+
+        # But try to dynamically unload any magic modules that might need it
+        import importlib
+        import pkgutil
+
+        import cellmage.magic_commands.ipython as magics_pkg
+
+        for finder, mod_name, _ in pkgutil.iter_modules(magics_pkg.__path__):
+            full_name = f"{magics_pkg.__name__}.{mod_name}"
+            try:
+                module = importlib.import_module(full_name)
+                unloader = getattr(module, "unload_ipython_extension", None)
+                if callable(unloader):
+                    unloader(ipython)
+                    logger.debug(f"Unloaded magic module: {mod_name}")
+            except Exception:
+                # Silent failure for unloading is acceptable
+                pass
+    except Exception as e:
+        logger.debug(f"Error during magic commands unloading: {e}")
