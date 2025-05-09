@@ -290,9 +290,7 @@ class DirectLLMAdapter(LLMClientInterface):
             }
 
             # Convert messages to the format expected by the API
-            api_messages = []
-            for msg in messages:
-                api_messages.append({"role": msg.role, "content": msg.content})
+            api_messages = self._convert_messages(messages)
 
             # Prepare request payload
             payload = {"model": final_model, "messages": api_messages, "stream": stream}
@@ -322,9 +320,26 @@ class DirectLLMAdapter(LLMClientInterface):
                 self.logger.exception("Exception details")
             raise LLMInteractionError(f"Chat request failed: {e}") from e
 
-    def _convert_messages(self, messages: List[Message]) -> List[Dict[str, str]]:
-        """Convert our Message objects to the format expected by the API."""
-        return [{"role": msg.role, "content": msg.content} for msg in messages]
+    def _convert_messages(self, messages: List[Message]) -> List[Dict[str, Any]]:
+        """
+        Convert our Message objects to the format expected by the API, supporting multimodal (text + image) messages.
+        If a message's metadata contains 'llm_image', the content will be a list with text and image_url dicts.
+        """
+        api_messages = []
+        for msg in messages:
+            # Check for multimodal content
+            llm_image = msg.metadata.get("llm_image") if hasattr(msg, "metadata") else None
+            if llm_image:
+                # Compose multimodal content: text (if any) + image
+                content_list = []
+                if msg.content and msg.content.strip():
+                    content_list.append({"type": "text", "text": msg.content})
+                # llm_image is already in OpenAI-compatible dict format
+                content_list.append(llm_image)
+                api_messages.append({"role": msg.role, "content": content_list})
+            else:
+                api_messages.append({"role": msg.role, "content": msg.content})
+        return api_messages
 
     def _handle_non_streaming(
         self,

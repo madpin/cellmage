@@ -213,6 +213,23 @@ When ambient mode is active, this magic command lets you execute a specific cell
 | `--export` *PATH* | Export a conversation to markdown file |
 | `--import-md` *PATH* | Import a conversation from markdown file |
 
+### 8. `%img` - Image Processing and Integration
+
+```python
+%img image_path [options]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `image_path` | Path to the image file to process |
+| `-r`, `--resize` *WIDTH* | Width to resize the image to (maintains aspect ratio) |
+| `-q`, `--quality` *VALUE* | Quality for lossy image formats (0.0-1.0) |
+| `--show` | Display the image inline after processing |
+| `-i`, `--info` | Display information about the image |
+| `-a`, `--add-to-chat` | Add the image to the chat session (default: always added) |
+| `-c`, `--convert` | Force conversion to a compatible format |
+| `-f`, `--format` *FORMAT* | Format to convert the image to (e.g., "jpg", "png", "webp") |
+
 ## Example Usage
 
 ### Core Commands
@@ -261,4 +278,8 @@ print(pd.__version__)
 # Get web content
 %load_ext cellmage
 %webcontent https://example.com/article
+
+# Process and display an image
+%load_ext cellmage
+%img path/to/image.jpg --resize 1024 --show --info
 ```

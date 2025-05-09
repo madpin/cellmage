@@ -24,6 +24,7 @@ configuration
 magic_command_cheatsheet
 sqlite_storage
 integrations/index
+utils/index
 tutorials/index
 troubleshooting
 ```

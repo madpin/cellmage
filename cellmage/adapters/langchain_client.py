@@ -139,27 +139,27 @@ class LangChainAdapter(LLMClientInterface):
 
     def _convert_to_langchain_messages(self, messages: List[Message]) -> List[BaseMessage]:
         """
-        Convert our Message objects to LangChain message objects.
-
-        Args:
-            messages: List of Message objects
-
-        Returns:
-            List of LangChain message objects
+        Convert our Message objects to LangChain message objects, supporting multimodal (text + image) messages.
+        If a message's metadata contains 'llm_image', the content will be a list with text and image_url dicts.
         """
         langchain_messages = []
-
         for msg in messages:
+            llm_image = msg.metadata.get("llm_image") if hasattr(msg, "metadata") else None
             if msg.role == "system":
                 langchain_messages.append(SystemMessage(content=msg.content))
             elif msg.role == "user":
-                langchain_messages.append(HumanMessage(content=msg.content))
+                if llm_image:
+                    content_list = []
+                    if msg.content and msg.content.strip():
+                        content_list.append({"type": "text", "text": msg.content})
+                    content_list.append(llm_image)
+                    langchain_messages.append(HumanMessage(content=content_list))
+                else:
+                    langchain_messages.append(HumanMessage(content=msg.content))
             elif msg.role in ["assistant", "ai"]:
                 langchain_messages.append(AIMessage(content=msg.content))
             else:
-                # For any other roles, use HumanMessage with a prefix
                 langchain_messages.append(HumanMessage(content=f"[{msg.role}]: {msg.content}"))
-
         return langchain_messages
 
     def chat(

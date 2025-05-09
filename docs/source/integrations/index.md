@@ -13,6 +13,8 @@ CellMage's power extends beyond just LLM interactions. It seamlessly integrates 
 ../gitlab_integration
 ../webcontent_integration
 ../gdocs_integration
+../image_integration
+image_magic_integration
 ```
 
 ## Integration Features
@@ -65,6 +67,14 @@ Import content from Google Documents directly into your LLM context.
 
 ```ipython
 %gdocs https://docs.google.com/document/d/YOUR_DOC_ID/edit  # Import document content
+```
+
+### Image Integration
+
+Process, display, and add images to your LLM conversations and context.
+
+```ipython
+%img path/to/image.jpg --resize 800 --show  # Process, display, and add to LLM context
 ```
 
 ## Adding Your Own Integrations
