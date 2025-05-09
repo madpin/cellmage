@@ -66,21 +66,21 @@ if git tag -l "$TAG" | grep -q "$TAG"; then
         NEXT_MAJOR=$((MAJOR + 1))
         SUGGESTED_VERSION="v$NEXT_MAJOR.0.0"
         # Fix: Use separate sed commands for each substitution
-        sed -i '' "s/_MAJOR = \"$MAJOR\"/_MAJOR = \"$NEXT_MAJOR\"/" cellmage/version.py
-        sed -i '' "s/_MINOR = \"$MINOR\"/_MINOR = \"0\"/" cellmage/version.py
-        sed -i '' "s/_PATCH = \"$PATCH\"/_PATCH = \"0\"/" cellmage/version.py
+        sed -i '' -e "s/_MAJOR = \"$MAJOR\"/_MAJOR = \"$NEXT_MAJOR\"/g" cellmage/version.py
+        sed -i '' -e "s/_MINOR = \"$MINOR\"/_MINOR = \"0\"/g" cellmage/version.py
+        sed -i '' -e "s/_PATCH = \"$PATCH\"/_PATCH = \"0\"/g" cellmage/version.py
     elif [[ "$VERSION_TYPE" == "minor" ]]; then
         NEXT_MINOR=$((MINOR + 1))
         SUGGESTED_VERSION="v$MAJOR.$NEXT_MINOR.0"
         # Fix: Use separate sed commands for each substitution
-        sed -i '' "s/_MINOR = \"$MINOR\"/_MINOR = \"$NEXT_MINOR\"/" cellmage/version.py
-        sed -i '' "s/_PATCH = \"$PATCH\"/_PATCH = \"0\"/" cellmage/version.py
+        sed -i '' -e "s/_MINOR = \"$MINOR\"/_MINOR = \"$NEXT_MINOR\"/g" cellmage/version.py
+        sed -i '' -e "s/_PATCH = \"$PATCH\"/_PATCH = \"0\"/g" cellmage/version.py
     else
         # Default to patch
         NEXT_PATCH=$((PATCH + 1))
         SUGGESTED_VERSION="v$MAJOR.$MINOR.$NEXT_PATCH"
         # Fix: Use a single, properly escaped sed command
-        sed -i '' "s/_PATCH = \"$PATCH\"/_PATCH = \"$NEXT_PATCH\"/" cellmage/version.py
+        sed -i '' -e "s/_PATCH = \"$PATCH\"/_PATCH = \"$NEXT_PATCH\"/g" cellmage/version.py
     fi
 
     echo "Would you like to create a new $VERSION_TYPE version: $SUGGESTED_VERSION? [y/N]"
