@@ -1,3 +1,4 @@
+# filepath: /Users/tpinto/madpin/cellmage/tests/integration/test_gitlab_magic.py
 """
 Test the GitLab magic command.
 """

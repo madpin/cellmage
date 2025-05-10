@@ -1,7 +1,7 @@
 import logging
 import uuid
 from datetime import datetime
-from typing import ClassVar, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from .interfaces import ContextProvider, HistoryStore
 from .models import ConversationMetadata, Message
@@ -19,22 +19,6 @@ class HistoryManager:
     - Saves and loads conversations
     """
 
-    # Class variable to track the singleton instance
-    _instance: ClassVar[Optional["HistoryManager"]] = None
-
-    # Class variable to persist history across instances
-    _global_history: ClassVar[List[Message]] = []
-
-    def __new__(cls, *args, **kwargs):
-        """
-        Implement singleton pattern to ensure history is preserved across multiple
-        instantiations in the same Python process.
-        """
-        if cls._instance is None:
-            cls._instance = super(HistoryManager, cls).__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-
     def __init__(
         self,
         history_store: Optional[HistoryStore] = None,
@@ -47,31 +31,17 @@ class HistoryManager:
             history_store: Optional store for saving/loading conversations
             context_provider: Optional provider for execution context
         """
-        # Only initialize once due to singleton pattern
-        if getattr(self, "_initialized", False):
-            # Update providers if they've changed
-            if history_store is not None:
-                self.history_store = history_store
-            if context_provider is not None:
-                self.context_provider = context_provider
-            return
-
         self.logger = logging.getLogger(__name__)
 
-        # Use the class-level global history to persist across instances
-        if not HistoryManager._global_history:
-            self.history = []
-            HistoryManager._global_history = self.history
-        else:
-            self.history = HistoryManager._global_history
-            self.logger.debug(f"Using existing history with {len(self.history)} messages")
+        # Initialize instance-specific history list
+        self.history: List[Message] = []
+        self.logger.debug("Initializing new history manager with empty history")
 
         self.cell_last_history_index: Dict[str, int] = {}
         self.history_store = history_store
         self.context_provider = context_provider
         self.current_save_path: Optional[str] = None
-        self._initialized = True
-        self.logger.debug("HistoryManager initialized with singleton pattern")
+        self.logger.debug("HistoryManager initialized")
 
     def add_message(self, message: Message) -> None:
         """
@@ -116,11 +86,6 @@ class HistoryManager:
 
         # Add the message to history
         self.history.append(message)
-
-        # Ensure the class-level history is updated
-        if HistoryManager._global_history is not self.history:
-            HistoryManager._global_history = self.history
-            self.logger.debug("Updated global history reference")
 
         # Update cell tracking if we have a cell ID
         if message.cell_id:
@@ -230,8 +195,7 @@ class HistoryManager:
             if sources:
                 self.logger.debug(f"get_history: Integration sources: {sources}")
 
-        # Add extra debug info
-        self.logger.debug(f"Memory ID of history list: {id(self.history)}")
+        # Log summary of history content
         self.logger.debug(f"History state at retrieval: {[m.role for m in self.history]}")
 
         return self.history.copy()

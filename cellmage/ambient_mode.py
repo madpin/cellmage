@@ -131,10 +131,16 @@ def _auto_process_cells(lines: List[str]) -> List[str]:
         return lines
 
     # Skip processing for cells with explicit %%llm or other known magics
+    # But specifically check for %%py to ensure it's processed by the py cell magic
     if any(
-        line.strip().startswith(("%%", "%load", "%reload", "%llm_config", "%disable_llm"))
+        line.strip().startswith(("%%llm", "%load", "%reload", "%llm_config", "%disable_llm"))
         for line in lines
     ):
+        return lines
+
+    # Special handling for the %%py magic - allow it to be processed by the py cell magic handler
+    if lines and lines[0].strip().startswith("%%py"):
+        logger.debug("Detected %%py magic, allowing normal execution")
         return lines
 
     # Skip processing for internal Jupyter functions

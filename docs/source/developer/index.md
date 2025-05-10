@@ -80,7 +80,12 @@ pytest
 # Run specific test categories
 pytest tests/unit
 pytest tests/integration
+
+# Run magic commands tests specifically
+python tests/run_magic_tests.py
 ```
+
+For more details on testing magic commands, see [Magic Commands Testing](magic_commands_testing.md).
 
 ### Building Documentation
 

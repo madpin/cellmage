@@ -149,6 +149,8 @@ class AmbientModeMagics(IPythonMagicsBase):
 
         if not is_ambient_mode_enabled():
             enable_ambient_mode(ip)
+            # Register the handler again to ensure it's set for persistent mode
+            register_ambient_handler(process_cell_as_prompt)
             print("══════════════════════════════════════════════════════════")
             print("  🔄 Ambient Mode Enabled")
             print("══════════════════════════════════════════════════════════")
@@ -204,28 +206,53 @@ class AmbientModeMagics(IPythonMagicsBase):
             print("❌ IPython not available. Cannot execute cell.", file=sys.stderr)
             return
 
+        import contextlib
+        import io
+
+        from IPython.display import Markdown
+
         try:
             # Get the shell from self.shell (provided by the Magics base class)
             shell = self.shell
 
-            # Execute the cell as normal Python code in the user's namespace
-            logger.info("Executing cell as normal Python code via %%py magic")
+            # Capture stdout during execution
+            stdout_buffer = io.StringIO()
 
-            # Run the cell in the user's namespace
-            result = shell.run_cell(cell)
+            # Execute with stdout capture
+            with contextlib.redirect_stdout(stdout_buffer):
+                logger.info("Executing cell as normal Python code via %%py magic")
+
+                # Run the cell in the user's namespace
+                result = shell.run_cell(cell)
+
+            # Get captured stdout
+            output = stdout_buffer.getvalue()
 
             # Handle execution errors
             if result.error_before_exec or result.error_in_exec:
-                if result.error_in_exec:
-                    print(f"❌ Error during execution: {result.error_in_exec}", file=sys.stderr)
-                else:
-                    print(f"❌ Error before execution: {result.error_before_exec}", file=sys.stderr)
+                error = result.error_in_exec or result.error_before_exec
+                error_msg = f"❌ Error: {error}"
+                print(error_msg, file=sys.stderr)
+                # Return markdown with error
+                return Markdown(f"```\n{error_msg}\n```\n*Python execution failed*")
+
+            # Format the output as markdown
+            md_output = f"```\n{output.rstrip()}\n```"
+
+            # Include the result if it's not None and different from the output
+            if result.result is not None and str(result.result) != output.rstrip():
+                md_output += f"\n\n*Result:* `{result.result}`"
+
+            md_output += "\n\n*Executed Python code successfully*"
+
+            # Return as markdown for better display in notebooks
+            return Markdown(md_output)
 
         except Exception as e:
-            print(f"❌ Error executing Python cell: {e}", file=sys.stderr)
+            error_msg = f"❌ Error executing Python cell: {e}"
+            print(error_msg, file=sys.stderr)
             logger.error(f"Error during %%py execution: {e}")
-
-        return None
+            return Markdown(f"```\n{error_msg}\n```\n*Python execution failed*")
 
     def process_cell_as_prompt(self, cell_content: str) -> None:
         """Process a regular code cell as an LLM prompt in ambient mode."""

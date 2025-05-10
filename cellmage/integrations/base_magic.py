@@ -9,7 +9,7 @@ import uuid
 from typing import List, Optional, Tuple
 
 try:
-    from IPython.core.magic import Magics
+    from IPython.core.magic import Magics, magics_class
 
     _IPYTHON_AVAILABLE = True
 except ImportError:
@@ -22,18 +22,33 @@ except ImportError:
 
     Magics = DummyMagics  # Type alias for compatibility
 
+    # Define dummy decorator if IPython is not available
+    def magics_class(cls):
+        return cls
+
+
 # Create a logger
 logger = logging.getLogger(__name__)
 
 
+@magics_class
 class BaseMagics(Magics):
     """Base class for all IPython magic commands in CellMage."""
 
-    def __init__(self, shell):
+    def __init__(self, shell=None):
         """Initialize the base magic utility."""
         if not _IPYTHON_AVAILABLE:
             logger.warning("IPython not available. Magic commands are disabled.")
             return
+
+        # If shell is None, try to get the current IPython instance
+        if shell is None:
+            try:
+                from IPython import get_ipython
+
+                shell = get_ipython()
+            except (ImportError, AttributeError):
+                logger.warning("Could not get IPython shell. Magic commands may be limited.")
 
         super().__init__(shell)
 

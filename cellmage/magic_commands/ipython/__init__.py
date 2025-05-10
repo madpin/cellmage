@@ -33,6 +33,14 @@ def load_magics(ipython: Optional[InteractiveShell] = None) -> None:
             logger.warning("IPython shell not available. Cannot register magics.")
             return
 
+        # Initialize the ChatManager instance for this IPython session
+        from .common import _init_default_manager
+
+        # Create ChatManager and store it in the IPython user namespace
+        chat_manager = _init_default_manager()
+        ipython.user_ns["_cellmage_chat_manager"] = chat_manager
+        logger.info("ChatManager initialized and attached to IPython user namespace")
+
         # First register core magic classes - we load these explicitly to ensure proper order
         from .ambient_magic import AmbientModeMagics
         from .config_magic import ConfigMagics
@@ -47,12 +55,15 @@ def load_magics(ipython: Optional[InteractiveShell] = None) -> None:
         # List of modules we've already loaded explicitly
         core_modules = {"ambient_magic", "config_magic", "llm_magic", "__pycache__"}
 
+        # Modules that should not be processed as magic modules (utilities, etc.)
+        excluded_modules = {"common", "__pycache__"}
+
         # Now dynamically discover and register any additional magic modules
         import cellmage.magic_commands.ipython as magics_pkg
 
         for finder, mod_name, _ in pkgutil.iter_modules(magics_pkg.__path__):
-            # Skip already loaded core modules
-            if mod_name in core_modules:
+            # Skip already loaded core modules and excluded utility modules
+            if mod_name in core_modules or mod_name in excluded_modules:
                 continue
 
             full_name = f"{magics_pkg.__name__}.{mod_name}"
