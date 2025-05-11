@@ -6,11 +6,11 @@ Stop copy-pasting, managing complex client code, or losing context. Cellmage pro
 
 It's designed for **data scientists, software engineers, researchers, and students** who want to leverage LLMs *within* their existing notebook environment with minimal friction. Spend less time on boilerplate, more time on solving actual problems (or generating cool sci-fi plots, we don't judge!).
 
+[![Github version](https://img.shields.io/github/v/release/madpin/cellmage)](https://img.shields.io/github/v/release/madpin/cellmage)
 [![PyPI version](https://badge.fury.io/py/cellmage.svg)](https://badge.fury.io/py/cellmage)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation Status](https://readthedocs.org/projects/cellmage/badge/?version=latest)](https://cellmage.readthedocs.io/en/latest/?badge=latest)
-
-> **Current Version: v0.4.7** (May 2025)
+[![Download Status](https://img.shields.io/pypi/dd/fastapi)](https://img.shields.io/pypi/dd/cellmage)
 
 ---
 
@@ -36,7 +36,7 @@ It's designed for **data scientists, software engineers, researchers, and studen
 
 ## 🚀 Installation
 
-**Requirements:** Python 3.8+
+**Requirements:** Python 3.9+
 
 Install Cellmage using pip:
 

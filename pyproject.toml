@@ -28,9 +28,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Environment :: Console",
 ]
-authors = [
-    {name = "Thiago MadPin", email = "madpin@gmail.com"}
-]
+authors = [{ name = "Thiago MadPin", email = "madpin@gmail.com" }]
 requires-python = ">=3.9"
 dependencies = [
     "pyyaml>=6.0",
@@ -43,8 +41,9 @@ dependencies = [
     "python-dotenv",
     "types-PyYAML",
     "types-requests",
+    "tokencostauto",
 ]
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 
 [project.urls]
 Homepage = "https://github.com/madpin/cellmage"
@@ -57,31 +56,17 @@ langchain = [
     "langchain==0.3.24",
     "langchain-core>=0.1.20",
     "langchain-community>=0.1.20",
-    "langchain-openai>=0.0.8"
+    "langchain-openai>=0.0.8",
 ]
-confluence = [
-    "atlassian-python-api>=3.32.0",
-    "python-dotenv>=1.0.0"
-]
-jira = [
-    "jira>=3.5.0",
-    "python-dotenv>=1.0.0"
-]
-gitlab = [
-    "python-gitlab>=3.15.0",
-    "python-dotenv>=1.0.0",
-    "tiktoken>=0.5.0"
-]
-github = [
-    "PyGithub>=2.1.0",
-    "python-dotenv>=1.0.0",
-    "tiktoken>=0.5.0"
-]
+confluence = ["atlassian-python-api>=3.32.0", "python-dotenv>=1.0.0"]
+jira = ["jira>=3.5.0", "python-dotenv>=1.0.0"]
+gitlab = ["python-gitlab>=3.15.0", "python-dotenv>=1.0.0", "tiktoken>=0.5.0"]
+github = ["PyGithub>=2.1.0", "python-dotenv>=1.0.0", "tiktoken>=0.5.0"]
 gdocs = [
     "google-api-python-client>=2.97.0",
     "google-auth-httplib2>=0.1.0",
     "google-auth-oauthlib>=1.1.0",
-    "python-dotenv>=1.0.0"
+    "python-dotenv>=1.0.0",
 ]
 docs = [
     "Sphinx>=6.0,<9.0",
@@ -91,7 +76,7 @@ docs = [
     "sphinx-autodoc-typehints==1.23.3",
     "packaging",
     "pydantic>=2.0",
-    "pydantic-settings>=2.0.0"
+    "pydantic-settings>=2.0.0",
 ]
 dev = [
     "ruff",
@@ -112,27 +97,19 @@ dev = [
     "sphinx-copybutton",
     "sphinx-autobuild",
     "sphinx-autodoc-typehints==1.23.3",
-    "packaging"
+    "packaging",
+    "black[jupyter]",
 ]
-all = [
-    "cellmage[langchain,jira,gitlab,github,confluence,webcontent,gdocs]"
-]
+all = ["cellmage[langchain,jira,gitlab,github,confluence,webcontent,gdocs]"]
 webcontent = [
     "requests>=2.25.0",
     "beautifulsoup4>=4.9.0",
     "markdownify>=0.11.0",
-    "trafilatura>=1.6.0"
+    "trafilatura>=1.6.0",
 ]
 
 [tool.setuptools.packages.find]
-exclude = [
-    "*.tests",
-    "*.tests.*",
-    "tests.*",
-    "tests",
-    "docs*",
-    "scripts*"
-]
+exclude = ["*.tests", "*.tests.*", "tests.*", "tests", "docs*", "scripts*"]
 
 [tool.setuptools]
 include-package-data = true
@@ -141,7 +118,7 @@ include-package-data = true
 cellmage = ["py.typed"]
 
 [tool.setuptools.dynamic]
-version = {attr = "cellmage.version.VERSION"}
+version = { attr = "cellmage.version.VERSION" }
 
 [tool.black]
 line-length = 100
@@ -186,9 +163,6 @@ strict_optional = false
 
 [tool.pytest.ini_options]
 testpaths = "tests/"
-python_classes = [
-  "Test*",
-  "*Test"
-]
+python_classes = ["Test*", "*Test"]
 log_format = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
 log_level = "DEBUG"

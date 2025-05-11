@@ -5,7 +5,6 @@ This package provides magic commands, conversation management, and utilities
 for interacting with LLMs in Jupyter/IPython environments.
 """
 
-import importlib
 import logging
 import os
 from typing import Optional
@@ -15,8 +14,6 @@ from .config import settings  # Import settings object instead of non-existent f
 
 # Main managers
 from .conversation_manager import ConversationManager
-from .exceptions import ConfigurationError, PersistenceError, ResourceNotFoundError
-from .history_manager import HistoryManager
 
 # Core components
 from .models import Message
@@ -79,8 +76,11 @@ def load_ipython_extension(ipython):
     conversation management. For legacy file-based storage, set the
     CELLMAGE_USE_FILE_STORAGE=1 environment variable.
 
-    This also loads all available integrations (Jira, GitLab, GitHub, etc.)
+    This also dynamically loads all available integrations using module discovery.
     """
+    import importlib
+    import pkgutil
+
     try:
         # Load the new refactored magic commands
         primary_extension_loaded = False
@@ -111,81 +111,34 @@ def load_ipython_extension(ipython):
                 logger.error(f"Failed to load SQLite extension: {e}")
                 print(f"❌ Failed to load CellMage core functionality: {e}")
 
-        # Now load additional integrations if available
+        # Now dynamically discover and load all available integrations
+        if primary_extension_loaded:
+            try:
+                # Import the integrations package
+                import cellmage.integrations as integrations_pkg
 
-        # 1. Try to load Jira integration
-        try:
-            from .integrations.jira_magic import load_ipython_extension as load_jira
+                # Skip sqlite_magic as it was already attempted above
+                # Also skip base_magic which is a base class, not an integration
+                skip_modules = ["sqlite_magic", "__pycache__", "base_magic"]
 
-            load_jira(ipython)
-            logger.info("Loaded Jira integration")
-        except ImportError:
-            logger.info("Jira package not available. Jira integration not loaded.")
-        except Exception as e:
-            logger.warning(f"Failed to load Jira integration: {e}")
+                # Iterate over all modules in the integrations package
+                for finder, mod_name, is_pkg in pkgutil.iter_modules(integrations_pkg.__path__):
+                    if mod_name in skip_modules:
+                        continue
 
-        # 2. Try to load GitLab integration
-        try:
-            from .integrations.gitlab_magic import load_ipython_extension as load_gitlab
-
-            load_gitlab(ipython)
-            logger.info("Loaded GitLab integration")
-        except ImportError:
-            logger.info("GitLab package not available. GitLab integration not loaded.")
-        except Exception as e:
-            logger.warning(f"Failed to load GitLab integration: {e}")
-
-        # 3. Try to load GitHub integration
-        try:
-            from .integrations.github_magic import load_ipython_extension as load_github
-
-            load_github(ipython)
-            logger.info("Loaded GitHub integration")
-        except ImportError:
-            logger.info("GitHub package not available. GitHub integration not loaded.")
-        except Exception as e:
-            logger.warning(f"Failed to load GitHub integration: {e}")
-
-        # 4. Try to load Confluence integration
-        try:
-            from .integrations.confluence_magic import (
-                load_ipython_extension as load_confluence,
-            )
-
-            load_confluence(ipython)
-            logger.info("Loaded Confluence integration")
-        except ImportError:
-            logger.info("Confluence package not available. Confluence integration not loaded.")
-        except Exception as e:
-            logger.warning(f"Failed to load Confluence integration: {e}")
-
-        # 5. Try to load WebContent integration
-        try:
-            from .integrations.webcontent_magic import (
-                load_ipython_extension as load_webcontent,
-            )
-
-            load_webcontent(ipython)
-            logger.info("Loaded WebContent integration")
-        except ImportError:
-            logger.info(
-                "WebContent required libraries not available. WebContent integration not loaded."
-            )
-        except Exception as e:
-            logger.warning(f"Failed to load WebContent integration: {e}")
-
-        # 6. Try to load GDocs integration
-        try:
-            from .integrations.gdocs_magic import load_ipython_extension as load_gdocs
-
-            load_gdocs(ipython)
-            logger.info("Loaded Google Docs integration")
-        except ImportError:
-            logger.info(
-                "Google Docs API libraries not available. Google Docs integration not loaded."
-            )
-        except Exception as e:
-            logger.warning(f"Failed to load Google Docs integration: {e}")
+                    full_name = f"{integrations_pkg.__name__}.{mod_name}"
+                    try:
+                        module = importlib.import_module(full_name)
+                        loader = getattr(module, "load_ipython_extension", None)
+                        if callable(loader):
+                            loader(ipython)
+                            logger.info(f"Loaded integration: {mod_name}")
+                    except ImportError as e:
+                        logger.debug(f"Skipped integration {mod_name}: {e}")
+                    except Exception as e:
+                        logger.warning(f"Error loading integration {mod_name}: {e}")
+            except Exception as e:
+                logger.error(f"Error during dynamic integration loading: {e}")
 
         if not primary_extension_loaded:
             print("⚠️ CellMage core functionality could not be loaded")
@@ -199,26 +152,36 @@ def load_ipython_extension(ipython):
 # Unload extension
 def unload_ipython_extension(ipython):
     """Unregisters the magics from the IPython runtime."""
+    import importlib
+    import pkgutil
+
     try:
         # Try to unload the refactored magic commands
         try:
             from .magic_commands import unload_ipython_extension as unload_magics
 
             unload_magics(ipython)
-            return
+            # Continue with integrations rather than returning
         except (ImportError, AttributeError):
             pass
 
-        # Try to unload SQLite extension as fallback
+        # Dynamically unload all integrations if possible
         try:
-            from .integrations.sqlite_magic import (
-                unload_ipython_extension as unload_sqlite,
-            )
+            import cellmage.integrations as integrations_pkg
 
-            unload_sqlite(ipython)
-            return
-        except (ImportError, AttributeError):
-            logger.warning("Could not unload SQLite extension")
+            for finder, mod_name, is_pkg in pkgutil.iter_modules(integrations_pkg.__path__):
+                full_name = f"{integrations_pkg.__name__}.{mod_name}"
+                try:
+                    module = importlib.import_module(full_name)
+                    unloader = getattr(module, "unload_ipython_extension", None)
+                    if callable(unloader):
+                        unloader(ipython)
+                        logger.info(f"Unloaded integration: {mod_name}")
+                except Exception:
+                    # Silent failure for unloading is acceptable
+                    pass
+        except Exception as e:
+            logger.debug(f"Error during dynamic integration unloading: {e}")
 
     except Exception as e:
         logger.error(f"Error unloading CellMage extension: {e}")

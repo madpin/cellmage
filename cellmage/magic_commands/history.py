@@ -5,7 +5,10 @@ This module provides the history management and persistence commands for CellMag
 """
 
 import logging
+import os
 from typing import Any, Dict, List
+
+from cellmage.magic_commands.core import extract_metadata_for_status
 
 from ..chat_manager import ChatManager
 from ..conversation_manager import ConversationManager
@@ -72,9 +75,10 @@ def handle_history_commands(args, manager: ChatManager) -> bool:
             # First, display a summary of models used in the conversation
             models_used = {}
             for msg in history:
-                if msg.metadata and "model_used" in msg.metadata:
-                    model = msg.metadata.get("model_used", "")
-                    if model:
+                if msg.metadata:
+                    meta = extract_metadata_for_status(msg.metadata)
+                    model = meta.get("model_used") or meta.get("model") or ""
+                    if model and msg.role == "assistant":
                         models_used[model] = models_used.get(model, 0) + 1
 
             if models_used:
@@ -87,11 +91,11 @@ def handle_history_commands(args, manager: ChatManager) -> bool:
 
             # Display the messages with improved formatting
             for i, msg in enumerate(history):
-                # Get metadata values with defaults
-                tokens_in = msg.metadata.get("tokens_in", 0) if msg.metadata else 0
-                tokens_out = msg.metadata.get("tokens_out", 0) if msg.metadata else 0
-                model_used = msg.metadata.get("model_used", "") if msg.metadata else ""
-                cost_str = msg.metadata.get("cost_str", "") if msg.metadata else ""
+                meta = extract_metadata_for_status(msg.metadata) if msg.metadata else {}
+                tokens_in = meta.get("tokens_in", 0)
+                tokens_out = meta.get("tokens_out", 0)
+                model_used = meta.get("model_used") or meta.get("model") or ""
+                cost_str = meta.get("cost_str") or meta.get("cost") or ""
 
                 # Determine role icon and create a formatted role label
                 role_icon = ""
@@ -169,34 +173,16 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
     if args.list_sessions:
         action_taken = True
         try:
-            # Check which method is available for listing sessions
-            sessions = []
-            method_used = None
-
-            if hasattr(manager, "list_saved_sessions"):
-                sessions = manager.list_saved_sessions()
-                method_used = "list_saved_sessions"
-            elif hasattr(manager, "list_conversations"):
-                sessions = manager.list_conversations()
-                method_used = "list_conversations"
-            elif hasattr(manager, "history_manager") and hasattr(
-                manager.history_manager, "list_saved_conversations"
-            ):
-                sessions = manager.history_manager.list_saved_conversations()
-                method_used = "history_manager.list_saved_conversations"
-            else:
-                raise AttributeError(
-                    "No method found for listing sessions. Make sure a conversations directory exists."
-                )
-
-            # Format the output in a user-friendly way
+            sessions = manager.conversation_manager.list_conversations()
+            method_used = "conversation_manager.list_conversations"
             print("══════════════════════════════════════════════════════════")
             print("  📋 Saved Sessions")
             print("══════════════════════════════════════════════════════════")
-
             if sessions:
-                for session in sorted(sessions):
-                    print(f"  • {session}")
+                for session in sessions:
+                    # Print name if available, else id
+                    name = session.get("name") or session.get("id") or str(session)
+                    print(f"  • {name}")
                 print("──────────────────────────────────────────────────────────")
                 print(f"  Total: {len(sessions)} session(s)")
                 print("  Use: %llm_config --load SESSION_NAME to load a session")
@@ -205,7 +191,6 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
                 if hasattr(manager, "settings") and hasattr(manager.settings, "conversations_dir"):
                     print(f"  Sessions directory: {manager.settings.conversations_dir}")
                 print("  Use: %llm_config --save SESSION_NAME to save the current conversation")
-
             print("══════════════════════════════════════════════════════════")
             logger.debug(f"Listed {len(sessions)} sessions using {method_used}")
         except Exception as e:
@@ -213,9 +198,6 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
             if hasattr(manager, "settings") and hasattr(manager.settings, "conversations_dir"):
                 conversations_dir = manager.settings.conversations_dir
                 print(f"  Please make sure the directory exists: {conversations_dir}")
-                # Try to check if the directory exists
-                import os
-
                 if not os.path.exists(conversations_dir):
                     print(
                         f"  ℹ️ The conversations directory does not exist. Creating it at: {conversations_dir}"
@@ -267,26 +249,14 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
     if args.load:
         action_taken = True
         try:
-            # Check which method is available for loading sessions
             session_id = args.load
 
             print("══════════════════════════════════════════════════════════")
             print(f"  📂 Loading Session: {session_id}")
             print("══════════════════════════════════════════════════════════")
 
-            if hasattr(manager, "load_session"):
-                manager.load_session(session_id)
-                method = "load_session"
-            elif hasattr(manager, "load_conversation"):
-                manager.load_conversation(session_id)
-                method = "load_conversation"
-            elif hasattr(manager, "history_manager") and hasattr(
-                manager.history_manager, "load_conversation"
-            ):
-                manager.history_manager.load_conversation(session_id)
-                method = "history_manager.load_conversation"
-            else:
-                raise AttributeError("No method found for loading sessions")
+            manager.conversation_manager.load_conversation(session_id)
+            method = "conversation_manager.load_conversation"
 
             # Try to get history length after loading
             try:
@@ -300,23 +270,6 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
 
         except ResourceNotFoundError:
             print(f"  ❌ Session '{session_id}' not found.")
-            # Try to list available sessions for user convenience
-            if hasattr(manager, "list_saved_sessions") or hasattr(manager, "list_conversations"):
-                print("  Available sessions:")
-                try:
-                    if hasattr(manager, "list_saved_sessions"):
-                        sessions = manager.list_saved_sessions()
-                    elif hasattr(manager, "list_conversations"):
-                        sessions = manager.list_conversations()
-
-                    # Show up to 5 available sessions
-                    if sessions:
-                        for i, session in enumerate(sorted(sessions)[:5]):
-                            print(f"  • {session}")
-                        if len(sessions) > 5:
-                            print(f"  • ... and {len(sessions) - 5} more")
-                except Exception:
-                    pass
             print("══════════════════════════════════════════════════════════")
         except PersistenceError as e:
             print(f"  ❌ Error loading session: {e}")
@@ -334,54 +287,34 @@ def handle_persistence_commands(args, manager: ChatManager) -> bool:
             print("══════════════════════════════════════════════════════════")
             print("  💾 Saving Session")
             print("══════════════════════════════════════════════════════════")
-
-            # Convert True to None for default behavior if --save was used without argument
             filename = args.save if isinstance(args.save, str) else None
             if filename is not None:
                 print(f"  • Name: {filename}")
-
-            # Check which method is available for saving sessions
-            if hasattr(manager, "save_session"):
-                save_path = manager.save_session(identifier=filename)
-                method = "save_session"
-            elif hasattr(manager, "save_conversation"):
-                save_path = manager.save_conversation(filename)
-                method = "save_conversation"
-            elif hasattr(manager, "history_manager") and hasattr(
-                manager.history_manager, "save_conversation"
-            ):
-                save_path = manager.history_manager.save_conversation(filename)
-                method = "history_manager.save_conversation"
-            else:
-                raise AttributeError("No method found for saving sessions")
-
-            # Make the path more user-friendly by showing relative path if inside conversations_dir
+            save_path = (
+                manager.conversation_manager._save_current_conversation()
+            )  # Use internal save method
+            method = "conversation_manager._save_current_conversation"
             try:
                 if hasattr(manager.settings, "conversations_dir"):
                     conv_dir = Path(manager.settings.conversations_dir).resolve()
-                    file_path = Path(save_path).resolve()
-                    if str(file_path).startswith(str(conv_dir)):
-                        # Show path relative to conversations_dir
+                    file_path = Path(save_path).resolve() if save_path else None
+                    if file_path and str(file_path).startswith(str(conv_dir)):
                         rel_path = file_path.relative_to(conv_dir)
                         display_path = f"{conv_dir.name}/{rel_path}"
                     else:
-                        display_path = str(file_path)
+                        display_path = str(file_path) if file_path else str(save_path)
                 else:
                     display_path = save_path
             except Exception:
-                # Fallback to just the filename if the above fails
-                display_path = Path(save_path).name
-
+                display_path = Path(save_path).name if save_path else str(save_path)
             print(f"  ✅ Session saved successfully using '{method}'")
             print(f"  • Path: {display_path}")
             print("══════════════════════════════════════════════════════════")
-
         except PersistenceError as e:
             print(f"  ❌ Error saving session: {e}")
             print("══════════════════════════════════════════════════════════")
         except Exception as e:
             print(f"  ❌ Unexpected error: {e}")
-            # Check if conversations directory exists
             if hasattr(manager, "settings") and hasattr(manager.settings, "conversations_dir"):
                 if not os.path.exists(manager.settings.conversations_dir):
                     print(
@@ -409,8 +342,10 @@ def convert_to_conversation_manager(manager: ChatManager) -> ConversationManager
     conversation_manager = ConversationManager(context_provider=manager.context_provider)
 
     # Copy messages from the chat manager's history
-    if hasattr(manager, "history_manager") and hasattr(manager.history_manager, "get_history"):
-        messages = manager.history_manager.get_history()
+    if hasattr(manager, "conversation_manager") and hasattr(
+        manager.conversation_manager, "get_messages"
+    ):
+        messages = manager.conversation_manager.get_messages()
         for msg in messages:
             conversation_manager.add_message(msg)
 

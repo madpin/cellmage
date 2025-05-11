@@ -85,16 +85,24 @@ def get_previous_tag(current_tag):
 
 
 def get_commit_messages(since_tag, current_tag):
-    """Get commit messages between two tags."""
+    """Get commit messages between two tags. If current_tag does not exist, use HEAD."""
     try:
+        # Check if current_tag exists as a git ref
+        tag_exists = False
+        if current_tag:
+            try:
+                subprocess.check_output(
+                    ["git", "rev-parse", "--verify", current_tag], stderr=subprocess.STDOUT
+                )
+                tag_exists = True
+            except subprocess.CalledProcessError:
+                tag_exists = False
+
+        end_ref = current_tag if tag_exists else "HEAD"
         if since_tag:
-            # Use the current_tag instead of HEAD to limit commits to only those
-            # relevant for the current version
-            range_spec = f"{since_tag}..{current_tag}"
+            range_spec = f"{since_tag}..{end_ref}"
         else:
-            # If no since_tag is provided, limit to the current tag
-            # or use HEAD if current_tag is not available
-            range_spec = current_tag if current_tag else "HEAD"
+            range_spec = end_ref
 
         commits = subprocess.check_output(
             ["git", "log", range_spec, "--pretty=format:%s (%h)"],
@@ -203,6 +211,7 @@ etc.
             logger.error(f"Error generating changelog with model {model_name}: {e}")
             if model_name == models[-1]:
                 logger.error("All models failed to generate changelog")
+                raise
             else:
                 logger.info("Trying next model in fallback list")
 

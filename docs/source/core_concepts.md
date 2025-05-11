@@ -70,14 +70,17 @@ conversation_manager = ConversationManager(
 
 Located in: `cellmage/conversation_manager.py`
 
-**HistoryManager** focuses on the in-memory manipulation of the current conversation:
+**HistoryManager** (Deprecated) focused on the in-memory manipulation of the current conversation. Use **ConversationManager** for all new development.
+
 - Adding messages to the current conversation
 - Clearing or rolling back the conversation
 - Managing the conversation context window
 - Handling auto-save functionality
 
+> **Deprecated:** `HistoryManager` is deprecated and will be removed in a future release. Please migrate to `ConversationManager`.
+
 ```ipython
-# HistoryManager manages the current conversation
+# HistoryManager manages the current conversation (deprecated)
 history_manager = HistoryManager(
     conversation_store=store,   # Where to persist history
     auto_save=True              # Whether to save automatically

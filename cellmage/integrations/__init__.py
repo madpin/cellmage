@@ -2,28 +2,15 @@
 Integration modules for CellMage.
 
 This package provides integrations with various third-party services and systems.
+Each integration module can define a `load_ipython_extension(ipython)` function to
+register itself with IPython when CellMage is loaded.
 """
 
-from . import (
-    base_magic,
-    confluence_magic,
-    gdocs_magic,
-    github_magic,
-    gitlab_magic,
-    image_magic,
-    jira_magic,
-    sqlite_magic,
-    webcontent_magic,
-)
+import pkgutil
+import sys
 
-__all__ = [
-    "base_magic",
-    "confluence_magic",
-    "gdocs_magic",
-    "github_magic",
-    "gitlab_magic",
-    "image_magic",
-    "jira_magic",
-    "sqlite_magic",
-    "webcontent_magic",
-]
+# Dynamically discover all integration modules
+__all__ = []
+for loader, module_name, is_pkg in pkgutil.iter_modules(__path__):
+    if module_name != "__pycache__":
+        __all__.append(module_name)

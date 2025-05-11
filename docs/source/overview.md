@@ -7,7 +7,7 @@ CellMage is your magical companion for Jupyter notebooks, transforming ordinary 
 Under the hood, CellMage consists of several powerful magical components working together:
 
 - **🧠 ChatManager**: The central orchestrator that handles LLM interactions and manages the conversation flow
-- **📜 HistoryManager**: Keeps track of your conversation history and manages message persistence
+- **📜 HistoryManager**: (Deprecated) Previously kept track of your conversation history and managed message persistence. Use **ConversationManager** instead.
 - **🎭 Personas**: Predefined AI personalities with specific system prompts and parameters
 - **📋 Snippets**: Reusable context blocks that can be injected into conversations
 - **🔌 Adapters**: Connects to different LLM providers (OpenAI, compatible APIs, and more)

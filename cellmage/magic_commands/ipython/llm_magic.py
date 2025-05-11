@@ -4,11 +4,14 @@ Core LLM magic commands for CellMage.
 This module provides the %%llm cell magic for sending prompts to LLMs.
 """
 
+import sys
 import time
 import uuid
 
 from IPython.core.magic import cell_magic, magics_class
 from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
+
+from cellmage.magic_commands.core import extract_metadata_for_status
 
 from ...context_providers.ipython_context_provider import get_ipython_context_provider
 from ...models import Message
@@ -97,22 +100,24 @@ class CoreLLMMagics(IPythonMagicsBase):
                 # If using an external persona (starts with / or .), ensure its system message is added
                 # and it's the first system message
                 if (
-                    args.persona.startswith("/") or args.persona.startswith(".")
-                ) and temp_persona.system_message:
+                    (args.persona.startswith("/") or args.persona.startswith("."))
+                    and temp_persona is not None
+                    and getattr(temp_persona, "system_message", None)
+                ):
                     logger.info(f"Using external file persona: {args.persona}")
 
                     # Get current history
-                    current_history = manager.history_manager.get_history()
+                    current_history = manager.get_history()
 
                     # Extract system and non-system messages
                     system_messages = [m for m in current_history if m.role == "system"]
                     non_system_messages = [m for m in current_history if m.role != "system"]
 
                     # Clear the history
-                    manager.history_manager.clear_history(keep_system=False)
+                    manager.clear_history(keep_system=False)
 
                     # Add persona system message first
-                    manager.history_manager.add_message(
+                    manager.conversation_manager.add_message(
                         Message(
                             role="system", content=temp_persona.system_message, id=str(uuid.uuid4())
                         )
@@ -120,11 +125,11 @@ class CoreLLMMagics(IPythonMagicsBase):
 
                     # Re-add all existing system messages
                     for msg in system_messages:
-                        manager.history_manager.add_message(msg)
+                        manager.conversation_manager.add_message(msg)
 
                     # Re-add all non-system messages
                     for msg in non_system_messages:
-                        manager.history_manager.add_message(msg)
+                        manager.conversation_manager.add_message(msg)
             else:
                 # If persona not found, log available personas and warn the user
                 available_personas = (
@@ -186,7 +191,8 @@ class CoreLLMMagics(IPythonMagicsBase):
             # Call the ChatManager's chat method
             result = manager.chat(
                 prompt=prompt,
-                persona_name=args.persona,
+                persona_name=args.persona if args.persona else None,
+                model=args.model if args.model else None,
                 stream=args.stream,
                 add_to_history=args.add_to_history,
                 auto_rollback=args.auto_rollback,
@@ -197,63 +203,51 @@ class CoreLLMMagics(IPythonMagicsBase):
             if (
                 args.model
                 and hasattr(manager, "llm_client")
+                and manager.llm_client is not None
                 and hasattr(manager.llm_client, "set_override")
             ):
                 if original_model is not None:
                     manager.llm_client.set_override("model", original_model)
                     logger.debug(f"Restored original model override: {original_model}")
-                else:
+                elif hasattr(manager.llm_client, "remove_override"):
                     manager.llm_client.remove_override("model")
                     logger.debug("Removed temporary model override")
 
             # If result is successful, mark as success and collect status info
             if result:
                 status_info["success"] = True
-                # Add the response content to status_info for copying
                 status_info["response_content"] = result
                 try:
-                    history = manager.history_manager.get_history()
+                    history = manager.get_history()
+                    from cellmage.magic_commands.core import get_last_assistant_metadata
 
-                    # Calculate total tokens for the entire conversation
-                    total_tokens_in = 0
-                    total_tokens_out = 0
-
-                    for msg in history:
-                        if msg.metadata:
-                            total_tokens_in += msg.metadata.get("tokens_in", 0) or 0
-                            total_tokens_out += msg.metadata.get("tokens_out", 0) or 0
-
-                    # Set the total tokens for display in status bar
-                    status_info["tokens_in"] = float(total_tokens_in)
-                    status_info["tokens_out"] = float(total_tokens_out)
-
-                    # Add API-reported cost if available (from the most recent assistant message)
-                    if len(history) >= 1 and history[-1].role == "assistant":
-                        status_info["cost_str"] = history[-1].metadata.get("cost_str", "")
-                        status_info["model_used"] = history[-1].metadata.get("model_used", "")
+                    last_meta = get_last_assistant_metadata(history)
+                    status_info.update(extract_metadata_for_status(last_meta))
                 except Exception as e:
-                    logger.warning(f"Error retrieving status info from history: {e}")
+                    logger.error(f"Error extracting metadata for status bar: {e}")
 
         except Exception as e:
-            print(f"❌ LLM Error: {e}")
+            print(f"❌ LLM Error: {e}", file=sys.stderr)
             logger.error(f"Error during LLM call: {e}")
-            # Add error message to status_info for copying
             status_info["response_content"] = f"Error: {str(e)}"
 
             # Make sure to restore model override even on error
             if (
                 args.model
                 and hasattr(manager, "llm_client")
+                and manager.llm_client is not None
                 and hasattr(manager.llm_client, "set_override")
             ):
                 if original_model is not None:
                     manager.llm_client.set_override("model", original_model)
-                else:
+                elif hasattr(manager.llm_client, "remove_override"):
                     manager.llm_client.remove_override("model")
                 logger.debug("Restored model override after error")
         finally:
             status_info["duration"] = time.time() - start_time
-            # Always display status bar
+            # Always ensure model_used is present for the status bar
+            if "model_used" not in status_info:
+                status_info["model_used"] = status_info.get("model", "")
             context_provider.display_status(status_info)
 
         return None

@@ -43,6 +43,7 @@ api/index
 :caption: 🧙‍♂️ Developer Guide
 
 developer/index
+developer/magic_commands_testing
 refactored_magic_architecture
 CHANGELOG
 ```

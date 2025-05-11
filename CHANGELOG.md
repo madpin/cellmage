@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v0.9.1](https://github.com/madpin/cellmage/releases/tag/v0.9.1) - 2025-05-11
+
+### Changed
+- Refactored the release script to improve version bumping and changelog generation processes.
+
+### Fixed
+- Improved changelog generation by handling cases with non-existent current tags and ensuring the version is updated before generation.
+
+
+## [v0.9.0](https://github.com/madpin/cellmage/releases/tag/v0.9.0) - 2025-05-11
+
+### Deprecated
+- `HistoryManager` is now deprecated and will be removed in a future release. Please use `ConversationManager` for all conversation and history management.
+
 ## [v0.8.3](https://github.com/madpin/cellmage/releases/tag/v0.8.3) - 2025-05-08
 
 ## [v0.8.2](https://github.com/madpin/cellmage/releases/tag/v0.8.2) - 2025-05-08

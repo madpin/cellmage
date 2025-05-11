@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 
 # IPython imports with fallback handling
 try:
-    from IPython.core.magic import Magics
+    from IPython.core.magic import Magics, magics_class
 
     _IPYTHON_AVAILABLE = True
 except ImportError:
@@ -22,17 +22,22 @@ except ImportError:
 
     Magics = DummyMagics  # Type alias for compatibility
 
+    # Define a dummy decorator if IPython is not available
+    def magics_class(cls):
+        return cls
+
+
 from ...chat_manager import ChatManager
 from ...context_providers.ipython_context_provider import get_ipython_context_provider
 
 # Project imports
-from ...integrations.base_magic import BaseMagics
+# Note: Avoiding circular import by not directly importing BaseMagics
+# Instead, we'll use the already imported Magics class since we're decorating it properly
 
 # Logging setup
 logger = logging.getLogger(__name__)
 
-# --- Global Instance Management ---
-_chat_manager_instance: Optional[ChatManager] = None
+# --- Manager initialization function ---
 _initialization_error: Optional[Exception] = None
 
 
@@ -105,27 +110,41 @@ def _init_default_manager() -> ChatManager:
 
 
 def get_chat_manager() -> ChatManager:
-    """Gets or creates the singleton ChatManager instance."""
-    global _chat_manager_instance
-    if _chat_manager_instance is None:
-        if _initialization_error:
+    """Gets the ChatManager instance from IPython user namespace."""
+    try:
+        from IPython import get_ipython
+
+        ipython = get_ipython()
+        if not ipython:
+            raise RuntimeError("IPython shell not available")
+
+        # Access the ChatManager from the user namespace dictionary
+        if "_cellmage_chat_manager" not in ipython.user_ns:
+            if _initialization_error:
+                raise RuntimeError(
+                    f"NotebookLLM previously failed to initialize: {_initialization_error}"
+                ) from _initialization_error
             raise RuntimeError(
-                f"NotebookLLM previously failed to initialize: {_initialization_error}"
-            ) from _initialization_error
-        logger.debug("ChatManager instance not found, attempting initialization.")
-        _chat_manager_instance = _init_default_manager()
+                "ChatManager not found. Please ensure the extension was loaded properly."
+            )
 
-    return _chat_manager_instance
+        return ipython.user_ns["_cellmage_chat_manager"]
+    except ImportError:
+        raise RuntimeError("IPython not available")
+    except Exception as e:
+        raise RuntimeError(f"Error retrieving ChatManager: {e}")
 
 
-class IPythonMagicsBase(BaseMagics):
+@magics_class
+class IPythonMagicsBase(Magics):
     """Base class for all IPython magic commands in CellMage."""
 
-    def __init__(self, shell):
+    def __init__(self, shell=None):
         if not _IPYTHON_AVAILABLE:
             logger.warning("IPython not found. NotebookLLM magics are disabled.")
-            return
+            return  # Don't call super().__init__ when IPython is not available
 
+        # Only call super().__init__ when IPython is available
         super().__init__(shell)
         try:
             get_chat_manager()

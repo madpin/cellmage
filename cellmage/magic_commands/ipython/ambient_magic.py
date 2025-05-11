@@ -12,6 +12,8 @@ from IPython import get_ipython
 from IPython.core.magic import cell_magic, line_magic, magics_class
 from IPython.core.magic_arguments import argument, magic_arguments
 
+from cellmage.magic_commands.core import extract_metadata_for_status
+
 from ...ambient_mode import (
     disable_ambient_mode,
     enable_ambient_mode,
@@ -149,6 +151,8 @@ class AmbientModeMagics(IPythonMagicsBase):
 
         if not is_ambient_mode_enabled():
             enable_ambient_mode(ip)
+            # Register the handler again to ensure it's set for persistent mode
+            register_ambient_handler(process_cell_as_prompt)
             print("══════════════════════════════════════════════════════════")
             print("  🔄 Ambient Mode Enabled")
             print("══════════════════════════════════════════════════════════")
@@ -204,28 +208,53 @@ class AmbientModeMagics(IPythonMagicsBase):
             print("❌ IPython not available. Cannot execute cell.", file=sys.stderr)
             return
 
+        import contextlib
+        import io
+
+        from IPython.display import Markdown
+
         try:
             # Get the shell from self.shell (provided by the Magics base class)
             shell = self.shell
 
-            # Execute the cell as normal Python code in the user's namespace
-            logger.info("Executing cell as normal Python code via %%py magic")
+            # Capture stdout during execution
+            stdout_buffer = io.StringIO()
 
-            # Run the cell in the user's namespace
-            result = shell.run_cell(cell)
+            # Execute with stdout capture
+            with contextlib.redirect_stdout(stdout_buffer):
+                logger.info("Executing cell as normal Python code via %%py magic")
+
+                # Run the cell in the user's namespace
+                result = shell.run_cell(cell)
+
+            # Get captured stdout
+            output = stdout_buffer.getvalue()
 
             # Handle execution errors
             if result.error_before_exec or result.error_in_exec:
-                if result.error_in_exec:
-                    print(f"❌ Error during execution: {result.error_in_exec}", file=sys.stderr)
-                else:
-                    print(f"❌ Error before execution: {result.error_before_exec}", file=sys.stderr)
+                error = result.error_in_exec or result.error_before_exec
+                error_msg = f"❌ Error: {error}"
+                print(error_msg, file=sys.stderr)
+                # Return markdown with error
+                return Markdown(f"```\n{error_msg}\n```\n*Python execution failed*")
+
+            # Format the output as markdown
+            md_output = f"```\n{output.rstrip()}\n```"
+
+            # Include the result if it's not None and different from the output
+            if result.result is not None and str(result.result) != output.rstrip():
+                md_output += f"\n\n*Result:* `{result.result}`"
+
+            md_output += "\n\n*Executed Python code successfully*"
+
+            # Return as markdown for better display in notebooks
+            return Markdown(md_output)
 
         except Exception as e:
-            print(f"❌ Error executing Python cell: {e}", file=sys.stderr)
+            error_msg = f"❌ Error executing Python cell: {e}"
+            print(error_msg, file=sys.stderr)
             logger.error(f"Error during %%py execution: {e}")
-
-        return None
+            return Markdown(f"```\n{error_msg}\n```\n*Python execution failed*")
 
     def process_cell_as_prompt(self, cell_content: str) -> None:
         """Process a regular code cell as an LLM prompt in ambient mode."""
@@ -262,39 +291,25 @@ class AmbientModeMagics(IPythonMagicsBase):
             # If result is successful, mark as success
             if result:
                 status_info["success"] = True
-                # Add the response content to status_info for copying
                 status_info["response_content"] = result
                 try:
-                    history = manager.history_manager.get_history()
+                    from cellmage.magic_commands.core import get_last_assistant_metadata
 
-                    # Calculate total tokens for the entire conversation
-                    total_tokens_in = 0
-                    total_tokens_out = 0
-
-                    for msg in history:
-                        if msg.metadata:
-                            total_tokens_in += msg.metadata.get("tokens_in", 0) or 0
-                            total_tokens_out += msg.metadata.get("tokens_out", 0) or 0
-
-                    # Set the total tokens for display in status bar
-                    status_info["tokens_in"] = float(total_tokens_in)
-                    status_info["tokens_out"] = float(total_tokens_out)
-
-                    # Add API-reported cost if available (from the most recent assistant message)
-                    if len(history) >= 1 and history[-1].role == "assistant":
-                        status_info["cost_str"] = history[-1].metadata.get("cost_str", "")
-                        status_info["model_used"] = history[-1].metadata.get("model_used", "")
+                    history = manager.get_history()
+                    last_meta = get_last_assistant_metadata(history)
+                    status_info.update(extract_metadata_for_status(last_meta))
                 except Exception as e:
-                    logger.warning(f"Error retrieving status info from history: {e}")
+                    logger.error(f"Error computing status bar statistics: {e}")
 
         except Exception as e:
             print(f"❌ LLM Error (Ambient Mode): {e}", file=sys.stderr)
             logger.error(f"Error during LLM call in ambient mode: {e}")
-            # Add error message to status_info for copying
             status_info["response_content"] = f"Error: {str(e)}"
         finally:
             status_info["duration"] = time.time() - start_time
-            # Display status bar
+            # Always ensure model_used is present for the status bar
+            if "model_used" not in status_info:
+                status_info["model_used"] = status_info.get("model", "")
             context_provider.display_status(status_info)
 
     @line_magic("llm_magic")

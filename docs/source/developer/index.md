@@ -41,15 +41,17 @@ Key components:
 
 ## 🧱 Core Classes
 
-| Class | Purpose |
-|-------|---------|
-| `ChatManager` | Central orchestrator for LLM interactions |
-| `ConversationManager` | Manages conversation history and state |
-| `BaseMagic` | Base class for all magic commands |
-| `DirectClient` | Adapter for direct API calls |
-| `LangchainClient` | Adapter for Langchain integration |
-| `SQLiteStore` | Storage implementation using SQLite |
-| `MarkdownStore` | Storage implementation using Markdown files |
+| Class                 | Purpose                                     |
+| --------------------- | ------------------------------------------- |
+| `ChatManager`         | Central orchestrator for LLM interactions   |
+| `ConversationManager` | Manages conversation history and state      |
+| `BaseMagic`           | Base class for all magic commands           |
+| `DirectClient`        | Adapter for direct API calls                |
+| `LangchainClient`     | Adapter for Langchain integration           |
+| `SQLiteStore`         | Storage implementation using SQLite         |
+| `MarkdownStore`       | Storage implementation using Markdown files |
+
+> **Note:** `HistoryManager` is deprecated. Use `ConversationManager` for all conversation and history management.
 
 ## 🛠️ Development Setup
 
@@ -80,7 +82,12 @@ pytest
 # Run specific test categories
 pytest tests/unit
 pytest tests/integration
+
+# Run magic commands tests specifically
+python tests/run_magic_tests.py
 ```
+
+For more details on testing magic commands, see [Magic Commands Testing](magic_commands_testing.md).
 
 ### Building Documentation
 

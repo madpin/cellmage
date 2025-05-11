@@ -35,6 +35,8 @@ except ImportError:
         return lambda func: func
 
 
+from cellmage.magic_commands.core import extract_metadata_for_status
+
 # Import the base magic class
 from .base_magic import BaseMagics
 
@@ -48,7 +50,7 @@ try:
         get_ipython_context_provider,
     )
     from ..conversation_manager import ConversationManager
-    from ..magic_commands import history, persistence
+    from ..magic_commands import history
     from ..magic_commands.ipython.common import get_chat_manager
 
     _SQLITE_AVAILABLE = True
@@ -74,23 +76,14 @@ class SQLiteCellMagics(BaseMagics):
         """Set up the conversation manager."""
         try:
             # Try to get the chat manager first for compatibility
-            chat_manager = get_chat_manager()
+            get_chat_manager()
 
             # Now create or get the conversation manager
             if self.conversation_manager is None:
                 context_provider = get_ipython_context_provider()
-
-                # Check if we should migrate from existing chat manager
-                if hasattr(chat_manager, "history_manager") and chat_manager.history_manager:
-                    # Migrate existing history
-                    self.conversation_manager = persistence.migrate_to_sqlite(chat_manager)
-                    logger.info("Migrated existing history to SQLite storage")
-                else:
-                    # Create a new conversation manager
-                    self.conversation_manager = ConversationManager(
-                        context_provider=context_provider
-                    )
-                    logger.info("Created new SQLite-backed ConversationManager")
+                # Always create a new ConversationManager
+                self.conversation_manager = ConversationManager(context_provider=context_provider)
+                logger.info("Created new SQLite-backed ConversationManager")
 
             logger.info("SQLiteCellMagics initialized successfully")
 
@@ -250,6 +243,12 @@ class SQLiteCellMagics(BaseMagics):
                             metadata = last_msg.metadata.copy()
                 except Exception as e:
                     logger.warning(f"Error extracting metadata from chat history: {e}")
+                # Use extract_metadata_for_status to update status_info
+                if metadata:
+                    status_info.update(extract_metadata_for_status(metadata))
+                # Ensure model_used is always present
+                if "model_used" not in status_info:
+                    status_info["model_used"] = status_info.get("model", "")
 
                 # Add assistant message with the extracted metadata
                 response_id = f"ambient_response_{cell_id}_{exec_count}"
@@ -281,7 +280,6 @@ class SQLiteCellMagics(BaseMagics):
                 status_info["tokens_in"] = float(tokens_in)
                 status_info["tokens_out"] = float(tokens_out)
                 status_info["cost_str"] = metadata.get("cost_str", "")
-                status_info["model_used"] = metadata.get("model_used", "")
 
         except Exception as e:
             print(f"❌ LLM Error (Ambient Mode): {e}", file=sys.stderr)
@@ -437,6 +435,12 @@ class SQLiteCellMagics(BaseMagics):
                             metadata = last_msg.metadata.copy()
                 except Exception as e:
                     logger.warning(f"Error extracting metadata from chat history: {e}")
+                # Use extract_metadata_for_status to update status_info
+                if metadata:
+                    status_info.update(extract_metadata_for_status(metadata))
+                # Ensure model_used is always present
+                if "model_used" not in status_info:
+                    status_info["model_used"] = status_info.get("model", "")
 
                 # Add assistant message with the result using _add_to_history
                 response_id = f"response_{cell_id}_{exec_count}"
@@ -461,7 +465,6 @@ class SQLiteCellMagics(BaseMagics):
                 status_info["tokens_in"] = float(tokens_in)
                 status_info["tokens_out"] = float(tokens_out)
                 status_info["cost_str"] = metadata.get("cost_str", "")
-                status_info["model_used"] = metadata.get("model_used", "")
 
         except Exception as e:
             print(f"❌ LLM Error: {e}", file=sys.stderr)

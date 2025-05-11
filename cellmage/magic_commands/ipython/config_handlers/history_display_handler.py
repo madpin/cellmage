@@ -8,6 +8,8 @@ import datetime
 import logging
 from typing import Any
 
+from cellmage.magic_commands.core import extract_metadata_for_status
+
 from ....utils.token_utils import count_tokens
 from .base_config_handler import BaseConfigHandler
 
@@ -121,9 +123,10 @@ class HistoryDisplayHandler(BaseConfigHandler):
                 # First, display a summary of models used in the conversation
                 models_used = {}
                 for msg in history:
-                    if msg.metadata and "model_used" in msg.metadata:
-                        model = msg.metadata.get("model_used", "")
-                        if model:
+                    if msg.metadata:
+                        meta = extract_metadata_for_status(msg.metadata)
+                        model = meta.get("model_used") or meta.get("model") or ""
+                        if model and msg.role == "assistant":
                             models_used[model] = models_used.get(model, 0) + 1
 
                 if models_used:
@@ -163,11 +166,11 @@ class HistoryDisplayHandler(BaseConfigHandler):
 
                 # Display the messages with improved formatting
                 for i, msg in enumerate(history):
-                    # Get metadata values with defaults
-                    tokens_in = msg.metadata.get("tokens_in", 0) if msg.metadata else 0
-                    tokens_out = msg.metadata.get("tokens_out", 0) if msg.metadata else 0
-                    model_used = msg.metadata.get("model_used", "") if msg.metadata else ""
-                    cost_str = msg.metadata.get("cost_str", "") if msg.metadata else ""
+                    meta = extract_metadata_for_status(msg.metadata) if msg.metadata else {}
+                    tokens_in = meta.get("tokens_in", 0)
+                    tokens_out = meta.get("tokens_out", 0)
+                    model_used = meta.get("model_used") or meta.get("model") or ""
+                    cost_str = meta.get("cost_str") or meta.get("cost") or ""
                     is_estimated = False
 
                     # Estimate tokens if they don't exist in metadata but message has content
@@ -183,8 +186,8 @@ class HistoryDisplayHandler(BaseConfigHandler):
                         )
 
                     # Get integration source if available
-                    source = msg.metadata.get("source", "") if msg.metadata else ""
-                    source_type = msg.metadata.get("type", "") if msg.metadata else ""
+                    source = meta.get("source", "")
+                    source_type = meta.get("type", "")
 
                     # Mark any message with a source as an integration message
                     is_integration = bool(source)
@@ -250,8 +253,8 @@ class HistoryDisplayHandler(BaseConfigHandler):
                     meta_items = []
 
                     # Add source-specific ID if available
-                    if msg.metadata and source:
-                        for key, value in msg.metadata.items():
+                    if source:
+                        for key, value in meta.items():
                             if key.endswith("_id") and value and key != "cell_id":
                                 meta_items.append(f"{source} ID: {value}")
                                 break
@@ -267,9 +270,9 @@ class HistoryDisplayHandler(BaseConfigHandler):
                         meta_items.append(f"Model: {model_used}")
                     if msg.is_snippet:
                         meta_items.append("Snippet: Yes")
-                    if msg.metadata and "timestamp" in msg.metadata:
+                    if "timestamp" in meta:
                         try:
-                            ts = datetime.datetime.fromisoformat(msg.metadata["timestamp"])
+                            ts = datetime.datetime.fromisoformat(meta["timestamp"])
                             meta_items.append(f"Time: {ts.strftime('%H:%M:%S')}")
                         except (ValueError, TypeError):
                             pass
