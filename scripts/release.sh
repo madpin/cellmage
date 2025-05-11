@@ -68,6 +68,11 @@ else
 fi
 NEW_TAG="v$NEXT_VERSION"
 
+# Bump version in version.py before changelog generation
+# Get the updated version after bump
+UPDATED_VERSION=$(python -c 'from cellmage.version import VERSION; print(VERSION)')
+UPDATED_TAG="v$UPDATED_VERSION"
+
 echo "Current version: $CURRENT_TAG"
 echo "Previous tag: $PREV_TAG"
 echo "Next version: $NEW_TAG"
@@ -77,6 +82,7 @@ if [[ $prompt == "y" || $prompt == "Y" || $prompt == "yes" || $prompt == "Yes" |
     # Generate changelog with LLM if API key is provided
     if [[ "$USE_LLM" == true ]]; then
         echo "Generating changelog with LLM..."
+        # Only pass --since-tag, do not pass the new tag as the end of the range
         if ! python scripts/generate_changelog_with_llm.py --since-tag "$PREV_TAG"; then
             echo "WARNING: Failed to generate changelog with LLM. Falling back to basic changelog format."
         fi
