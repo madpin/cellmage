@@ -5,9 +5,11 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from tokencostauto import calculate_completion_cost, calculate_prompt_cost
+
 from .config import Settings
+from .conversation_manager import ConversationManager
 from .exceptions import ConfigurationError, ResourceNotFoundError
-from .history_manager import HistoryManager
 from .interfaces import (
     ContextProvider,
     HistoryStore,
@@ -27,7 +29,7 @@ class ChatManager:
     - LLM client for sending requests
     - Persona loader for personality configurations
     - Snippet provider for loading snippets
-    - History manager for tracking conversation
+    - Conversation manager for tracking conversation
     - Context provider for environment context
     """
 
@@ -37,7 +39,7 @@ class ChatManager:
         llm_client: Optional[LLMClientInterface] = None,
         persona_loader: Optional[PersonaLoader] = None,
         snippet_provider: Optional[SnippetProvider] = None,
-        history_store: Optional[HistoryStore] = None,
+        history_store: Optional[HistoryStore] = None,  # Kept for compatibility, not used
         context_provider: Optional[ContextProvider] = None,
     ):
         """
@@ -62,7 +64,7 @@ class ChatManager:
         self.snippet_provider = snippet_provider
 
         # Initialize model mapper
-        self.model_mapper = ModelMapper()
+        self.model_mapper = ModelMapper(auto_load=True)
 
         # Load model mappings if configured
         if self.settings.model_mappings_file:
@@ -79,10 +81,8 @@ class ChatManager:
         # Store creation timestamp for auto-save filename
         self.creation_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        # Set up history manager
-        self.history_manager = HistoryManager(
-            history_store=history_store, context_provider=context_provider
-        )
+        # Set up conversation manager (replaces history manager)
+        self.conversation_manager = ConversationManager(context_provider=context_provider)
         self.context_provider = context_provider
 
         # Set up session
@@ -138,7 +138,7 @@ class ChatManager:
         # Always add the persona's system message if it has one
         if persona.system_message:
             # Get current history
-            current_history = self.history_manager.get_history()
+            current_history = self.conversation_manager.get_messages()
 
             # Extract system and non-system messages
             system_messages = [m for m in current_history if m.role == "system"]
@@ -147,10 +147,10 @@ class ChatManager:
             # If there are existing system messages, we'll need to reorder
             if system_messages:
                 # Clear the history
-                self.history_manager.clear_history(keep_system=False)
+                self.conversation_manager.clear_messages(keep_system=False)
 
                 # Add persona system message first
-                self.history_manager.add_message(
+                self.conversation_manager.add_message(
                     Message(
                         role="system",
                         content=persona.system_message,
@@ -165,14 +165,14 @@ class ChatManager:
 
                 # Re-add all existing system messages
                 for msg in system_messages:
-                    self.history_manager.add_message(msg)
+                    self.conversation_manager.add_message(msg)
 
                 # Re-add all non-system messages
                 for msg in non_system_messages:
-                    self.history_manager.add_message(msg)
+                    self.conversation_manager.add_message(msg)
             else:
                 # No existing system messages, just add the persona's system message
-                self.history_manager.add_message(
+                self.conversation_manager.add_message(
                     Message(
                         role="system",
                         content=persona.system_message,
@@ -238,7 +238,7 @@ class ChatManager:
             return False
 
         # Add to history
-        self.history_manager.add_message(
+        self.conversation_manager.add_message(
             Message(
                 role=role,
                 content=snippet_content,
@@ -301,7 +301,7 @@ class ChatManager:
 
         # Check for auto rollback
         if auto_rollback and cell_id is not None:
-            self.history_manager.perform_rollback(cell_id)
+            self.conversation_manager.perform_rollback(cell_id)
 
         try:
             # If persona_name is provided, try to load and set it temporarily
@@ -340,7 +340,9 @@ class ChatManager:
                     )
 
             # Get all message history
-            history_messages = self.history_manager.get_history() if self.history_manager else []
+            history_messages = (
+                self.conversation_manager.get_messages() if self.conversation_manager else []
+            )
 
             # Extract non-system messages from history - we'll always keep these
             non_system_messages = [m for m in history_messages if m.role != "system"]
@@ -565,23 +567,28 @@ class ChatManager:
                     f"{tokens_out} (completion) = {total_tokens} (total)"
                 )
 
-            # Calculate cost - simplified model for now
-            if model_name and "gpt-4" in model_name.lower():
-                # Approximate GPT-4 rates
-                cost_input = tokens_in * 0.03 / 1000  # $0.03 per 1K tokens
-                cost_output = tokens_out * 0.06 / 1000  # $0.06 per 1K tokens
-            else:
-                # Generic/default rates
-                cost_input = tokens_in * 0.01 / 1000  # $0.01 per 1K tokens
-                cost_output = tokens_out * 0.02 / 1000  # $0.02 per 1K tokens
+            # Calculate cost using tokencostauto (with model alias mapping)
+            try:
+                # Map alias to full model name for cost calculation
+                mapped_model_name = self.model_mapper.get_full_name(model_name)
 
-            cost_dollars = cost_input + cost_output
-
-            # Convert to millicents (1/100,000 of a dollar) for consistent display
-            cost_mili_cents = int(cost_dollars * 100000)
+                prompt_for_cost = [{"role": m.role, "content": m.content} for m in messages]
+                completion_for_cost = (
+                    str(assistant_response_content)
+                    if assistant_response_content is not None
+                    else ""
+                )
+                prompt_cost = calculate_prompt_cost(prompt_for_cost, mapped_model_name)
+                completion_cost = calculate_completion_cost(completion_for_cost, mapped_model_name)
+                cost_dollars = prompt_cost + completion_cost
+            except Exception as e:
+                self.logger.warning(f"Failed to calculate cost with tokencostauto: {e}")
+                cost_dollars = 0.0
+                prompt_cost = 0.0
+                completion_cost = 0.0
 
             # Format cost as a string for display
-            cost_str = f"${cost_dollars:.6f}"
+            cost_str = f"{cost_dollars:f}"
 
             # Get the actual model used from the LLM client
             actual_model_used = None
@@ -601,8 +608,8 @@ class ChatManager:
                     "model_used": actual_model_used or model_name,
                 }
 
-                if self.history_manager:
-                    self.history_manager.add_message(user_message)
+                if self.conversation_manager:
+                    self.conversation_manager.add_message(user_message)
 
                 # Create and add assistant message
                 assistant_message = Message(
@@ -619,27 +626,19 @@ class ChatManager:
                         "tokens_out": tokens_out,
                         "total_tokens": total_tokens,
                         "cost_str": cost_str,
-                        "cost_mili_cents": cost_mili_cents,
                         "model_used": actual_model_used or model_name,
                     },
                     execution_count=exec_count,
                     cell_id=cell_id,
                 )
 
-                # Remove redundant display_status call - we'll call it once at the end
-                # This prevents showing two status bars with different token counts
-
-                if self.history_manager:
-                    self.history_manager.add_message(assistant_message)
+                if self.conversation_manager:
+                    self.conversation_manager.add_message(assistant_message)
 
                 # Auto-save the conversation if enabled in settings
-                if self.settings.auto_save and self.history_manager:
+                if self.settings.auto_save and self.conversation_manager:
                     try:
-                        # Use the autosave_file setting with the fixed creation timestamp
-                        autosave_filename = (
-                            f"{self.settings.autosave_file}_{self.creation_datetime}"
-                        )
-                        saved_path = self.history_manager.save_conversation(autosave_filename)
+                        saved_path = self.conversation_manager._save_current_conversation()
                         if saved_path:
                             self.logger.info(f"Auto-saved conversation to {saved_path}")
                     except Exception as e:
@@ -649,19 +648,19 @@ class ChatManager:
             # Display status bar if context provider is available
             duration = time.time() - start_time
             if self.context_provider is not None and not stream:
-                self.context_provider.display_status(
-                    {
-                        "success": True,
-                        "duration": duration,
-                        "tokens_in": tokens_in,
-                        "tokens_out": tokens_out,
-                        "total_tokens": total_tokens,
-                        "cost_str": cost_str,
-                        "cost_mili_cents": cost_mili_cents,
-                        "model": actual_model_used or model_name,
-                        "response_content": assistant_response_content,
-                    }
-                )
+                # Always provide model_used and duration for status bar
+                status_model = actual_model_used or model_name
+                status_info = {
+                    "success": True,
+                    "duration": duration,
+                    "tokens_in": tokens_in,
+                    "tokens_out": tokens_out,
+                    "total_tokens": total_tokens,
+                    "cost_str": cost_str,
+                    "model_used": status_model,  # Always use model_used key
+                    "response_content": assistant_response_content,
+                }
+                self.context_provider.display_status(status_info)
 
             return assistant_response_content
 
@@ -671,19 +670,17 @@ class ChatManager:
 
             # Show error in status bar
             if self.context_provider is not None:
-                self.context_provider.display_status(
-                    {
-                        "success": False,
-                        "duration": duration,
-                        "tokens_in": None,
-                        "tokens_out": None,
-                        "total_tokens": None,
-                        "cost_str": None,
-                        "cost_mili_cents": None,
-                        "model": None,
-                        "response_content": f"Error: {str(e)}",
-                    }
-                )
+                status_info = {
+                    "success": False,
+                    "duration": duration,
+                    "tokens_in": None,
+                    "tokens_out": None,
+                    "total_tokens": None,
+                    "cost_str": None,
+                    "model_used": None,
+                    "response_content": f"Error: {str(e)}",
+                }
+                self.context_provider.display_status(status_info)
 
             # Re-raise to let caller handle
             raise
@@ -724,25 +721,19 @@ class ChatManager:
         Returns:
             Path to the saved file or None if failed
         """
-        if filename:
-            # Add the creation timestamp to the filename to ensure consistency
-            filename_with_date = f"{filename}_{self.creation_datetime}"
-            return self.history_manager.save_conversation(filename_with_date)
-        else:
-            # If no filename provided, let the history manager handle it
-            return self.history_manager.save_conversation(None)
+        return self.conversation_manager._save_current_conversation()
 
-    def load_conversation(self, filepath: str) -> bool:
+    def load_conversation(self, conversation_id: str) -> bool:
         """
         Load a conversation from a file.
 
         Args:
-            filepath: Path to the file to load
+            conversation_id: ID of the conversation to load
 
         Returns:
             True if successful, False otherwise
         """
-        return self.history_manager.load_conversation(filepath)
+        return self.conversation_manager.load_conversation(conversation_id)
 
     def get_history(self) -> List[Message]:
         """
@@ -751,13 +742,12 @@ class ChatManager:
         Returns:
             List of messages in the conversation
         """
-        if self.history_manager:
-            # Make sure we're retrieving ALL messages including integration messages
-            messages = self.history_manager.get_history(include_all=True)
+        if self.conversation_manager:
+            messages = self.conversation_manager.get_messages()
 
             # Additional debug to help diagnose any issues
             if messages:
-                self.logger.info(f"Retrieved {len(messages)} messages from history manager")
+                self.logger.info(f"Retrieved {len(messages)} messages from conversation manager")
 
                 # Count message types for debugging
                 role_counts = {}
@@ -779,11 +769,11 @@ class ChatManager:
                 if integration_counts:
                     self.logger.debug(f"Integration sources in history: {integration_counts}")
             else:
-                self.logger.warning("History manager returned empty history")
+                self.logger.warning("Conversation manager returned empty history")
 
             return messages
 
-        self.logger.warning("No history manager available when trying to get history")
+        self.logger.warning("No conversation manager available when trying to get history")
         return []
 
     def clear_history(self, keep_system: bool = True) -> None:
@@ -793,7 +783,7 @@ class ChatManager:
         Args:
             keep_system: Whether to keep system messages
         """
-        self.history_manager.clear_history(keep_system=keep_system)
+        self.conversation_manager.clear_messages(keep_system=keep_system)
 
     def set_override(self, key: str, value: Any) -> None:
         """
@@ -863,10 +853,9 @@ class ChatManager:
             self.logger.warning("No LLM client configured")
             return {}
 
-        # Access the internal _instance_overrides attribute of the LLM client
-        if self.llm_client is not None and hasattr(self.llm_client, "_instance_overrides"):
+        # Access the internal _instance_overrides attribute of the LLM client if it exists
+        if hasattr(self.llm_client, "_instance_overrides"):
             raw_overrides = self.llm_client._instance_overrides.copy()
-            # Mask sensitive values
             masked_overrides = {
                 k: self._mask_sensitive_value(k, v) for k, v in raw_overrides.items()
             }

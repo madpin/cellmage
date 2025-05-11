@@ -127,9 +127,9 @@ class BaseMagics(Magics):
             exec_count, cell_id = self._get_execution_context()
 
             # Find and remove any previous content from the same source
-            if hasattr(manager, "history_manager"):
+            if hasattr(manager, "conversation_manager"):
                 # Get current history
-                current_history = manager.history_manager.get_history()
+                current_history = manager.conversation_manager.get_messages()
 
                 # Look for messages to remove based on their metadata
                 indices_to_remove = self._find_messages_to_remove(
@@ -144,9 +144,9 @@ class BaseMagics(Magics):
                     ]
 
                     # Clear history and re-add the filtered messages
-                    manager.history_manager.clear_history(keep_system=False)
+                    manager.conversation_manager.clear_messages(keep_system=False)
                     for msg in new_history:
-                        manager.history_manager.add_message(msg)
+                        manager.conversation_manager.add_message(msg)
 
                     logger.info(
                         f"Removed {len(indices_to_remove)} previous {source_name} {source_type} messages"
@@ -165,7 +165,7 @@ class BaseMagics(Magics):
             )
 
             # Add to history
-            manager.history_manager.add_message(message)
+            manager.conversation_manager.add_message(message)
             print(
                 f"✅ Added {source_name} {source_type} {source_id} as {role} message to chat history"
             )

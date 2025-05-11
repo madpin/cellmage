@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Deprecated
+- `HistoryManager` is now deprecated and will be removed in a future release. Please use `ConversationManager` for all conversation and history management.
+
 ## [v0.8.3](https://github.com/madpin/cellmage/releases/tag/v0.8.3) - 2025-05-08
 
 ## [v0.8.2](https://github.com/madpin/cellmage/releases/tag/v0.8.2) - 2025-05-08

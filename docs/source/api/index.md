@@ -60,6 +60,8 @@ generated/cellmage.ambient_mode
 
     cellmage.chat_manager
     cellmage.conversation_manager
+    .. deprecated:: 0.9.0
+       The `history_manager` module is deprecated. Use `conversation_manager` instead.
     cellmage.history_manager
     cellmage.config
     cellmage.exceptions

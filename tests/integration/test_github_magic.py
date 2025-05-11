@@ -172,14 +172,14 @@ def test_github_add_to_history(ip_instance):
     # Set up the environment and mock class
     with mock.patch.dict("os.environ", {"GITHUB_TOKEN": "dummy_token"}):
         with mock.patch("cellmage.utils.github_utils.GitHubUtils", return_value=mock_github_utils):
-            # Need to patch at the module level where the function is called
+            # Patch at the module level where the function is called
             with mock.patch(
                 "cellmage.magic_commands.ipython.common.get_chat_manager"
             ) as mock_get_manager:
                 # Create the mock chat manager structure
                 mock_chat_manager = mock.MagicMock()
-                mock_history_manager = mock.MagicMock()
-                mock_chat_manager.history_manager = mock_history_manager
+                mock_conversation_manager = mock.MagicMock()
+                mock_chat_manager.conversation_manager = mock_conversation_manager
                 mock_get_manager.return_value = mock_chat_manager
 
                 # Load the extension
@@ -194,8 +194,8 @@ def test_github_add_to_history(ip_instance):
                 assert args[0] == "username/test-repo"
 
                 # Verify the message was added to history
-                mock_history_manager.add_message.assert_called_once()
-                args, kwargs = mock_history_manager.add_message.call_args
+                mock_conversation_manager.add_message.assert_called_once()
+                args, kwargs = mock_conversation_manager.add_message.call_args
                 message = args[0]
                 assert message.role == "system"
                 assert message.metadata["source"] == "github"

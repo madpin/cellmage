@@ -52,13 +52,7 @@ class DirectLLMAdapter(LLMClientInterface):
         # Initialize model mapper and try to load default mappings
         from ..model_mapping import ModelMapper
 
-        self.model_mapper = ModelMapper()
-
-        # Try to find and load default mapping file
-        mapping_file = ModelMapper.find_mapping_file()
-        if mapping_file:
-            self.model_mapper.load_mappings(mapping_file)
-            self.logger.info(f"Loaded model mappings from {mapping_file}")
+        self.model_mapper = ModelMapper(auto_load=True)
 
         # Set API key from param or env var
         api_key = api_key or os.environ.get("CELLMAGE_API_KEY") or os.environ.get("OPENAI_API_KEY")

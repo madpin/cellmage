@@ -14,8 +14,6 @@ from .config import settings  # Import settings object instead of non-existent f
 
 # Main managers
 from .conversation_manager import ConversationManager
-from .exceptions import ConfigurationError, PersistenceError, ResourceNotFoundError
-from .history_manager import HistoryManager
 
 # Core components
 from .models import Message

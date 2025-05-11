@@ -17,16 +17,22 @@ class ModelMapper:
     Supports loading mappings from YAML files and managing multiple mapping sets.
     """
 
-    def __init__(self, mapping_file: Optional[str] = None):
+    def __init__(self, mapping_file: Optional[str] = None, auto_load: bool = False):
         """
         Initialize the model mapper.
 
         Args:
             mapping_file: Path to YAML file containing model mappings
+            auto_load: If True, automatically search for and load a mapping file if mapping_file is not provided
         """
         self._mappings: Dict[str, str] = {}
         if mapping_file:
             self.load_mappings(mapping_file)
+        elif auto_load:
+            found_file = self.find_mapping_file()
+            if found_file:
+                self.load_mappings(found_file)
+                logger.info(f"Loaded model mappings from {found_file}")
 
     def load_mappings(self, file_path: str) -> bool:
         """

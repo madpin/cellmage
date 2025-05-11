@@ -12,6 +12,8 @@ from IPython import get_ipython
 from IPython.core.magic import cell_magic, line_magic, magics_class
 from IPython.core.magic_arguments import argument, magic_arguments
 
+from cellmage.magic_commands.core import extract_metadata_for_status
+
 from ...ambient_mode import (
     disable_ambient_mode,
     enable_ambient_mode,
@@ -289,39 +291,25 @@ class AmbientModeMagics(IPythonMagicsBase):
             # If result is successful, mark as success
             if result:
                 status_info["success"] = True
-                # Add the response content to status_info for copying
                 status_info["response_content"] = result
                 try:
-                    history = manager.history_manager.get_history()
+                    from cellmage.magic_commands.core import get_last_assistant_metadata
 
-                    # Calculate total tokens for the entire conversation
-                    total_tokens_in = 0
-                    total_tokens_out = 0
-
-                    for msg in history:
-                        if msg.metadata:
-                            total_tokens_in += msg.metadata.get("tokens_in", 0) or 0
-                            total_tokens_out += msg.metadata.get("tokens_out", 0) or 0
-
-                    # Set the total tokens for display in status bar
-                    status_info["tokens_in"] = float(total_tokens_in)
-                    status_info["tokens_out"] = float(total_tokens_out)
-
-                    # Add API-reported cost if available (from the most recent assistant message)
-                    if len(history) >= 1 and history[-1].role == "assistant":
-                        status_info["cost_str"] = history[-1].metadata.get("cost_str", "")
-                        status_info["model_used"] = history[-1].metadata.get("model_used", "")
+                    history = manager.get_history()
+                    last_meta = get_last_assistant_metadata(history)
+                    status_info.update(extract_metadata_for_status(last_meta))
                 except Exception as e:
-                    logger.warning(f"Error retrieving status info from history: {e}")
+                    logger.error(f"Error computing status bar statistics: {e}")
 
         except Exception as e:
             print(f"❌ LLM Error (Ambient Mode): {e}", file=sys.stderr)
             logger.error(f"Error during LLM call in ambient mode: {e}")
-            # Add error message to status_info for copying
             status_info["response_content"] = f"Error: {str(e)}"
         finally:
             status_info["duration"] = time.time() - start_time
-            # Display status bar
+            # Always ensure model_used is present for the status bar
+            if "model_used" not in status_info:
+                status_info["model_used"] = status_info.get("model", "")
             context_provider.display_status(status_info)
 
     @line_magic("llm_magic")

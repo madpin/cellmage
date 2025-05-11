@@ -153,8 +153,8 @@ class ImageMagics(BaseMagics):
             chat_manager = self._get_chat_manager()
             if (
                 chat_manager
-                and hasattr(chat_manager, "history_manager")
-                and hasattr(chat_manager.history_manager, "add_message")
+                and hasattr(chat_manager, "conversation_manager")
+                and hasattr(chat_manager.conversation_manager, "add_message")
             ):
                 llm_image = format_image_for_llm(image_data, mime_type, metadata)
                 from cellmage.models import Message
@@ -164,10 +164,10 @@ class ImageMagics(BaseMagics):
                     content="[Image sent]",
                     metadata={"source": image_path, "llm_image": llm_image, **metadata},
                 )
-                chat_manager.history_manager.add_message(msg)
+                chat_manager.conversation_manager.add_message(msg)
             else:
                 logger.warning(
-                    "Chat manager or history manager not available. Could not add image to history."
+                    "Chat manager or conversation manager not available. Could not add image to history."
                 )
             # Align output to other magics: only print a short status line
             return f"✅ {os.path.basename(image_path)} processed and added to conversation history."

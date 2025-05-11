@@ -10,6 +10,7 @@ import sys
 from typing import Any
 
 from cellmage.ambient_mode import is_ambient_mode_enabled
+from cellmage.magic_commands.core import extract_metadata_for_status
 from cellmage.utils.token_utils import count_tokens
 
 from .base_config_handler import BaseConfigHandler
@@ -45,6 +46,13 @@ class StatusDisplayHandler(BaseConfigHandler):
         active_persona = manager.get_active_persona()
         overrides = manager.get_overrides()
         history = manager.get_history()
+
+        # Use extract_metadata_for_status to get model from last assistant message
+        last_assistant = next((m for m in reversed(history) if m.role == "assistant"), None)
+        model_used = None
+        if last_assistant and last_assistant.metadata:
+            meta = extract_metadata_for_status(last_assistant.metadata)
+            model_used = meta.get("model_used") or meta.get("model")
 
         # Calculate token statistics
         total_tokens_in = 0
@@ -153,6 +161,8 @@ class StatusDisplayHandler(BaseConfigHandler):
             print(f"  📝 Current Model: {current_model}")
             if mapped_model:
                 print(f"      → Maps to: {mapped_model}")
+        if model_used:
+            print(f"  📝 Last Model Used: {model_used}")
         print(f"  🔄 Ambient Mode: {'✅ Active' if is_ambient else '❌ Disabled'}")
 
         # Persona information
