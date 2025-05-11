@@ -98,6 +98,7 @@ dev = [
     "sphinx-autobuild",
     "sphinx-autodoc-typehints==1.23.3",
     "packaging",
+    "black[jupyter]",
 ]
 all = ["cellmage[langchain,jira,gitlab,github,confluence,webcontent,gdocs]"]
 webcontent = [
