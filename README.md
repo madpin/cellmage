@@ -10,7 +10,7 @@ It's designed for **data scientists, software engineers, researchers, and studen
 [![PyPI version](https://badge.fury.io/py/cellmage.svg)](https://badge.fury.io/py/cellmage)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation Status](https://readthedocs.org/projects/cellmage/badge/?version=latest)](https://cellmage.readthedocs.io/en/latest/?badge=latest)
-[![Download Status](https://img.shields.io/pypi/dd/fastapi)](https://img.shields.io/pypi/dd/cellmage)
+[![Download Status](https://img.shields.io/pypi/dd/cellmage)](https://img.shields.io/pypi/dd/cellmage)
 
 ---
 
