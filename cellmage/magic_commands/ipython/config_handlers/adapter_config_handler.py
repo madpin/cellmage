@@ -9,7 +9,6 @@ import os
 from typing import Any
 
 from cellmage.adapters.direct_client import DirectLLMAdapter
-from cellmage.adapters.langchain_client import LangChainAdapter
 from cellmage.config import settings
 from cellmage.interfaces import LLMClientInterface
 
@@ -43,6 +42,18 @@ class AdapterConfigHandler(BaseConfigHandler):
                 # Initialize the appropriate LLM client adapter
                 if adapter_type == "langchain":
                     try:
+                        # Import LangChainAdapter only if needed
+                        try:
+                            from cellmage.adapters.langchain_client import (
+                                LangChainAdapter,
+                            )
+                        except ImportError:
+                            print(
+                                "❌ LangChain adapter not available. Make sure langchain is installed."
+                            )
+                            logger.error("LangChain adapter requested but not available")
+                            return True
+
                         # Create new adapter instance with current settings from existing client
                         current_api_key = None
                         current_api_base = None
@@ -71,11 +82,9 @@ class AdapterConfigHandler(BaseConfigHandler):
                         print("✅ Switched to LangChain adapter")
                         logger.info("Switched to LangChain adapter")
 
-                    except ImportError:
-                        print(
-                            "❌ LangChain adapter not available. Make sure langchain is installed."
-                        )
-                        logger.error("LangChain adapter requested but not available")
+                    except Exception as e:
+                        print(f"❌ Error switching adapter: {e}")
+                        logger.exception(f"Error switching to adapter {adapter_type}: {e}")
 
                 elif adapter_type == "direct":
                     # Create new adapter instance with current settings from existing client
