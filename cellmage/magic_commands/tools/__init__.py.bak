@@ -1,0 +1,87 @@
+"""Magic command tools for Cellmage."""
+
+import logging
+from typing import Optional
+
+from IPython.core.interactiveshell import InteractiveShell
+
+# We don't directly import magic classes here to avoid dependency errors
+# if some tools are not available
+
+logger = logging.getLogger(__name__)
+
+__all__ = [
+    "ToolsMagicBase",
+    "ConfluenceMagic",
+    "GDocsMagic",
+    "GitHubMagic",
+    "GitLabMagic",
+    "ImageMagic",
+    "JiraMagic",
+    "SQLiteMagic",
+    "WebContentMagic",
+]
+
+
+def load_ipython_extension(ipython: Optional[InteractiveShell] = None) -> None:
+    """Load all tool magic commands for CellMage.
+
+    This function loads and registers all the tool magic commands with IPython.
+    It also prints a summary of which tools were successfully loaded.
+
+    Args:
+        ipython: The IPython shell to register magics with. If None, attempts to get it.
+    """
+    if ipython is None:
+        from IPython import get_ipython
+        ipython = get_ipython()
+        if ipython is None:
+            logger.warning("IPython shell not available. Cannot register tool magics.")
+            return
+
+    # Track available and unavailable tools
+    available_tools = []
+    unavailable_tools = []
+
+    # Try to register each magic class
+    magic_classes = [
+        (ConfluenceMagic, "Confluence", "CONFLUENCE_AVAILABLE"),
+        (GDocsMagic, "Google Docs", "GDOCS_AVAILABLE"),
+        (GitHubMagic, "GitHub", "GITHUB_AVAILABLE"),
+        (GitLabMagic, "GitLab", "GITLAB_AVAILABLE"),
+        (ImageMagic, "Image", "IMAGE_PROCESSING_AVAILABLE"),
+        (JiraMagic, "Jira", "JIRA_AVAILABLE"),
+        (SQLiteMagic, "SQLite", None),  # SQLite is always available
+        (WebContentMagic, "Web Content", "WEBCONTENT_AVAILABLE"),
+    ]
+
+    for magic_class, name, availability_flag in magic_classes:
+        try:
+            # If the tool has an availability flag, check it first
+            if availability_flag:
+                module = magic_class.__module__
+                module_obj = __import__(module, fromlist=[''])
+                is_available = getattr(module_obj, f"_{availability_flag}", True)
+                if not is_available:
+                    unavailable_tools.append(f"{name} (missing dependencies)")
+                    continue
+
+            # Attempt to register the magic
+            ipython.register_magics(magic_class(ipython))
+            available_tools.append(name)
+            logger.info(f"Registered {name} magic commands")
+
+        except ImportError as e:
+            unavailable_tools.append(f"{name} (import error: {str(e)})")
+            logger.warning(f"Failed to register {name} magic: {e}")
+        except Exception as e:
+            unavailable_tools.append(f"{name} (error: {str(e)})")
+            logger.warning(f"Error registering {name} magic: {e}")
+
+    # Print a summary of available and unavailable tools
+    if available_tools:
+        print(f"✓ Available tools: {', '.join(available_tools)}")
+    if unavailable_tools:
+        print(f"⚠ Unavailable tools: {', '.join(unavailable_tools)}")
+
+    logger.info("Successfully registered available CellMage tool magics")

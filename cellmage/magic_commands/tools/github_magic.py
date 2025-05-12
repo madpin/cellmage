@@ -33,7 +33,7 @@ except ImportError:
 
 
 # Import the base magic class
-from .base_magic import BaseMagics
+from .base_tools_magic import BaseMagics
 
 # Create a global logger
 logger = logging.getLogger(__name__)
@@ -83,7 +83,7 @@ class GitHubMagics(BaseMagics):
 
             # Try to initialize GitHubUtils
             try:
-                from ..utils.github_utils import GitHubUtils
+                from cellmage.integrations.github_utils import GitHubUtils
 
                 self.github_utils = GitHubUtils(token=github_token)
                 logger.info("GitHubUtils initialized successfully")

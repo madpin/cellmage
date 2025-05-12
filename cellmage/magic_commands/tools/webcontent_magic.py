@@ -33,11 +33,11 @@ except ImportError:
 
 
 # Import the base magic class
-from .base_magic import BaseMagics
+from .base_tools_magic import BaseMagics
 
 # Import WebContent utilities
 try:
-    from ..utils.webcontent_utils import (
+    from cellmage.integrations.webcontent_utils import (
         format_website_content_for_display,
         format_website_content_for_llm,
         get_website_content_fetcher,

@@ -20,16 +20,36 @@ def load_ipython_extension(ipython):
     Args:
         ipython: IPython shell instance
     """
+    loaded_core = False
+    loaded_tools = False
+
     try:
         # Import and load the iPython magics
         from .ipython import load_magics
 
         load_magics(ipython)
+        loaded_core = True
         logger.info("Loaded CellMage IPython magic commands")
+
+        # Import and load the tools magics
+        try:
+            from .tools import load_ipython_extension as load_tools
+
+            loaded_tool_list = load_tools(ipython)
+            loaded_tools = len(loaded_tool_list) > 0 if loaded_tool_list else False
+            logger.info(
+                f"Loaded CellMage tool magic commands: {', '.join(loaded_tool_list) if loaded_tool_list else 'none'}"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to load CellMage tool magic commands: {e}")
+            print(f"⚠️ Some CellMage tool magic commands could not be loaded: {e}")
+
+        return loaded_core, loaded_tools
     except Exception as e:
         logger.exception(f"Failed to load CellMage magic commands: {e}")
         # Try to show something to the user
         print(f"⚠️ Error loading CellMage magic commands: {e}")
+        return False, False
 
 
 def unload_ipython_extension(ipython):

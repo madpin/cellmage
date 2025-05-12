@@ -1,6 +1,6 @@
 # 🖼️ Image Magic Integration
 
-The Image Magic integration provides an easy way to process, display, and incorporate images into your LLM conversations within IPython notebooks. This feature is implemented through the `%img` magic command and relies on the `ImageProcessor` class and utility functions from the `cellmage.utils.image_utils` module.
+The Image Magic integration provides an easy way to process, display, and incorporate images into your LLM conversations within IPython notebooks. This feature is implemented through the `%img` magic command and relies on the `ImageProcessor` class and utility functions from the `cellmage.integrations.image_utils` module.
 
 ## Features
 
@@ -38,16 +38,16 @@ This command processes the image and adds it to your conversation history/contex
 
 ### Command Options
 
-| Option | Description |
-|--------|-------------|
-| `image_path` | Path to the image file to process |
-| `-r`, `--resize WIDTH` | Width to resize the image to (maintains aspect ratio) |
-| `-q`, `--quality VALUE` | Quality for lossy image formats (0.0-1.0) |
-| `--show` | Display the image inline after processing |
-| `-i`, `--info` | Display information about the image |
-| `-a`, `--add-to-chat` | Add the image to the current chat session (default: always added) |
-| `-c`, `--convert` | Force conversion to a compatible format |
-| `-f`, `--format FORMAT` | Format to convert the image to (e.g., "jpg", "png", "webp") |
+| Option                  | Description                                                       |
+| ----------------------- | ----------------------------------------------------------------- |
+| `image_path`            | Path to the image file to process                                 |
+| `-r`, `--resize WIDTH`  | Width to resize the image to (maintains aspect ratio)             |
+| `-q`, `--quality VALUE` | Quality for lossy image formats (0.0-1.0)                         |
+| `--show`                | Display the image inline after processing                         |
+| `-i`, `--info`          | Display information about the image                               |
+| `-a`, `--add-to-chat`   | Add the image to the current chat session (default: always added) |
+| `-c`, `--convert`       | Force conversion to a compatible format                           |
+| `-f`, `--format FORMAT` | Format to convert the image to (e.g., "jpg", "png", "webp")       |
 
 ### Examples
 
@@ -81,7 +81,7 @@ Compare the three images I just shared. What are the key differences?
 
 ## How It Works
 
-The `%img` magic command is powered by the `ImageProcessor` class from `cellmage.utils.image_utils`. When you process an image:
+The `%img` magic command is powered by the `ImageProcessor` class from `cellmage.integrations.image_utils`. When you process an image:
 
 1. The image is loaded using Pillow (PIL)
 2. It's optionally resized and/or converted to a compatible format
@@ -93,7 +93,7 @@ The `%img` magic command is powered by the `ImageProcessor` class from `cellmage
 ## Implementation Details
 
 - The `ImageMagics` class in `cellmage/integrations/image_magic.py` implements the IPython magic command
-- The `ImageProcessor` class in `cellmage/utils/image_utils.py` handles the image processing
+- The `ImageProcessor` class in `cellmage/integrations/image_utils.py` handles the image processing
 - Format conversion prioritizes LLM-compatible formats
 - Configuration settings are used for default values
 
@@ -166,7 +166,7 @@ To extend or customize image processing:
 1. **Subclass `ImageProcessor`**: Create a custom processor with additional capabilities
 
 ```python
-from cellmage.utils.image_utils import ImageProcessor
+from cellmage.integrations.image_utils import ImageProcessor
 
 class MyCustomImageProcessor(ImageProcessor):
     def process_image(self, image_path, **kwargs):
@@ -179,7 +179,7 @@ class MyCustomImageProcessor(ImageProcessor):
 
 ```python
 # Replace the default processor with your custom one
-import cellmage.utils.image_utils as utils
+import cellmage.integrations.image_utils as utils
 
 original_get_processor = utils.get_image_processor
 

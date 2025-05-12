@@ -1,6 +1,6 @@
 # 🖼️ Image Utilities
 
-The `cellmage.utils.image_utils` module provides a comprehensive set of utilities for processing, formatting, and managing images for use with Large Language Models (LLMs). This module is the foundation for the `%img` magic command and handles all the image processing functionality.
+The `cellmage.integrations.image_utils` module provides a comprehensive set of utilities for processing, formatting, and managing images for use with Large Language Models (LLMs). This module is the foundation for the `%img` magic command and handles all the image processing functionality.
 
 ## Key Components
 
@@ -30,7 +30,7 @@ The module also provides several helper functions:
 ### Basic Image Processing
 
 ```python
-from cellmage.utils.image_utils import get_image_processor
+from cellmage.integrations.image_utils import get_image_processor
 
 # Create an image processor
 processor = get_image_processor()
@@ -54,7 +54,7 @@ if processor:
 ### Preparing Images for LLMs
 
 ```python
-from cellmage.utils.image_utils import format_image_for_llm, get_image_processor
+from cellmage.integrations.image_utils import format_image_for_llm, get_image_processor
 
 # Process an image
 processor = get_image_processor()

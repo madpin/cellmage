@@ -33,7 +33,7 @@ except ImportError:
 
 
 # Import the base magic class
-from .base_magic import BaseMagics
+from .base_tools_magic import BaseMagics
 
 # Create a global logger
 logger = logging.getLogger(__name__)
@@ -88,7 +88,7 @@ class GitLabMagics(BaseMagics):
 
             # Try to initialize GitLabUtils
             try:
-                from ..utils.gitlab_utils import GitLabUtils
+                from cellmage.integrations.gitlab_utils import GitLabUtils
 
                 self.gitlab_utils = GitLabUtils(private_token=gitlab_token, gitlab_url=gitlab_url)
                 logger.info(f"GitLabUtils initialized successfully for {gitlab_url}")

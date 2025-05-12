@@ -32,7 +32,7 @@ except ImportError:
 
 
 # Import the base magic class
-from .base_magic import BaseMagics
+from .base_tools_magic import BaseMagics
 
 # Create a global logger
 logger = logging.getLogger(__name__)
@@ -89,7 +89,7 @@ class JiraMagics(BaseMagics):
 
             # Try to initialize JiraUtils
             try:
-                from ..utils.jira_utils import JiraUtils
+                from cellmage.integrations.jira_utils import JiraUtils
 
                 self.jira_utils = JiraUtils(
                     user_email=jira_user, api_token=jira_token, jira_url=jira_url

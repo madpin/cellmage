@@ -20,16 +20,16 @@ The `%img` magic command provides a simple interface for image processing:
 
 ### Command Options
 
-| Option | Description |
-|--------|-------------|
-| `image_path` | Path to the image file to process |
-| `-r, --resize WIDTH` | Width to resize the image to (maintains aspect ratio) |
-| `-q, --quality VALUE` | Quality for lossy image formats (0.0-1.0) |
-| `--show` | Display the image inline after processing |
-| `-i, --info` | Display information about the image |
-| `-a, --add-to-chat` | Add the image to the current chat session (default: always added) |
-| `-c, --convert` | Force conversion to a compatible format |
-| `-f, --format FORMAT` | Format to convert the image to (e.g., "jpg", "png", "webp") |
+| Option                | Description                                                       |
+| --------------------- | ----------------------------------------------------------------- |
+| `image_path`          | Path to the image file to process                                 |
+| `-r, --resize WIDTH`  | Width to resize the image to (maintains aspect ratio)             |
+| `-q, --quality VALUE` | Quality for lossy image formats (0.0-1.0)                         |
+| `--show`              | Display the image inline after processing                         |
+| `-i, --info`          | Display information about the image                               |
+| `-a, --add-to-chat`   | Add the image to the current chat session (default: always added) |
+| `-c, --convert`       | Force conversion to a compatible format                           |
+| `-f, --format FORMAT` | Format to convert the image to (e.g., "jpg", "png", "webp")       |
 
 ### Examples
 
@@ -62,7 +62,7 @@ Resize an image to a specific width and convert it to a different format:
 
 ## Image Processing Utilities
 
-Under the hood, CellMage's image integration uses utility functions from `cellmage.utils.image_utils` module, which provides:
+Under the hood, CellMage's image integration uses utility functions from `cellmage.integrations.image_utils` module, which provides:
 
 - **Format Detection**: Automatically identify image formats
 - **Format Conversion**: Convert between different image formats
@@ -85,7 +85,7 @@ pip install pillow
 The image magic integration consists of two main components:
 
 1. **`ImageMagics` Class**: Defined in `cellmage.integrations.image_magic`, this implements the IPython magic command and handles user interaction.
-2. **`ImageProcessor` Class**: Found in `cellmage.utils.image_utils`, this handles the core image processing tasks.
+2. **`ImageProcessor` Class**: Found in `cellmage.integrations.image_utils`, this handles the core image processing tasks.
 
 For details about the technical implementation of the image magic integration, see the [Image Magic Integration](integrations/image_magic_integration.md) page.
 

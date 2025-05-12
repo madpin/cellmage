@@ -32,11 +32,11 @@ except ImportError:
 
 
 # Import the base magic class
-from .base_magic import BaseMagics
+from .base_tools_magic import BaseMagics
 
 # Import Confluence utilities
 try:
-    from ..utils.confluence_utils import (
+    from cellmage.integrations.confluence_utils import (
         ConfluenceClient,
         fetch_confluence_content,
         search_confluence,

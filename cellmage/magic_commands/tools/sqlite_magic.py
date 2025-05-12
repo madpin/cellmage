@@ -38,7 +38,7 @@ except ImportError:
 from cellmage.magic_commands.core import extract_metadata_for_status
 
 # Import the base magic class
-from .base_magic import BaseMagics
+from .base_tools_magic import BaseMagics
 
 # Create a global logger
 logger = logging.getLogger(__name__)
