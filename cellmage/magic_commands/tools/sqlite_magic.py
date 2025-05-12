@@ -45,13 +45,21 @@ logger = logging.getLogger(__name__)
 
 # Check if SQLite storage components are available
 try:
-    from ..ambient_mode import disable_ambient_mode, is_ambient_mode_enabled
-    from ..context_providers.ipython_context_provider import (
+    # from ..ambient_mode import disable_ambient_mode, is_ambient_mode_enabled
+    # from ..context_providers.ipython_context_provider import (
+    #     get_ipython_context_provider,
+    # )
+    # from ..conversation_manager import ConversationManager
+    # from ..magic_commands import history
+    # from ..magic_commands.ipython.common import get_chat_manager
+
+    from cellmage.ambient_mode import disable_ambient_mode, is_ambient_mode_enabled
+    from cellmage.context_providers.ipython_context_provider import (
         get_ipython_context_provider,
     )
-    from ..conversation_manager import ConversationManager
-    from ..magic_commands import history
-    from ..magic_commands.ipython.common import get_chat_manager
+    from cellmage.conversation_manager import ConversationManager
+    from cellmage.magic_commands import history
+    from cellmage.magic_commands.ipython.common import get_chat_manager
 
     _SQLITE_AVAILABLE = True
 except ImportError:
@@ -538,7 +546,7 @@ def load_ipython_extension(ipython):
 
         # Try to load the llm_config line magic from the new magic_commands module
         try:
-            from ..magic_commands.ipython.config_magic import ConfigMagics
+            from cellmage.magic_commands.ipython.config_magic import ConfigMagics
 
             config_magics = ConfigMagics(ipython)
             ipython.register_magics(config_magics)
@@ -557,7 +565,7 @@ def load_ipython_extension(ipython):
 
         # Set ambient mode handlers
         try:
-            from ..ambient_mode import register_ambient_handler
+            from cellmage.ambient_mode import register_ambient_handler
 
             register_ambient_handler(magic_class.process_cell_as_prompt)
             logger.info("Registered SQLite ambient mode handler")

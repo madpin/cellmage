@@ -17,10 +17,8 @@ try:
 except ImportError:
     _IPYTHON_AVAILABLE = False
 
-    class DummyMagics:
+    class Magics:
         pass  # Dummy base class
-
-    Magics = DummyMagics  # Type alias for compatibility
 
     # Define a dummy decorator if IPython is not available
     def magics_class(cls):

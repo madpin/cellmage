@@ -15,12 +15,10 @@ try:
 except ImportError:
     _IPYTHON_AVAILABLE = False
 
-    class DummyMagics:
+    class Magics:
         """Dummy class when IPython is not available."""
 
         pass
-
-    Magics = DummyMagics  # Type alias for compatibility
 
     # Define dummy decorator if IPython is not available
     def magics_class(cls):
@@ -115,7 +113,7 @@ class BaseMagics(Magics):
         Returns:
             True if successful, False otherwise
         """
-        from cellmage.models import Message
+        from cellmage.magic_commands.models import Message
 
         manager = self._get_chat_manager()
         if not manager:
