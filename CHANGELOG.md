@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v0.9.5](https://github.com/madpin/cellmage/releases/tag/v0.9.5) - 2025-05-13
+
+### Changed
+- Improved the documentation build process by updating the Makefile.
+- Cleaned up the documentation index by removing unused integrations and magic commands.
+
+
 ## [v0.9.4](https://github.com/madpin/cellmage/releases/tag/v0.9.4) - 2025-05-13
 
 ## [v0.9.2](https://github.com/madpin/cellmage/releases/tag/v0.9.2) - 2025-05-13
