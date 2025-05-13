@@ -9,6 +9,11 @@
 # Default port for documentation server
 PORT ?= 8000
 
+# Define the documentation source and build directories
+DOCS_SOURCE_DIR := docs/source/
+DOCS_BUILD_DIR := docs/build/
+DOCS_PROJECT_DIR := cellmage/ # Used in serve-docs
+
 # Help target to display available commands
 help:
 	@echo "Available commands:"
@@ -30,10 +35,33 @@ help:
 
 # Build documentation
 docs:
-	rm -rf docs/build/
+    # Ensure a clean state before starting the server
+	rm -rf $(DOCS_BUILD_DIR)
 	@echo "Starting documentation server on port $(PORT)..."
-	sphinx-autobuild -b html --port $(PORT) --watch cellmage/ docs/source/ docs/build/
-	rm -rf docs/build/
+	# sphinx-autobuild watches for changes and rebuilds automatically
+	sphinx-autobuild -b html --port $(PORT) --watch $(DOCS_PROJECT_DIR) --watch $(DOCS_SOURCE_DIR) $(DOCS_SOURCE_DIR) $(DOCS_BUILD_DIR)
+	# Clean up after server stops (optional, as autobuild might handle this, or you might want to inspect the build)
+	# echo "Cleaning up $(DOCS_BUILD_DIR) after server stop..."
+	# rm -rf $(DOCS_BUILD_DIR)
+
+builddocs:
+	@echo "Building documentation..."
+	# Attempt to build the HTML documentation
+	# -b html: specifies the HTML builder
+	# -W: turns warnings into errors, so the build fails on any warning
+	# -n: nit-picky mode, warns about all missing references
+	sphinx-build -b html -W -n $(DOCS_SOURCE_DIR) $(DOCS_BUILD_DIR); \
+	BUILD_EXIT_STATUS=$$?; \
+	# Always clean up the build directory
+	echo "Cleaning up $(DOCS_BUILD_DIR)..."; \
+	rm -rf $(DOCS_BUILD_DIR); \
+	# Check the build status and exit if it failed
+	if [ $$BUILD_EXIT_STATUS -ne 0 ]; then \
+		echo "Documentation build failed. See output above for errors."; \
+		exit 1; \
+	else \
+		echo "Documentation built successfully and build directory cleaned up."; \
+	fi
 
 # Run code quality checks
 run-checks:

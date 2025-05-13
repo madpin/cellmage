@@ -27,7 +27,7 @@ pip install requests beautifulsoup4 markdownify trafilatura
 Load the extension in your Jupyter notebook:
 
 ```ipython
-%load_ext cellmage.integrations.webcontent_magic
+%load_ext cellmage.magic_commands.tools.webcontent_magic
 ```
 
 This will register the `%webcontent` magic command.
@@ -95,16 +95,16 @@ Adjust the request timeout if needed:
 
 ### Command Options
 
-| Option | Description |
-|--------|-------------|
-| `--system` | Add the content as a system message instead of a user message |
-| `--show` | Just display the content without adding it to conversation history |
-| `--clean` | Clean and extract main content (default behavior) |
-| `--raw` | Get raw HTML content without cleaning |
-| `--method METHOD` | Content extraction method: trafilatura (default), bs4, or simple |
-| `--include-images` | Include image references in the output |
-| `--no-links` | Remove hyperlinks from the output |
-| `--timeout N` | Request timeout in seconds (default: 30) |
+| Option             | Description                                                        |
+| ------------------ | ------------------------------------------------------------------ |
+| `--system`         | Add the content as a system message instead of a user message      |
+| `--show`           | Just display the content without adding it to conversation history |
+| `--clean`          | Clean and extract main content (default behavior)                  |
+| `--raw`            | Get raw HTML content without cleaning                              |
+| `--method METHOD`  | Content extraction method: trafilatura (default), bs4, or simple   |
+| `--include-images` | Include image references in the output                             |
+| `--no-links`       | Remove hyperlinks from the output                                  |
+| `--timeout N`      | Request timeout in seconds (default: 30)                           |
 
 ### Examples
 

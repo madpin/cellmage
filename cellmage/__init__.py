@@ -100,7 +100,7 @@ def load_ipython_extension(ipython):
         if not primary_extension_loaded:
             # Try to load the SQLite implementation
             try:
-                from .integrations.sqlite_magic import (
+                from .magic_commands.sqlite_magic import (
                     load_ipython_extension as load_sqlite,
                 )
 
@@ -114,19 +114,21 @@ def load_ipython_extension(ipython):
         # Now dynamically discover and load all available integrations
         if primary_extension_loaded:
             try:
-                # Import the integrations package
-                import cellmage.integrations as integrations_pkg
+                # Import the tools package
+                import cellmage.magic_commands.tools
 
                 # Skip sqlite_magic as it was already attempted above
-                # Also skip base_magic which is a base class, not an integration
-                skip_modules = ["sqlite_magic", "__pycache__", "base_magic"]
+                # Also skip base_tool_magic which is a base class, not an integration
+                skip_modules = ["sqlite_magic", "__pycache__", "base_tool_magic"]
 
-                # Iterate over all modules in the integrations package
-                for finder, mod_name, is_pkg in pkgutil.iter_modules(integrations_pkg.__path__):
+                # Iterate over all modules in the tools package
+                for finder, mod_name, is_pkg in pkgutil.iter_modules(
+                    cellmage.magic_commands.tools.__path__
+                ):
                     if mod_name in skip_modules:
                         continue
 
-                    full_name = f"{integrations_pkg.__name__}.{mod_name}"
+                    full_name = f"{cellmage.magic_commands.tools.__name__}.{mod_name}"
                     try:
                         module = importlib.import_module(full_name)
                         loader = getattr(module, "load_ipython_extension", None)
@@ -167,10 +169,12 @@ def unload_ipython_extension(ipython):
 
         # Dynamically unload all integrations if possible
         try:
-            import cellmage.integrations as integrations_pkg
+            import cellmage.magic_commands.tools
 
-            for finder, mod_name, is_pkg in pkgutil.iter_modules(integrations_pkg.__path__):
-                full_name = f"{integrations_pkg.__name__}.{mod_name}"
+            for finder, mod_name, is_pkg in pkgutil.iter_modules(
+                cellmage.magic_commands.tools.__path__
+            ):
+                full_name = f"{cellmage.magic_commands.tools.__name__}.{mod_name}"
                 try:
                     module = importlib.import_module(full_name)
                     unloader = getattr(module, "unload_ipython_extension", None)

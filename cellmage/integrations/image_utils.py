@@ -11,7 +11,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, Union
 
-from ..config import settings
+from cellmage.config import settings
 
 # Import image processing libraries with availability checking
 _IMAGE_PROCESSING_AVAILABLE = False

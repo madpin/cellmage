@@ -27,28 +27,16 @@ generated/cellmage.utils.date_utils
 generated/cellmage.utils.file_utils
 generated/cellmage.utils.logging
 generated/cellmage.utils.token_utils
-generated/cellmage.utils.confluence_utils
-generated/cellmage.utils.github_utils
-generated/cellmage.utils.gitlab_utils
-generated/cellmage.utils.jira_utils
-generated/cellmage.utils.gdocs_utils
-generated/cellmage.utils.webcontent_utils
+generated/cellmage.integrations.confluence_utils
+generated/cellmage.integrations.github_utils
+generated/cellmage.integrations.gitlab_utils
+generated/cellmage.integrations.jira_utils
+generated/cellmage.integrations.gdocs_utils
+generated/cellmage.integrations.webcontent_utils
+generated/cellmage.integrations.image_utils
 generated/cellmage.context_providers
 generated/cellmage.context_providers.ipython_context_provider
 generated/cellmage.integrations
-generated/cellmage.integrations.base_magic
-generated/cellmage.integrations.confluence_magic
-generated/cellmage.integrations.github_magic
-generated/cellmage.integrations.gitlab_magic
-generated/cellmage.integrations.jira_magic
-generated/cellmage.integrations.sqlite_magic
-generated/cellmage.integrations.webcontent_magic
-generated/cellmage.magic_commands
-generated/cellmage.magic_commands.ipython
-generated/cellmage.magic_commands.ipython.common
-generated/cellmage.magic_commands.ipython.config_magic
-generated/cellmage.magic_commands.ipython.llm_magic
-generated/cellmage.magic_commands.ipython.ambient_magic
 generated/cellmage.ambient_mode
 ```
 
@@ -109,12 +97,22 @@ generated/cellmage.ambient_mode
     cellmage.utils.file_utils
     cellmage.utils.logging
     cellmage.utils.token_utils
-    cellmage.utils.confluence_utils
-    cellmage.utils.github_utils
-    cellmage.utils.gitlab_utils
-    cellmage.utils.jira_utils
-    cellmage.utils.gdocs_utils
-    cellmage.utils.webcontent_utils
+```
+
+## Integrations
+
+```{eval-rst}
+.. autosummary::
+    :toctree: generated
+
+    cellmage.integrations
+    cellmage.integrations.confluence_utils
+    cellmage.integrations.github_utils
+    cellmage.integrations.gitlab_utils
+    cellmage.integrations.jira_utils
+    cellmage.integrations.gdocs_utils
+    cellmage.integrations.webcontent_utils
+    cellmage.integrations.image_utils
 ```
 
 ## Context Providers
@@ -125,36 +123,6 @@ generated/cellmage.ambient_mode
 
     cellmage.context_providers
     cellmage.context_providers.ipython_context_provider
-```
-
-## Integrations
-
-```{eval-rst}
-.. autosummary::
-    :toctree: generated
-
-    cellmage.integrations
-    cellmage.integrations.base_magic
-    cellmage.integrations.confluence_magic
-    cellmage.integrations.github_magic
-    cellmage.integrations.gitlab_magic
-    cellmage.integrations.jira_magic
-    cellmage.integrations.sqlite_magic
-    cellmage.integrations.webcontent_magic
-```
-
-## Magic Commands
-
-```{eval-rst}
-.. autosummary::
-    :toctree: generated
-
-    cellmage.magic_commands
-    cellmage.magic_commands.ipython
-    cellmage.magic_commands.ipython.common
-    cellmage.magic_commands.ipython.config_magic
-    cellmage.magic_commands.ipython.llm_magic
-    cellmage.magic_commands.ipython.ambient_magic
 ```
 
 ## Ambient Mode

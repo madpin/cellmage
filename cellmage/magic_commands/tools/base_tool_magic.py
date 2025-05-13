@@ -66,7 +66,7 @@ class BaseMagics(Magics):
         """Get the ChatManager instance."""
         try:
             # Import from the refactored magic_commands module
-            from ..magic_commands.ipython.common import get_chat_manager
+            from cellmage.magic_commands.ipython.common import get_chat_manager
 
             return get_chat_manager()
         except Exception as e:
@@ -78,7 +78,7 @@ class BaseMagics(Magics):
         """Get the current execution context (exec_count and cell_id)."""
         context_provider = None
         try:
-            from ..context_providers.ipython_context_provider import (
+            from cellmage.context_providers.ipython_context_provider import (
                 get_ipython_context_provider,
             )
 
@@ -115,7 +115,7 @@ class BaseMagics(Magics):
         Returns:
             True if successful, False otherwise
         """
-        from ..models import Message
+        from cellmage.models import Message
 
         manager = self._get_chat_manager()
         if not manager:

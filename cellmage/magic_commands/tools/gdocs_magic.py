@@ -32,9 +32,9 @@ except ImportError:
         return lambda func: func
 
 
-from ..config import settings
-from ..utils.gdocs_utils import _GDOCS_AVAILABLE, GoogleDocsUtils
-from .base_magic import BaseMagics
+from cellmage.config import settings
+from cellmage.integrations.gdocs_utils import _GDOCS_AVAILABLE, GoogleDocsUtils
+from cellmage.magic_commands.tools.base_tool_magic import BaseMagics
 
 # Create a logger
 logger = logging.getLogger(__name__)

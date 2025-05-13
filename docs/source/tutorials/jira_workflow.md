@@ -213,7 +213,7 @@ Combine Jira and Confluence for comprehensive context:
 
 ```ipython
 # Load the Confluence integration
-%load_ext cellmage.integrations.confluence_magic
+%load_ext cellmage.magic_commands.tools.confluence_magic
 
 # Fetch a Jira ticket
 %jira PROJECT-123

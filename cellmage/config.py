@@ -168,6 +168,9 @@ class Settings(BaseSettings):
     gdocs_request_timeout: int = Field(
         default=300, description="Timeout in seconds for Google Docs API requests"
     )
+    gdocs_doc_fetch_timeout: int = Field(
+        default=60, description="Timeout in seconds for individual document fetch operations"
+    )
 
     model_config = SettingsConfigDict(
         env_prefix="CELLMAGE_",
