@@ -231,28 +231,28 @@ class StatusDisplayHandler(BaseConfigHandler):
 
         # Check for Jira integration
         try:
-            jira_available = "cellmage.integrations.jira_magic" in sys.modules
+            jira_available = "cellmage.magic_commands.tools.jira_magic" in sys.modules
             print(f"    • Jira: {'✅ Loaded' if jira_available else '❌ Not loaded'}")
         except Exception:
             print("    • Jira: ❓ Unknown")
 
         # Check for GitLab integration
         try:
-            gitlab_available = "cellmage.integrations.gitlab_magic" in sys.modules
+            gitlab_available = "cellmage.magic_commands.tools.gitlab_magic" in sys.modules
             print(f"    • GitLab: {'✅ Loaded' if gitlab_available else '❌ Not loaded'}")
         except Exception:
             print("    • GitLab: ❓ Unknown")
 
         # Check for GitHub integration
         try:
-            github_available = "cellmage.integrations.github_magic" in sys.modules
+            github_available = "cellmage.magic_commands.tools.github_magic" in sys.modules
             print(f"    • GitHub: {'✅ Loaded' if github_available else '❌ Not loaded'}")
         except Exception:
             print("    • GitHub: ❓ Unknown")
 
         # Check for Confluence integration
         try:
-            confluence_available = "cellmage.integrations.confluence_magic" in sys.modules
+            confluence_available = "cellmage.magic_commands.tools.confluence_magic" in sys.modules
             print(f"    • Confluence: {'✅ Loaded' if confluence_available else '❌ Not loaded'}")
         except Exception:
             print("    • Confluence: ❓ Unknown")

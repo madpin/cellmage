@@ -51,10 +51,10 @@ def test_magic_refactoring():
 
     # Test 1: Load the main extension but patch integration modules to prevent their errors
     with (
-        patch("cellmage.integrations.jira_magic.load_ipython_extension"),
-        patch("cellmage.integrations.gitlab_magic.load_ipython_extension"),
-        patch("cellmage.integrations.github_magic.load_ipython_extension"),
-        patch("cellmage.integrations.confluence_magic.load_ipython_extension"),
+        patch("cellmage.magic_commands.tools.jira_magic.load_ipython_extension"),
+        patch("cellmage.magic_commands.tools.gitlab_magic.load_ipython_extension"),
+        patch("cellmage.magic_commands.tools.github_magic.load_ipython_extension"),
+        patch("cellmage.magic_commands.tools.confluence_magic.load_ipython_extension"),
     ):
         try:
             import cellmage

@@ -32,8 +32,8 @@ def test_github_magic_loads(ip_instance):
 
     # Load the extension
     with mock.patch.dict("os.environ", {"GITHUB_TOKEN": "dummy_token"}):
-        with mock.patch("cellmage.utils.github_utils.GitHubUtils"):
-            ip.run_cell("%load_ext cellmage.integrations.github_magic")
+        with mock.patch("cellmage.magic_commands.tools.github_magic.GitHubUtils"):
+            ip.run_cell("%load_ext cellmage.magic_commands.tools.github_magic")
 
             # Check that the magic command is registered
             assert "github" in ip.magics_manager.magics["line"]
@@ -84,14 +84,11 @@ def test_github_fetch_repository(ip_instance):
 
     # Set up the environment and mock class
     with mock.patch.dict("os.environ", {"GITHUB_TOKEN": "dummy_token"}):
-        with mock.patch("cellmage.utils.github_utils.GitHubUtils", return_value=mock_github_utils):
-            # Load the extension
-            ip.run_cell("%reload_ext cellmage.integrations.github_magic")
-
-            # Run the magic command
+        with mock.patch(
+            "cellmage.integrations.github_utils.GitHubUtils", return_value=mock_github_utils
+        ):
+            ip.run_cell("%reload_ext cellmage.magic_commands.tools.github_magic")
             ip.run_line_magic("github", "username/test-repo --show")
-
-            # Verify the call was made correctly
             mock_github_utils.get_repository_summary.assert_called_once()
             args, kwargs = mock_github_utils.get_repository_summary.call_args
             assert args[0] == "username/test-repo"
@@ -135,14 +132,11 @@ def test_github_fetch_pull_request(ip_instance):
 
     # Set up the environment and mock class
     with mock.patch.dict("os.environ", {"GITHUB_TOKEN": "dummy_token"}):
-        with mock.patch("cellmage.utils.github_utils.GitHubUtils", return_value=mock_github_utils):
-            # Load the extension
-            ip.run_cell("%reload_ext cellmage.integrations.github_magic")
-
-            # Run the magic command with PR
+        with mock.patch(
+            "cellmage.integrations.github_utils.GitHubUtils", return_value=mock_github_utils
+        ):
+            ip.run_cell("%reload_ext cellmage.magic_commands.tools.github_magic")
             ip.run_line_magic("github", "username/test-repo --pr 123 --show")
-
-            # Verify the calls were made correctly
             mock_github_utils.get_repository.assert_called_once_with("username/test-repo")
             mock_github_utils.get_pull_request.assert_called_once_with(mock_repo, "123")
 
@@ -171,29 +165,21 @@ def test_github_add_to_history(ip_instance):
 
     # Set up the environment and mock class
     with mock.patch.dict("os.environ", {"GITHUB_TOKEN": "dummy_token"}):
-        with mock.patch("cellmage.utils.github_utils.GitHubUtils", return_value=mock_github_utils):
-            # Patch at the module level where the function is called
+        with mock.patch(
+            "cellmage.integrations.github_utils.GitHubUtils", return_value=mock_github_utils
+        ):
             with mock.patch(
                 "cellmage.magic_commands.ipython.common.get_chat_manager"
             ) as mock_get_manager:
-                # Create the mock chat manager structure
                 mock_chat_manager = mock.MagicMock()
                 mock_conversation_manager = mock.MagicMock()
                 mock_chat_manager.conversation_manager = mock_conversation_manager
                 mock_get_manager.return_value = mock_chat_manager
-
-                # Load the extension
-                ip.run_cell("%reload_ext cellmage.integrations.github_magic")
-
-                # Run the magic command with system flag
+                ip.run_cell("%reload_ext cellmage.magic_commands.tools.github_magic")
                 ip.run_line_magic("github", "username/test-repo --system")
-
-                # Verify the calls were made correctly
                 mock_github_utils.get_repository_summary.assert_called_once()
                 args, kwargs = mock_github_utils.get_repository_summary.call_args
                 assert args[0] == "username/test-repo"
-
-                # Verify the message was added to history
                 mock_conversation_manager.add_message.assert_called_once()
                 args, kwargs = mock_conversation_manager.add_message.call_args
                 message = args[0]

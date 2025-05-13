@@ -13,7 +13,7 @@ from functools import lru_cache
 from typing import Any, Dict, List, Optional, Union
 
 # Import token utilities
-from ..utils.token_utils import default_token_counter
+from cellmage.utils.token_utils import default_token_counter
 
 # Flag to check if python-gitlab is available
 _GITLAB_AVAILABLE = False

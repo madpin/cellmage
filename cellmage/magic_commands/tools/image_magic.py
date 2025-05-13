@@ -32,7 +32,7 @@ except ImportError:
 
 
 # Import image utilities
-from ..utils.image_utils import (
+from cellmage.integrations.image_utils import (
     format_image_for_llm,
     format_image_info_for_display,
     format_processed_image_info,
@@ -41,7 +41,7 @@ from ..utils.image_utils import (
 )
 
 # Import the base magic class
-from .base_magic import BaseMagics
+from cellmage.magic_commands.tools.base_tool_magic import BaseMagics
 
 # Create a logger
 logger = logging.getLogger(__name__)

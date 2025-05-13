@@ -43,31 +43,31 @@ This versatile spell allows you to adjust your magical settings and manage your 
 
 #### 🔮 Magical Parameters
 
-| Arcane Parameter | What It Does |
-|------------------|--------------|
-| `-p`, `--persona` | Transform the AI into a different magical identity |
-| `--show-persona` | Reveal the current persona's true nature |
-| `--list-personas` | Summon a list of all available personas |
-| `--set-override KEY VALUE` | Apply a magical override to a parameter (e.g., `--set-override temperature 0.5`) |
-| `--remove-override KEY` | Remove a specific magical override |
-| `--clear-overrides` | Dispel all magical overrides |
-| `--show-overrides` | Reveal all active magical overrides |
-| `--clear-history` | Erase your conversation history from memory (but keep system prompt) |
-| `--show-history` | Unfold the scroll of your conversation history |
-| `--save [FILENAME]` | Preserve your magical session in a scroll for later use |
-| `--load SESSION_ID` | Recall a previously preserved magical session |
-| `--list-sessions` | Reveal all preserved magical sessions |
-| `--auto-save` | Enable automatic preservation of your magical conversations |
-| `--no-auto-save` | Disable automatic preservation |
-| `--list-snippets` | Reveal all available magical text fragments |
-| `--snippet NAME` | Incorporate a magical text fragment into your next spell |
-| `--sys-snippet NAME` | Add a system-level magical fragment to your next spell |
-| `--status` | Reveal your current magical status and power levels |
-| `--model NAME` | Change which magical entity you're communicating with |
-| `--adapter {direct,langchain}` | Switch to a different magical communication method |
-| `--list-mappings` | Show your magical name translations |
-| `--add-mapping ALIAS FULL_NAME` | Create a new magical name shortcut |
-| `--remove-mapping ALIAS` | Remove a magical name shortcut |
+| Arcane Parameter                | What It Does                                                                     |
+| ------------------------------- | -------------------------------------------------------------------------------- |
+| `-p`, `--persona`               | Transform the AI into a different magical identity                               |
+| `--show-persona`                | Reveal the current persona's true nature                                         |
+| `--list-personas`               | Summon a list of all available personas                                          |
+| `--set-override KEY VALUE`      | Apply a magical override to a parameter (e.g., `--set-override temperature 0.5`) |
+| `--remove-override KEY`         | Remove a specific magical override                                               |
+| `--clear-overrides`             | Dispel all magical overrides                                                     |
+| `--show-overrides`              | Reveal all active magical overrides                                              |
+| `--clear-history`               | Erase your conversation history from memory (but keep system prompt)             |
+| `--show-history`                | Unfold the scroll of your conversation history                                   |
+| `--save [FILENAME]`             | Preserve your magical session in a scroll for later use                          |
+| `--load SESSION_ID`             | Recall a previously preserved magical session                                    |
+| `--list-sessions`               | Reveal all preserved magical sessions                                            |
+| `--auto-save`                   | Enable automatic preservation of your magical conversations                      |
+| `--no-auto-save`                | Disable automatic preservation                                                   |
+| `--list-snippets`               | Reveal all available magical text fragments                                      |
+| `--snippet NAME`                | Incorporate a magical text fragment into your next spell                         |
+| `--sys-snippet NAME`            | Add a system-level magical fragment to your next spell                           |
+| `--status`                      | Reveal your current magical status and power levels                              |
+| `--model NAME`                  | Change which magical entity you're communicating with                            |
+| `--adapter {direct,langchain}`  | Switch to a different magical communication method                               |
+| `--list-mappings`               | Show your magical name translations                                              |
+| `--add-mapping ALIAS FULL_NAME` | Create a new magical name shortcut                                               |
+| `--remove-mapping ALIAS`        | Remove a magical name shortcut                                                   |
 
 #### 📖 Spell Examples
 
@@ -142,19 +142,19 @@ Your message to the magical AI...
 
 #### 🔮 Magical Parameters
 
-| Arcane Parameter | What It Does |
-|------------------|--------------|
-| `-p`, `--persona` | Temporarily summon a different magical identity |
-| `-m`, `--model` | Temporarily communicate with a different magical entity |
-| `-t`, `--temperature` | Adjust the creativity of THIS spell only |
-| `--max-tokens` | Limit the length of the magical response |
-| `--no-history` | Cast a spell that leaves no trace in your history |
-| `--no-stream` | Receive the complete magical response at once (no gradual appearance) |
-| `--no-rollback` | Prevent automatic spell recovery if something goes wrong |
-| `--param KEY VALUE` | Set any other magical parameter for this spell only |
-| `--list-snippets` | Reveal all available magical fragments |
-| `--snippet NAME` | Include a magical fragment in this spell |
-| `--sys-snippet NAME` | Include a system-level magical fragment in this spell |
+| Arcane Parameter      | What It Does                                                          |
+| --------------------- | --------------------------------------------------------------------- |
+| `-p`, `--persona`     | Temporarily summon a different magical identity                       |
+| `-m`, `--model`       | Temporarily communicate with a different magical entity               |
+| `-t`, `--temperature` | Adjust the creativity of THIS spell only                              |
+| `--max-tokens`        | Limit the length of the magical response                              |
+| `--no-history`        | Cast a spell that leaves no trace in your history                     |
+| `--no-stream`         | Receive the complete magical response at once (no gradual appearance) |
+| `--no-rollback`       | Prevent automatic spell recovery if something goes wrong              |
+| `--param KEY VALUE`   | Set any other magical parameter for this spell only                   |
+| `--list-snippets`     | Reveal all available magical fragments                                |
+| `--snippet NAME`      | Include a magical fragment in this spell                              |
+| `--sys-snippet NAME`  | Include a system-level magical fragment in this spell                 |
 
 #### 📖 Spell Examples
 
@@ -190,16 +190,16 @@ This enchantment allows you to peer into the Confluence realm and retrieve knowl
 
 #### 🔮 Magical Parameters
 
-| Arcane Parameter | What It Does |
-|------------------|--------------|
-| `identifier` | Page identifier (SPACE:Title format or page ID) |
-| `--cql QUERY` | Confluence Query Language search query |
-| `--max NUMBER` | Maximum number of results for CQL queries (default: 5) |
-| `--system` | Add content as a system message (rather than user) |
-| `--show` | Display the content without adding to history |
-| `--text` | Use plain text format instead of Markdown (Markdown is default) |
-| `--no-content` | For CQL search, return only metadata without page content |
-| `--content` | For CQL search, fetch full content of each page |
+| Arcane Parameter | What It Does                                                    |
+| ---------------- | --------------------------------------------------------------- |
+| `identifier`     | Page identifier (SPACE:Title format or page ID)                 |
+| `--cql QUERY`    | Confluence Query Language search query                          |
+| `--max NUMBER`   | Maximum number of results for CQL queries (default: 5)          |
+| `--system`       | Add content as a system message (rather than user)              |
+| `--show`         | Display the content without adding to history                   |
+| `--text`         | Use plain text format instead of Markdown (Markdown is default) |
+| `--no-content`   | For CQL search, return only metadata without page content       |
+| `--content`      | For CQL search, fetch full content of each page                 |
 
 #### 📖 Spell Examples
 
@@ -221,16 +221,16 @@ This spell allows you to inspect issues and tasks from the Jira realm.
 
 #### 🔮 Magical Parameters
 
-| Arcane Parameter | What It Does |
-|------------------|--------------|
-| `issue_key` | Jira issue key (e.g., PROJECT-123) |
-| `--jql QUERY` | JQL search query instead of a specific issue |
-| `--max NUMBER` | Maximum number of results for JQL search (default: 5) |
-| `--fields FIELDS` | Comma-separated list of fields to include |
-| `--comments` | Include issue comments |
-| `--system` | Add as system message instead of user message |
-| `--show` | Display content without adding to history |
-| `--text` | Use plain text instead of Markdown format |
+| Arcane Parameter  | What It Does                                          |
+| ----------------- | ----------------------------------------------------- |
+| `issue_key`       | Jira issue key (e.g., PROJECT-123)                    |
+| `--jql QUERY`     | JQL search query instead of a specific issue          |
+| `--max NUMBER`    | Maximum number of results for JQL search (default: 5) |
+| `--fields FIELDS` | Comma-separated list of fields to include             |
+| `--comments`      | Include issue comments                                |
+| `--system`        | Add as system message instead of user message         |
+| `--show`          | Display content without adding to history             |
+| `--text`          | Use plain text instead of Markdown format             |
 
 #### 📖 Spell Examples
 
@@ -252,17 +252,17 @@ This enchantment allows you to peer into GitHub repositories and extract informa
 
 #### 🔮 Magical Parameters
 
-| Arcane Parameter | What It Does |
-|------------------|--------------|
-| `repo_path` | Repository owner/name or file path within a repository |
-| `--issue NUMBER` | Fetch a specific issue by number |
-| `--pr NUMBER` | Fetch a specific pull request by number |
-| `--search QUERY` | Search for issues with the given query |
-| `--max NUMBER` | Maximum number of search results (default: 5) |
-| `--comments` | Include comments on issues/PRs |
-| `--system` | Add as system message instead of user message |
-| `--show` | Display content without adding to history |
-| `--branch NAME` | Branch to use when fetching files (default: main/master) |
+| Arcane Parameter | What It Does                                             |
+| ---------------- | -------------------------------------------------------- |
+| `repo_path`      | Repository owner/name or file path within a repository   |
+| `--issue NUMBER` | Fetch a specific issue by number                         |
+| `--pr NUMBER`    | Fetch a specific pull request by number                  |
+| `--search QUERY` | Search for issues with the given query                   |
+| `--max NUMBER`   | Maximum number of search results (default: 5)            |
+| `--comments`     | Include comments on issues/PRs                           |
+| `--system`       | Add as system message instead of user message            |
+| `--show`         | Display content without adding to history                |
+| `--branch NAME`  | Branch to use when fetching files (default: main/master) |
 
 #### 📖 Spell Examples
 
@@ -287,17 +287,17 @@ This spell connects to GitLab projects and extracts information.
 
 #### 🔮 Magical Parameters
 
-| Arcane Parameter | What It Does |
-|------------------|--------------|
-| `repo_path` | Project path or file path within a project |
-| `--issue NUMBER` | Fetch a specific issue by number |
-| `--mr NUMBER` | Fetch a specific merge request by number |
-| `--search QUERY` | Search for issues with the given query |
-| `--max NUMBER` | Maximum number of search results (default: 5) |
-| `--comments` | Include comments on issues/MRs |
-| `--system` | Add as system message instead of user message |
-| `--show` | Display content without adding to history |
-| `--branch NAME` | Branch to use when fetching files (default: main/master) |
+| Arcane Parameter | What It Does                                             |
+| ---------------- | -------------------------------------------------------- |
+| `repo_path`      | Project path or file path within a project               |
+| `--issue NUMBER` | Fetch a specific issue by number                         |
+| `--mr NUMBER`    | Fetch a specific merge request by number                 |
+| `--search QUERY` | Search for issues with the given query                   |
+| `--max NUMBER`   | Maximum number of search results (default: 5)            |
+| `--comments`     | Include comments on issues/MRs                           |
+| `--system`       | Add as system message instead of user message            |
+| `--show`         | Display content without adding to history                |
+| `--branch NAME`  | Branch to use when fetching files (default: main/master) |
 
 #### 📖 Spell Examples
 
@@ -319,17 +319,17 @@ This enchantment extracts content from webpages and prepares it for analysis.
 
 #### 🔮 Magical Parameters
 
-| Arcane Parameter | What It Does |
-|------------------|--------------|
-| `url` | URL of the webpage to fetch |
-| `--clean` | Clean and extract main content (default behavior) |
-| `--raw` | Get raw HTML content without cleaning |
-| `--method METHOD` | Content extraction method: trafilatura (default), bs4, or simple |
-| `--system` | Add as system message instead of user message |
-| `--show` | Display content without adding to history |
-| `--include-images` | Include image references in the output |
-| `--no-links` | Remove hyperlinks from the output |
-| `--timeout SECONDS` | Request timeout in seconds (default: 30) |
+| Arcane Parameter    | What It Does                                                     |
+| ------------------- | ---------------------------------------------------------------- |
+| `url`               | URL of the webpage to fetch                                      |
+| `--clean`           | Clean and extract main content (default behavior)                |
+| `--raw`             | Get raw HTML content without cleaning                            |
+| `--method METHOD`   | Content extraction method: trafilatura (default), bs4, or simple |
+| `--system`          | Add as system message instead of user message                    |
+| `--show`            | Display content without adding to history                        |
+| `--include-images`  | Include image references in the output                           |
+| `--no-links`        | Remove hyperlinks from the output                                |
+| `--timeout SECONDS` | Request timeout in seconds (default: 30)                         |
 
 #### 📖 Spell Examples
 
@@ -351,20 +351,20 @@ This enchantment allows you to access content from Google Docs and use it as con
 
 #### 🔮 Magical Parameters
 
-| Arcane Parameter | What It Does |
-|------------------|--------------|
-| `document_id` | Google Document ID or URL |
-| `--system` | Add as system message instead of user message |
-| `--show` | Display content without adding to history |
-| `--search QUERY` | Search for Google Docs files containing the specified term |
-| `--content` | Retrieve and display content for search results |
-| `--max-results NUMBER` | Maximum number of search results to return (default: 10) |
-| `--max-content NUMBER` | Maximum number of documents to retrieve content for (default: 3) |
-| `--timeout SECONDS` | Request timeout in seconds (default: 300) |
-| `--author EMAIL` | Filter documents by author/owner email (comma-separated for multiple) |
-| `--modified-after`, `--updated DATE` | Filter by modification date (YYYY-MM-DD or natural language) |
-| `--order-by FIELD` | How to order search results (relevance, modifiedTime, createdTime, name) |
-| `--auth-type TYPE` | Authentication type to use (oauth or service_account) |
+| Arcane Parameter                     | What It Does                                                             |
+| ------------------------------------ | ------------------------------------------------------------------------ |
+| `document_id`                        | Google Document ID or URL                                                |
+| `--system`                           | Add as system message instead of user message                            |
+| `--show`                             | Display content without adding to history                                |
+| `--search QUERY`                     | Search for Google Docs files containing the specified term               |
+| `--content`                          | Retrieve and display content for search results                          |
+| `--max-results NUMBER`               | Maximum number of search results to return (default: 10)                 |
+| `--max-content NUMBER`               | Maximum number of documents to retrieve content for (default: 3)         |
+| `--timeout SECONDS`                  | Request timeout in seconds (default: 300)                                |
+| `--author EMAIL`                     | Filter documents by author/owner email (comma-separated for multiple)    |
+| `--modified-after`, `--updated DATE` | Filter by modification date (YYYY-MM-DD or natural language)             |
+| `--order-by FIELD`                   | How to order search results (relevance, modifiedTime, createdTime, name) |
+| `--auth-type TYPE`                   | Authentication type to use (oauth or service_account)                    |
 
 #### 📖 Spell Examples
 
@@ -389,18 +389,18 @@ This enchantment manages your stored conversations with the magic realm.
 
 #### 🔮 Magical Parameters
 
-| Arcane Parameter | What It Does |
-|------------------|--------------|
-| `--status` | Show the current state of the SQLite storage |
-| `--stats` | Display statistics about stored conversations |
-| `--list` | List all stored conversations |
-| `--new` | Start a new conversation |
-| `--load ID` | Load a specific conversation by ID |
-| `--delete ID` | Delete a conversation by ID |
-| `--tag ID TAG` | Add a tag to a conversation |
-| `--search QUERY` | Search for conversations with content matching the query |
-| `--export PATH` | Export a conversation to markdown file |
-| `--import-md PATH` | Import a conversation from markdown file |
+| Arcane Parameter   | What It Does                                             |
+| ------------------ | -------------------------------------------------------- |
+| `--status`         | Show the current state of the SQLite storage             |
+| `--stats`          | Display statistics about stored conversations            |
+| `--list`           | List all stored conversations                            |
+| `--new`            | Start a new conversation                                 |
+| `--load ID`        | Load a specific conversation by ID                       |
+| `--delete ID`      | Delete a conversation by ID                              |
+| `--tag ID TAG`     | Add a tag to a conversation                              |
+| `--search QUERY`   | Search for conversations with content matching the query |
+| `--export PATH`    | Export a conversation to markdown file                   |
+| `--import-md PATH` | Import a conversation from markdown file                 |
 
 #### 📖 Spell Examples
 
@@ -428,16 +428,16 @@ This spell allows you to process, display, and add images to your LLM conversati
 
 #### 🔮 Magical Parameters
 
-| Arcane Parameter | What It Does |
-|------------------|--------------|
-| `image_path` | Path to the image file to process |
-| `-r`, `--resize` WIDTH | Width to resize the image to while maintaining aspect ratio |
-| `-q`, `--quality` QUALITY | Quality for lossy image formats (0.0-1.0) |
-| `--show` | Display the image inline after processing |
-| `-i`, `--info` | Display information about the image |
-| `-a`, `--add-to-chat` | Add the image to the current chat session (default: always added) |
-| `-c`, `--convert` | Force conversion to a compatible format |
-| `-f`, `--format` FORMAT | Format to convert the image to (e.g., "jpg", "png", "webp") |
+| Arcane Parameter          | What It Does                                                      |
+| ------------------------- | ----------------------------------------------------------------- |
+| `image_path`              | Path to the image file to process                                 |
+| `-r`, `--resize` WIDTH    | Width to resize the image to while maintaining aspect ratio       |
+| `-q`, `--quality` QUALITY | Quality for lossy image formats (0.0-1.0)                         |
+| `--show`                  | Display the image inline after processing                         |
+| `-i`, `--info`            | Display information about the image                               |
+| `-a`, `--add-to-chat`     | Add the image to the current chat session (default: always added) |
+| `-c`, `--convert`         | Force conversion to a compatible format                           |
+| `-f`, `--format` FORMAT   | Format to convert the image to (e.g., "jpg", "png", "webp")       |
 
 #### 📖 Spell Examples
 
@@ -507,9 +507,9 @@ print(pd.__version__)
 %disable_llm_config_persistent
 
 # Load integration extensions as needed
-%load_ext cellmage.integrations.confluence_magic
-%load_ext cellmage.integrations.github_magic
-%load_ext cellmage.integrations.webcontent_magic
+%load_ext cellmage.magic_commands.tools.confluence_magic
+%load_ext cellmage.magic_commands.tools.github_magic
+%load_ext cellmage.magic_commands.tools.webcontent_magic
 
 # Fetch content from various sources
 %confluence TEAM:Project Overview

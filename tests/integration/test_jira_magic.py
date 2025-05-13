@@ -30,7 +30,9 @@ def ip_instance():
 @pytest.fixture
 def mock_fetch_ticket():
     """Create a mock fetch_ticket function."""
-    with mock.patch("cellmage.utils.jira_utils.JiraUtils.fetch_processed_ticket") as mock_fetch:
+    with mock.patch(
+        "cellmage.integrations.jira_utils.JiraUtils.fetch_processed_ticket"
+    ) as mock_fetch:
         mock_fetch.return_value = {
             "key": "TEST-123",
             "summary": "Test issue",
@@ -54,7 +56,9 @@ def mock_fetch_ticket():
 @pytest.fixture
 def mock_fetch_by_jql():
     """Create a mock fetch_by_jql function."""
-    with mock.patch("cellmage.utils.jira_utils.JiraUtils.fetch_processed_tickets") as mock_fetch:
+    with mock.patch(
+        "cellmage.integrations.jira_utils.JiraUtils.fetch_processed_tickets"
+    ) as mock_fetch:
         mock_fetch.return_value = [
             {
                 "key": "TEST-123",
@@ -79,7 +83,7 @@ def test_jira_magic_loads(ip_instance):
         "os.environ", {"JIRA_URL": "https://jira.example.com", "JIRA_PAT": "dummy_token"}
     ):
         # Load the Jira magic
-        ip.run_cell("%load_ext cellmage.integrations.jira_magic")
+        ip.run_cell("%load_ext cellmage.magic_commands.tools.jira_magic")
 
         # Check that the %jira magic is registered
         assert "jira" in ip.magics_manager.magics["line"]
@@ -94,7 +98,7 @@ def test_jira_fetch_ticket(mock_fetch_ticket, ip_instance):
         "os.environ", {"JIRA_URL": "https://jira.example.com", "JIRA_PAT": "dummy_token"}
     ):
         # Load the extension
-        ip.run_cell("%reload_ext cellmage.integrations.jira_magic")
+        ip.run_cell("%reload_ext cellmage.magic_commands.tools.jira_magic")
 
         # Run the magic command
         result = ip.run_line_magic("jira", "TEST-123 --show")
@@ -121,7 +125,7 @@ def test_jira_fetch_by_jql(mock_fetch_by_jql, ip_instance):
         "os.environ", {"JIRA_URL": "https://jira.example.com", "JIRA_PAT": "dummy_token"}
     ):
         # Load the extension
-        ip.run_cell("%reload_ext cellmage.integrations.jira_magic")
+        ip.run_cell("%reload_ext cellmage.magic_commands.tools.jira_magic")
 
         # Run the magic command with JQL
         result = ip.run_line_magic("jira", '--jql "project = TEST" --show')
@@ -152,19 +156,19 @@ def test_jira_add_to_history(mock_fetch_ticket, ip_instance):
         ) as mock_get_manager:
             # Create the mock chat manager structure
             mock_chat_manager = mock.MagicMock()
-            mock_history_manager = mock.MagicMock()
-            mock_chat_manager.history_manager = mock_history_manager
+            mock_conversation_manager = mock.MagicMock()
+            mock_chat_manager.conversation_manager = mock_conversation_manager
             mock_get_manager.return_value = mock_chat_manager
 
             # Load the extension
-            ip.run_cell("%reload_ext cellmage.integrations.jira_magic")
+            ip.run_cell("%reload_ext cellmage.magic_commands.tools.jira_magic")
 
             # Run the magic command with system flag
             ip.run_line_magic("jira", "TEST-123 --system")
 
             # Verify the message was added to history
-            mock_history_manager.add_message.assert_called_once()
-            args, kwargs = mock_history_manager.add_message.call_args
+            mock_conversation_manager.add_message.assert_called_once()
+            args, kwargs = mock_conversation_manager.add_message.call_args
             message = args[0]
             assert message.role == "system"
             assert message.metadata["source"] == "jira"

@@ -4,13 +4,15 @@ Google Docs utility for interacting with the Google Docs API.
 This module provides the GoogleDocsUtils class for fetching and processing Google Documents.
 """
 
+import concurrent.futures
 import logging
 import os
+import socket
 from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
-from ..config import settings
-from .date_utils import parse_date_input
+from cellmage.config import settings
+from cellmage.utils.date_utils import parse_date_input
 
 try:
     import pickle
@@ -118,7 +120,7 @@ class GoogleDocsUtils:
 
     def __init__(
         self,
-        auth_type: str = None,
+        auth_type: Optional[str] = None,
         token_path: Optional[str] = None,
         credentials_path: Optional[str] = None,
         service_account_path: Optional[str] = None,
@@ -599,15 +601,38 @@ class GoogleDocsUtils:
             error_message = f"# Error Fetching Google Doc\n\nFailed to fetch or format document {document_id}: {str(e)}"
             return error_message
 
+    def _fetch_document_with_timeout(self, document_id: str, timeout: int) -> str:
+        """Helper method to fetch a document with timeout.
+
+        Args:
+            document_id: The Google Docs document ID.
+            timeout: Timeout in seconds for the fetch operation.
+
+        Returns:
+            Formatted document content as Markdown text.
+
+        Raises:
+            TimeoutError: If the operation times out.
+            Exception: For any other errors during fetching.
+        """
+        # The socket timeout is set at the instance level, so we just call the format method
+        try:
+            return self.format_document_for_llm(document_id)
+        except Exception as e:
+            logger.error(
+                f"Error in _fetch_document_with_timeout for doc {document_id}: {e}", exc_info=True
+            )
+            raise
+
     def search_documents(
         self,
         search_query: str = "",
         max_results: int = 10,
-        author: str = None,
-        created_after: str = None,
-        created_before: str = None,
-        modified_after: str = None,
-        modified_before: str = None,
+        author: Optional[str] = None,
+        created_after: Optional[str] = None,
+        created_before: Optional[str] = None,
+        modified_after: Optional[str] = None,
+        modified_before: Optional[str] = None,
         order_by: str = "relevance",
     ) -> List[Dict[str, Any]]:
         """Search for Google Docs files matching the given criteria.
@@ -732,57 +757,90 @@ class GoogleDocsUtils:
             raise RuntimeError(f"Failed to search for documents: {str(e)}")
 
     def fetch_documents_content_parallel(
-        self, documents: List[Dict[str, str]], max_docs: int = None
+        self,
+        documents: List[Dict[str, str]],
+        max_docs: Optional[int] = None,
+        doc_timeout: Optional[int] = None,
     ) -> List[Dict[str, str]]:
         """Fetch content from multiple documents in parallel.
 
         Args:
             documents: List of document dicts with 'id', 'name', and 'url' keys.
             max_docs: Maximum number of documents to fetch content for.
-                      If None, uses the value from settings.gdocs_parallel_fetch_limit (default: 3).
+                      If None, uses the value from settings.gdocs_parallel_fetch_limit (default: 10).
+            doc_timeout: Timeout in seconds for each individual document fetch.
+                      If None, uses the value from settings.gdocs_doc_fetch_timeout (default: 60).
 
         Returns:
             A list of documents with added 'content' key containing the formatted document content.
         """
-        import concurrent.futures
-
-        # Use the config setting if max_docs is not provided
+        # Use the config setting if max_docs or doc_timeout is not provided
         if max_docs is None:
             max_docs = settings.gdocs_parallel_fetch_limit
             logger.info(f"Using configured parallel fetch limit: {max_docs}")
 
-        logger.info(f"Fetching content from {min(max_docs, len(documents))} documents in parallel")
+        if doc_timeout is None:
+            doc_timeout = settings.gdocs_doc_fetch_timeout
+            logger.info(f"Using configured document fetch timeout: {doc_timeout} seconds")
+
+        # Safety check to ensure we're not exceeding a reasonable limit
+        max_docs = min(max_docs, len(documents))
+        logger.info(f"Fetching content from {max_docs} documents in parallel")
 
         # Limit to max_docs
         docs_to_fetch = documents[:max_docs]
         result_docs = []
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            # Create a future for each document
-            future_to_doc = {
-                executor.submit(self.format_document_for_llm, doc["id"]): doc
-                for doc in docs_to_fetch
-            }
+        # Set global socket timeout as a safeguard
+        original_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(doc_timeout)
 
-            # Process results as they complete
-            for future in concurrent.futures.as_completed(future_to_doc):
-                doc = future_to_doc[future]
-                try:
-                    content = future.result()
-                    doc_with_content = doc.copy()
-                    doc_with_content["content"] = content
-                    result_docs.append(doc_with_content)
-                    logger.info(f"Successfully fetched content for document: {doc['name']}")
-                except Exception as e:
-                    logger.error(
-                        f"Error fetching content for document {doc['id']}: {e}", exc_info=True
-                    )
-                    # Add the document with an error message
-                    doc_with_error = doc.copy()
-                    doc_with_error["content"] = (
-                        f"# Error Fetching Document\n\nFailed to fetch content for document '{doc['name']}': {str(e)}"
-                    )
-                    result_docs.append(doc_with_error)
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_docs) as executor:
+                # Create a future for each document with proper cancellation handling
+                future_to_doc = {
+                    executor.submit(self._fetch_document_with_timeout, doc["id"], doc_timeout): doc
+                    for doc in docs_to_fetch
+                }
+
+                # Process results as they complete
+                for future in concurrent.futures.as_completed(future_to_doc):
+                    doc = future_to_doc[future]
+                    try:
+                        # Get the result with timeout
+                        content = future.result(
+                            timeout=doc_timeout + 5
+                        )  # Extra buffer for future.result() itself
+                        doc_with_content = doc.copy()
+                        doc_with_content["content"] = content
+                        result_docs.append(doc_with_content)
+                        logger.info(f"Successfully fetched content for document: {doc['name']}")
+                    except concurrent.futures.TimeoutError:
+                        logger.error(
+                            f"Timeout fetching content for document {doc['id']} after {doc_timeout} seconds"
+                        )
+                        # Add the document with a timeout error message
+                        doc_with_error = doc.copy()
+                        doc_with_error["content"] = (
+                            f"# Error Fetching Document\n\nTimeout: Failed to fetch content for document '{doc['name']}' "
+                            f"within {doc_timeout} seconds. The document may be too large or the server may be slow to respond."
+                        )
+                        result_docs.append(doc_with_error)
+                        # Cancel the future if possible
+                        future.cancel()
+                    except Exception as e:
+                        logger.error(
+                            f"Error fetching content for document {doc['id']}: {e}", exc_info=True
+                        )
+                        # Add the document with an error message
+                        doc_with_error = doc.copy()
+                        doc_with_error["content"] = (
+                            f"# Error Fetching Document\n\nFailed to fetch content for document '{doc['name']}': {str(e)}"
+                        )
+                        result_docs.append(doc_with_error)
+        finally:
+            # Restore original socket timeout
+            socket.setdefaulttimeout(original_timeout)
 
         logger.info(f"Completed fetching content for {len(result_docs)} documents")
         return result_docs

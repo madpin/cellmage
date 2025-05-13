@@ -47,7 +47,7 @@ To create an Atlassian API token:
 Load the extension in your Jupyter notebook:
 
 ```ipython
-%load_ext cellmage.integrations.confluence_magic
+%load_ext cellmage.magic_commands.tools.confluence_magic
 ```
 
 This will register the `%confluence` magic command.
@@ -104,14 +104,14 @@ When performing a CQL search, you have several content options:
 
 ### Command Options
 
-| Option | Description |
-|--------|-------------|
-| `--system` | Add the content as a system message instead of a user message |
-| `--show` | Just display the content without adding it to conversation history |
-| `--text` | Use plain text format instead of Markdown (Markdown is default) |
-| `--content` | For CQL search, fetch the full content of each page (additional API calls) |
-| `--no-content` | For CQL search, return only metadata without page content |
-| `--max N` | Maximum number of results to return for CQL searches (default: 5) |
+| Option         | Description                                                                |
+| -------------- | -------------------------------------------------------------------------- |
+| `--system`     | Add the content as a system message instead of a user message              |
+| `--show`       | Just display the content without adding it to conversation history         |
+| `--text`       | Use plain text format instead of Markdown (Markdown is default)            |
+| `--content`    | For CQL search, fetch the full content of each page (additional API calls) |
+| `--no-content` | For CQL search, return only metadata without page content                  |
+| `--max N`      | Maximum number of results to return for CQL searches (default: 5)          |
 
 ### Examples
 
