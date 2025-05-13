@@ -7,17 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## [v0.9.2](https://github.com/madpin/cellmage/releases/tag/v0.9.2) - 2025-05-13
-
-### Added
-- Introduced IPython magic commands for image processing, Jira integration, and web content fetching to enhance interactive workflows.
-- Added a script that retroactively generates changelog entries using a large language model, improving changelog accuracy and completeness.
-
-### Fixed
-- Corrected the download status badge link in the README to ensure it displays properly.
-- Improved changelog generation by handling cases where the current tag does not exist and updating the version before generation.
-
-
 ## [v0.9.1](https://github.com/madpin/cellmage/releases/tag/v0.9.1) - 2025-05-11
 ### Fixed
 - Improved changelog generation by handling cases where the current tag does not exist and ensuring the version is updated before generating the changelog.
