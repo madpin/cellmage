@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v0.9.4](https://github.com/madpin/cellmage/releases/tag/v0.9.4) - 2025-05-13
+
 ## [v0.9.2](https://github.com/madpin/cellmage/releases/tag/v0.9.2) - 2025-05-13
 
 ## [v0.9.1](https://github.com/madpin/cellmage/releases/tag/v0.9.1) - 2025-05-11
