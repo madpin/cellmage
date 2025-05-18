@@ -53,7 +53,7 @@ Changelog = "https://github.com/madpin/cellmage/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 langchain = [
-    "langchain==0.3.24",
+    "langchain==0.3.25",
     "langchain-core>=0.1.20",
     "langchain-community>=0.1.20",
     "langchain-openai>=0.0.8",
