@@ -236,7 +236,7 @@ class SQLiteCellMagics(BaseMagics):
                 # Extract metadata from chat_manager's last message
                 metadata = {}
                 try:
-                    chat_history = chat_manager.history_manager.get_history()
+                    chat_history = chat_manager.conversation_manager.get_messages()
                     if chat_history and len(chat_history) > 0:
                         last_msg = chat_history[-1]
                         if last_msg.role == "assistant" and last_msg.metadata:
@@ -428,7 +428,7 @@ class SQLiteCellMagics(BaseMagics):
                 # Extract metadata from chat_manager's last message
                 metadata = {}
                 try:
-                    chat_history = chat_manager.history_manager.get_history()
+                    chat_history = chat_manager.conversation_manager.get_messages()
                     if chat_history and len(chat_history) > 0:
                         last_msg = chat_history[-1]
                         if last_msg.role == "assistant" and last_msg.metadata:

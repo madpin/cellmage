@@ -54,17 +54,20 @@ class TokenCountHandler(BaseConfigHandler):
         Args:
             manager: The ChatManager instance.
         """
-        if manager and manager.history_manager:
+        if manager and hasattr(manager, "conversation_manager") and manager.conversation_manager:
             # Get the conversation history
-            history = manager.history_manager.get_history()
-
-            # Get token counts for individual messages and total
-            token_counts = self._count_tokens(history, manager)
-
-            # Format and display token counts
-            self._display_token_counts(token_counts)
+            print("DEBUG: About to call get_messages() on conversation_manager")
+            history = manager.conversation_manager.get_messages()
+            print(f"DEBUG: Successfully got {len(history)} messages")
         else:
             print("⚠️ No active conversation history found.")
+            return
+
+        # Get token counts for individual messages and total
+        token_counts = self._count_tokens(history, manager)
+
+        # Format and display token counts
+        self._display_token_counts(token_counts)
 
     def _count_tokens(self, messages: List[Message], manager) -> Dict[str, Any]:
         """

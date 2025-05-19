@@ -37,8 +37,9 @@ def migrate_to_sqlite(manager: ChatManager, db_path: Optional[str] = None) -> Co
     )
 
     # Import current history into the conversation manager
-    if hasattr(manager, "history_manager") and manager.history_manager:
-        current_history = manager.history_manager.get_history()
+    current_history = []
+    if hasattr(manager, "conversation_manager") and manager.conversation_manager:
+        current_history = manager.conversation_manager.get_messages()
         for msg in current_history:
             conversation_manager.add_message(msg)
 
@@ -46,33 +47,8 @@ def migrate_to_sqlite(manager: ChatManager, db_path: Optional[str] = None) -> Co
 
     # Try to migrate saved conversations if they exist
     try:
-        if hasattr(manager, "history_manager") and manager.history_manager:
-            # Check if history_store is available for listing conversations
-            if hasattr(manager.history_manager, "history_store"):
-                history_store = manager.history_manager.history_store
-                if history_store and hasattr(history_store, "list_saved_conversations"):
-                    saved_conversations = history_store.list_saved_conversations()
-
-                    migrated_count = 0
-                    for conv in saved_conversations:
-                        try:
-                            # Load each conversation
-                            if "path" in conv:
-                                messages, metadata = history_store.load_conversation(conv["path"])
-
-                                # Create a new conversation in SQLite
-                                str(uuid.uuid4())
-                                conversation_manager.create_new_conversation()
-
-                                # Add messages to the new conversation
-                                for msg in messages:
-                                    conversation_manager.add_message(msg)
-
-                                migrated_count += 1
-                        except Exception as e:
-                            logger.error(f"Error migrating conversation {conv.get('path')}: {e}")
-
-                    logger.info(f"Migrated {migrated_count} saved conversations to SQLite")
+        # Skip migration of saved conversations as we've removed history_manager support
+        pass
     except Exception as e:
         logger.error(f"Error during saved conversation migration: {e}")
 

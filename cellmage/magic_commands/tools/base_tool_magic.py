@@ -52,7 +52,6 @@ class BaseMagics(Magics):
 
         super().__init__(shell)
 
-    # TODO: is this needed?
     def llm_magic(self, *args, **kwargs):
         """
         Decorator to register a function as an LLM magic command.

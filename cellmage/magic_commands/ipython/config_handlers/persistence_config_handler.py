@@ -45,11 +45,6 @@ class PersistenceConfigHandler(BaseConfigHandler):
                 elif hasattr(manager, "save_session"):
                     session_id = manager.save_session(session_id)
                     method = "save_session"
-                elif hasattr(manager, "history_manager") and hasattr(
-                    manager.history_manager, "save_conversation"
-                ):
-                    session_id = manager.history_manager.save_conversation(session_id)
-                    method = "history_manager.save_conversation"
                 else:
                     raise AttributeError("No method found for saving sessions")
 
@@ -82,11 +77,6 @@ class PersistenceConfigHandler(BaseConfigHandler):
                 elif hasattr(manager, "load_conversation"):
                     manager.load_conversation(session_id)
                     method = "load_conversation"
-                elif hasattr(manager, "history_manager") and hasattr(
-                    manager.history_manager, "load_conversation"
-                ):
-                    manager.history_manager.load_conversation(session_id)
-                    method = "history_manager.load_conversation"
                 else:
                     raise AttributeError("No method found for loading sessions")
 
@@ -142,11 +132,6 @@ class PersistenceConfigHandler(BaseConfigHandler):
                 elif hasattr(manager, "list_conversations"):
                     sessions = manager.list_conversations()
                     method = "list_conversations"
-                elif hasattr(manager, "history_manager") and hasattr(
-                    manager.history_manager, "list_conversations"
-                ):
-                    sessions = manager.history_manager.list_conversations()
-                    method = "history_manager.list_conversations"
                 else:
                     raise AttributeError("No method found for listing sessions")
 

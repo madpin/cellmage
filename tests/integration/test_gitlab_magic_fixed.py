@@ -222,8 +222,8 @@ def test_gitlab_add_to_history(ip_instance):
             ) as mock_get_manager:
                 # Create the mock chat manager structure
                 mock_chat_manager = mock.MagicMock()
-                mock_history_manager = mock.MagicMock()
-                mock_chat_manager.history_manager = mock_history_manager
+                mock_conversation_manager = mock.MagicMock()
+                mock_chat_manager.conversation_manager = mock_conversation_manager
                 mock_get_manager.return_value = mock_chat_manager
 
                 # Load the extension
@@ -247,8 +247,8 @@ def test_gitlab_add_to_history(ip_instance):
                 assert args[0] == "test-namespace/test-project"
 
                 # Verify the message was added to history
-                mock_history_manager.add_message.assert_called_once()
-                args, kwargs = mock_history_manager.add_message.call_args
+                mock_conversation_manager.add_message.assert_called_once()
+                args, kwargs = mock_conversation_manager.add_message.call_args
                 message = args[0]
                 assert message.role == "system"
                 assert message.metadata["source"] == "gitlab"
