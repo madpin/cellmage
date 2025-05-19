@@ -52,15 +52,15 @@ class BaseMagics(Magics):
 
         super().__init__(shell)
 
-    # def llm_magic(*args, **kwargs):
-    #     """
-    #     Decorator to register a function as an LLM magic command.
+    # TODO: is this needed?
+    def llm_magic(self, *args, **kwargs):
+        """
+        Decorator to register a function as an LLM magic command.
 
-    #     Args:
-    #         func: The function to register
-    #     """
-    #     super().llm_magic(*args, **kwargs)
-    #     return lambda func: func
+        Args:
+            func: The function to register
+        """
+        return lambda func: func
 
     def _get_chat_manager(self):
         """Get the ChatManager instance."""

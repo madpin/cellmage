@@ -238,7 +238,7 @@ class GoogleDocsMagic(BaseMagics):
                 # Perform the search with advanced filters
                 documents = gdocs_utils.search_documents(
                     search_query=args.search.replace('"', ""),  # Remove quotes from search term
-                    max_results=args.max_results,
+                    max_results=max(args.max_results, args.max_content),
                     author=args.author,
                     created_after=created_after_value,
                     created_before=args.created_before,
