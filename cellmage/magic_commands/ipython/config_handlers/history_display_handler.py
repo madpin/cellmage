@@ -6,9 +6,10 @@ This module handles history-related arguments for the %llm_config magic command.
 
 import datetime
 import logging
-from typing import Any
+from typing import Any, Dict, List
 
 from cellmage.magic_commands.core import extract_metadata_for_status
+from cellmage.models import Message
 
 from ....utils.token_utils import count_tokens
 from .base_config_handler import BaseConfigHandler
@@ -19,6 +20,106 @@ logger = logging.getLogger(__name__)
 
 class HistoryDisplayHandler(BaseConfigHandler):
     """Handler for history-related configuration arguments."""
+
+    def _count_tokens(self, messages: List[Message], manager) -> Dict[str, Any]:
+        """
+        Count tokens in the conversation history.
+
+        Args:
+            messages: List of Message objects in the conversation history
+            manager: The ChatManager instance
+
+        Returns:
+            Dict containing token counts and related information
+        """
+        result = {
+            "user": 0,
+            "assistant": 0,
+            "system": 0,
+            "total": 0,
+            "messages": [],
+            "is_approximate": False,
+        }
+
+        # Use the token counter from the LLM client if available
+        if manager.llm_client and hasattr(manager.llm_client, "count_tokens_for_messages"):
+            try:
+                total_tokens = manager.llm_client.count_tokens_for_messages(messages)
+                result["total"] = total_tokens
+
+                # Count tokens per message if possible
+                for msg in messages:
+                    msg_tokens = manager.llm_client.count_tokens_for_messages([msg])
+                    role = msg.role if hasattr(msg, "role") else "unknown"
+                    if role in result:
+                        result[role] += msg_tokens
+
+                    # Store individual message token counts
+                    content = msg.content if hasattr(msg, "content") else ""
+                    result["messages"].append(
+                        {
+                            "role": role,
+                            "content_snippet": (
+                                (content[:30].replace("\n", " ") + "...")
+                                if len(content) > 30
+                                else content.replace("\n", " ")
+                            ),
+                            "tokens": msg_tokens,
+                        }
+                    )
+
+            except Exception as e:
+                logger.warning(f"Error counting tokens with LLM client: {e}")
+                # Fallback to approximation
+                result = self._approximate_token_count(messages)
+        else:
+            # Fallback to approximation
+            result = self._approximate_token_count(messages)
+
+        return result
+
+    def _approximate_token_count(self, messages: List[Message]) -> Dict[str, Any]:
+        """
+        Approximate token count when a precise counter isn't available.
+
+        Args:
+            messages: List of Message objects in the conversation history
+
+        Returns:
+            Dict containing approximated token counts
+        """
+        result = {
+            "user": 0,
+            "assistant": 0,
+            "system": 0,
+            "total": 0,
+            "messages": [],
+            "is_approximate": True,
+        }
+
+        # Use count_tokens utility for better approximation
+        for msg in messages:
+            role = msg.role if hasattr(msg, "role") else "unknown"
+            content = msg.content if hasattr(msg, "content") else ""
+
+            # Get token count for this message
+            token_count = count_tokens(content)
+
+            # Add to role-specific and total counts
+            if role in result:
+                result[role] += token_count
+            result["total"] += token_count
+
+            # Store individual message details
+            result["messages"].append(
+                {
+                    "role": role,
+                    "content_snippet": (content[:30] + "...") if len(content) > 30 else content,
+                    "tokens": token_count,
+                }
+            )
+
+        return result
 
     def handle_args(self, args: Any, manager: Any) -> bool:
         """
@@ -70,36 +171,12 @@ class HistoryDisplayHandler(BaseConfigHandler):
                             }
                         )
 
-            # Calculate total tokens for all messages
-            total_tokens_in = 0
-            total_tokens_out = 0
-            total_tokens = 0
-            estimated_messages = 0
-
-            # Calculate cumulative token counts
-            for msg in history:
-                if msg.metadata:
-                    total_tokens_in += msg.metadata.get("tokens_in", 0)
-                    total_tokens_out += msg.metadata.get("tokens_out", 0)
-                    msg_total = msg.metadata.get("total_tokens", 0)
-                    if msg_total > 0:
-                        total_tokens += msg_total
-                # If message doesn't have token metadata but has content, estimate tokens
-                elif msg.content:
-                    # Use token utils to estimate token count
-                    estimated_tokens = count_tokens(msg.content)
-                    if msg.role == "user" or msg.role == "system":
-                        total_tokens_in += estimated_tokens
-                    elif msg.role == "assistant":
-                        total_tokens_out += estimated_tokens
-                    estimated_messages += 1
-                    logger.debug(
-                        f"Estimated {estimated_tokens} tokens for message without metadata"
-                    )
-
-            # If no total_tokens were found, calculate from in+out
-            if total_tokens == 0:
-                total_tokens = total_tokens_in + total_tokens_out
+            # Get accurate token counts using the LLM client if available
+            token_counts = self._count_tokens(history, manager)
+            total_tokens = token_counts["total"]
+            total_tokens_in = token_counts["user"] + token_counts["system"]
+            total_tokens_out = token_counts["assistant"]
+            estimated_messages = token_counts.get("is_approximate", False)
 
             # Combining source_counts and role_counts for readable output
             integration_counts = source_counts
@@ -167,23 +244,29 @@ class HistoryDisplayHandler(BaseConfigHandler):
                 # Display the messages with improved formatting
                 for i, msg in enumerate(history):
                     meta = extract_metadata_for_status(msg.metadata) if msg.metadata else {}
-                    tokens_in = meta.get("tokens_in", 0)
-                    tokens_out = meta.get("tokens_out", 0)
                     model_used = meta.get("model_used") or meta.get("model") or ""
                     cost_str = meta.get("cost_str") or meta.get("cost") or ""
+
+                    # Use accurate token counts from the token_counts dictionary
+                    # Find the matching message in token_counts
+                    msg_tokens = 0
                     is_estimated = False
 
-                    # Estimate tokens if they don't exist in metadata but message has content
-                    if (tokens_in == 0 and tokens_out == 0) and msg.content:
-                        estimated_count = count_tokens(msg.content)
-                        if msg.role == "user" or msg.role == "system":
-                            tokens_in = estimated_count
-                        elif msg.role == "assistant":
-                            tokens_out = estimated_count
-                        is_estimated = True
-                        logger.debug(
-                            f"Displaying estimated tokens for message {i}: {estimated_count}"
-                        )
+                    # Find this message in our token count results
+                    for msg_data in token_counts.get("messages", []):
+                        if msg_data.get("role") == msg.role and msg_data.get(
+                            "content_snippet", ""
+                        ).startswith(msg.content[:20].replace("\n", " ")):
+                            msg_tokens = msg_data.get("tokens", 0)
+                            is_estimated = token_counts.get("is_approximate", False)
+                            break
+
+                    tokens_in = 0
+                    tokens_out = 0
+                    if msg.role == "user" or msg.role == "system":
+                        tokens_in = msg_tokens
+                    elif msg.role == "assistant":
+                        tokens_out = msg_tokens
 
                     # Get integration source if available
                     source = meta.get("source", "")

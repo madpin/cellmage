@@ -305,3 +305,77 @@ def count_tokens_in_list(data: List[Any]) -> int:
         Estimated token count
     """
     return default_token_counter.count_tokens_in_list(data)
+
+
+def count_tokens_for_messages(messages: List[Any], llm_client=None) -> Dict[str, int]:
+    """
+    Count tokens in a list of messages, with role-based categorization.
+
+    Tries to use the provided LLM client's token counter if available, otherwise
+    falls back to the default token counter.
+
+    Args:
+        messages: List of Message objects to count tokens for
+        llm_client: Optional LLM client with count_tokens_for_messages method
+
+    Returns:
+        Dict with token counts for total, user, assistant, and system roles
+    """
+    result = {"total": 0, "user": 0, "assistant": 0, "system": 0}
+
+    # Try using the LLM client's dedicated message token counter if available
+    if llm_client and hasattr(llm_client, "count_tokens_for_messages"):
+        try:
+            # Get total tokens for all messages
+            result["total"] = llm_client.count_tokens_for_messages(messages)
+
+            # Count tokens by role
+            for msg in messages:
+                role = msg.role if hasattr(msg, "role") else "unknown"
+                msg_tokens = llm_client.count_tokens_for_messages([msg])
+
+                if role in result:
+                    result[role] += msg_tokens
+
+            return result
+        except Exception as e:
+            logger.debug(f"Error counting tokens with LLM client: {e}")
+
+    # Fall back to metadata or basic counting if LLM client approach failed
+    for msg in messages:
+        # Try to get tokens from metadata first
+        if hasattr(msg, "metadata") and msg.metadata:
+            role = msg.role if hasattr(msg, "role") else "unknown"
+
+            # Extract tokens from metadata
+            if role == "user" or role == "system":
+                tokens = msg.metadata.get("tokens_in", 0)
+                result["user"] += tokens if role == "user" else 0
+                result["system"] += tokens if role == "system" else 0
+            elif role == "assistant":
+                tokens = msg.metadata.get("tokens_out", 0)
+                result["assistant"] += tokens
+
+            # If there's a total_tokens field, use that too
+            total = msg.metadata.get("total_tokens", 0)
+            if total > 0:
+                result["total"] += total
+        # Fall back to counting the content directly
+        elif hasattr(msg, "content") and msg.content:
+            content_tokens = count_tokens(msg.content)
+            role = msg.role if hasattr(msg, "role") else "unknown"
+
+            if role == "user":
+                result["user"] += content_tokens
+            elif role == "system":
+                result["system"] += content_tokens
+            elif role == "assistant":
+                result["assistant"] += content_tokens
+
+            result["total"] += content_tokens
+
+    # If no total was calculated, sum the role counts
+    if result["total"] == 0:
+        result["total"] = result["user"] + result["assistant"] + result["system"]
+
+    return result
