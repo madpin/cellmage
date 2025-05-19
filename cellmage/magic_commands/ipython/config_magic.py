@@ -19,6 +19,7 @@ from .config_handlers import (
     StatusDisplayHandler,
     TokenCountHandler,
 )
+from .config_handlers.base_dir_config_handler import BaseDirConfigHandler
 
 
 @magics_class
@@ -33,6 +34,7 @@ class ConfigMagics(IPythonMagicsBase):
         super().__init__(shell)
         # Initialize handlers
         self.handlers = [
+            BaseDirConfigHandler(),
             PersonaConfigHandler(),
             SnippetConfigHandler(),
             OverrideConfigHandler(),
@@ -158,6 +160,7 @@ class ConfigMagics(IPythonMagicsBase):
         choices=["direct", "langchain"],
         help="Switch to a different LLM adapter implementation.",
     )
+    @argument("--base-dir", type=str, help="Set the base directory for all working files.")
     @line_magic("llm_config")
     def configure_llm(self, line):
         """Configure the LLM session state and manage resources."""

@@ -22,6 +22,8 @@ Before diving in, make sure:
 %load_ext cellmage
 ```
 
+> **Tip:** You can control where CellMage stores all working files (snippets, personas, logs, etc.) by setting the `CELLMAGE_BASE_DIR` environment variable. See the README for details.
+
 ## 🔍 Step 1: Understanding the Code Generation Mindset
 
 When using LLMs for code generation, shift your thinking from "writing code" to "collaborating with an AI pair programmer":

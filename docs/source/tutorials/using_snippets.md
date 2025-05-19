@@ -14,13 +14,16 @@ Common uses for snippets include:
 
 ## 📂 Snippet Directory Structure
 
-By default, CellMage looks for snippets in a directory called `llm_snippets` in your working directory. You can also specify additional directories using the `CELLMAGE_SNIPPETS_DIR` and `CELLMAGE_SNIPPETS_DIRS` environment variables.
+By default, CellMage looks for snippets in a directory called `llm_snippets` under your base directory. You can control the base directory for all working files (including snippets) using the `CELLMAGE_BASE_DIR` environment variable:
 
 ```bash
-# Setting up a snippets directory structure
-mkdir -p llm_snippets
-mkdir -p ~/global_snippets  # For snippets you want available in all projects
+# Set the base directory for all CellMage working files
+export CELLMAGE_BASE_DIR=/path/to/your/project
 ```
+
+Snippets will then be stored in `$CELLMAGE_BASE_DIR/llm_snippets`.
+
+You can also specify additional snippet directories using the `CELLMAGE_SNIPPETS_DIR` and `CELLMAGE_SNIPPETS_DIRS` environment variables (these paths can be absolute or relative to the base directory).
 
 ```ini
 # In your .env file
@@ -33,12 +36,12 @@ Let's create two simple snippets: a Python utility function and a project descri
 
 ```ipython
 # First, create the snippets directory if it doesn't exist
-!mkdir -p llm_snippets
+!mkdir -p $CELLMAGE_BASE_DIR/llm_snippets
 ```
 
 ### Python Utility Function Snippet
 
-Create the file `llm_snippets/data_utils.py`:
+Create the file `$CELLMAGE_BASE_DIR/llm_snippets/data_utils.py`:
 
 ```ipython
 def calculate_metrics(data_series):
@@ -98,7 +101,7 @@ def detect_outliers(data_series, method="iqr", threshold=1.5):
 
 ### Project Description Snippet
 
-Create the file `llm_snippets/project_description.md`:
+Create the file `$CELLMAGE_BASE_DIR/llm_snippets/project_description.md`:
 
 ```markdown
 # Customer Analysis Project

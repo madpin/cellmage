@@ -9,6 +9,8 @@ CellMage offers two primary storage backends:
 1. **SQLite Storage** (default): Fast, searchable database storage
 2. **Markdown Storage**: Human-readable file-based storage
 
+> **Tip:** You can control where CellMage stores all working files (including conversation history) by setting the `CELLMAGE_BASE_DIR` environment variable. See the README for details.
+
 Let's explore both options and see how to manage your conversations.
 
 ## 🔄 Basic Conversation Management

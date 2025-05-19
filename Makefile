@@ -37,12 +37,13 @@ help:
 docs:
     # Ensure a clean state before starting the server
 	rm -rf $(DOCS_BUILD_DIR)
+	rm -rf $(DOCS_SOURCE_DIR)/api/generated
 	@echo "Starting documentation server on port $(PORT)..."
 	# sphinx-autobuild watches for changes and rebuilds automatically
 	sphinx-autobuild -b html --port $(PORT) --watch $(DOCS_PROJECT_DIR) --watch $(DOCS_SOURCE_DIR) $(DOCS_SOURCE_DIR) $(DOCS_BUILD_DIR)
 	# Clean up after server stops (optional, as autobuild might handle this, or you might want to inspect the build)
 	# echo "Cleaning up $(DOCS_BUILD_DIR) after server stop..."
-	# rm -rf $(DOCS_BUILD_DIR)
+	rm -rf $(DOCS_BUILD_DIR)
 
 builddocs:
 	@echo "Building documentation..."
@@ -55,6 +56,7 @@ builddocs:
 	# Always clean up the build directory
 	echo "Cleaning up $(DOCS_BUILD_DIR)..."; \
 	rm -rf $(DOCS_BUILD_DIR); \
+	rm -rf $(DOCS_SOURCE_DIR)/api/generated; \
 	# Check the build status and exit if it failed
 	if [ $$BUILD_EXIT_STATUS -ne 0 ]; then \
 		echo "Documentation build failed. See output above for errors."; \
@@ -89,6 +91,8 @@ build:
 # Clean build artifacts
 clean:
 	rm -rf *.egg-info/ build/ dist/ docs/build/ **/__pycache__/ .pytest_cache/ .ruff_cache/
+	# Delete any rst files in the generated folder if it exists
+	find docs/build/generated -name "*.rst" -type f -delete 2>/dev/null || true
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 

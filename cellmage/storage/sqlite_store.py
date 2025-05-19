@@ -7,13 +7,13 @@ for persisting conversations in a SQLite database.
 
 import json
 import logging
-import os
 import sqlite3
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from ..config import settings
 from ..exceptions import PersistenceError
 from ..interfaces import HistoryStore
 from ..models import ConversationMetadata, Message
@@ -25,42 +25,29 @@ class SQLiteStore(HistoryStore):
     Provides advanced querying and debugging capabilities.
     """
 
-    def __init__(self, db_path: Union[str, Path] = None):
+    def __init__(self, db_path: Optional[Union[str, Path]] = None):
         """
         Initialize the SQLite storage.
 
         Args:
-            db_path: Path to the SQLite database file. If None, a default location will be used.
+            db_path: Path to the SQLite database file. If None, uses config.settings.sqlite_path_resolved.
         """
         self.logger = logging.getLogger(__name__)
 
-        if db_path is None:
-            # Check for environment variable override
-            env_path = os.environ.get("CELLMAGE_SQLITE_PATH")
-            if env_path:
-                db_path = Path(env_path)
-            else:
-                # Use .data folder in the current directory
-                db_dir = Path.cwd() / ".data"
-                db_dir.mkdir(parents=True, exist_ok=True)
-                db_path = db_dir / "conversations.db"
-
-                # Fallback to home directory if can't write to current directory
-                if not os.access(db_dir, os.W_OK):
-                    self.logger.warning(f"Cannot write to {db_dir}, falling back to home directory")
-                    home_dir = Path.home()
-                    db_dir = home_dir / ".cellmage" / "data"
-                    db_dir.mkdir(parents=True, exist_ok=True)
-                    db_path = db_dir / "conversations.db"
-
-        self.db_path = Path(db_path)
+        # Always use config.settings.sqlite_path_resolved unless explicitly overridden
+        # The resolved path is always based on CELLMAGE_SQLITE_PATH if set, otherwise ${base_dir}/.data/conversations.db
+        if db_path is not None:
+            self.db_path = Path(db_path)
+        else:
+            self.db_path = Path(settings.sqlite_path_resolved)
         self.logger.info(f"Initializing SQLiteStore with database at: {self.db_path}")
         self._initialize_db()
 
     def _initialize_db(self) -> None:
         """Initialize the database schema if it doesn't exist."""
+        conn = None
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(str(self.db_path))
             cursor = conn.cursor()
 
             # Create conversations table
@@ -212,8 +199,9 @@ class SQLiteStore(HistoryStore):
         Returns:
             URI for the saved conversation or None on failure
         """
+        conn = None
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(str(self.db_path))
             cursor = conn.cursor()
 
             # Generate a conversation ID if not provided
@@ -354,13 +342,14 @@ class SQLiteStore(HistoryStore):
         Returns:
             Tuple of (messages, metadata)
         """
+        conn = None
         try:
             # Extract conversation ID from the URI
             conversation_id = filepath
             if filepath.startswith("sqlite://"):
                 conversation_id = filepath[len("sqlite://") :]
 
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(str(self.db_path))
             conn.row_factory = sqlite3.Row  # Access results by column name
             cursor = conn.cursor()
 
@@ -375,19 +364,32 @@ class SQLiteStore(HistoryStore):
             conversation = cursor.fetchone()
             if not conversation:
                 self.logger.warning(f"Conversation not found: {filepath}")
-                return [], ConversationMetadata()
+                # Provide required arguments for ConversationMetadata (session_id as empty string)
+                return [], ConversationMetadata(
+                    session_id="",
+                    saved_at=datetime.now(),
+                    persona_name=None,
+                    model_name=None,
+                    total_tokens=0,
+                )
 
             # Load additional metadata from JSON
             metadata_dict = json.loads(conversation["metadata"]) if conversation["metadata"] else {}
 
+            # Ensure saved_at is always a datetime
+            saved_at_val = conversation["saved_at"]
+            if saved_at_val:
+                try:
+                    saved_at_dt = datetime.fromisoformat(saved_at_val)
+                except Exception:
+                    saved_at_dt = datetime.now()
+            else:
+                saved_at_dt = datetime.now()
+
             # Create metadata object
             metadata = ConversationMetadata(
                 session_id=conversation["id"],
-                saved_at=(
-                    datetime.fromisoformat(conversation["saved_at"])
-                    if conversation["saved_at"]
-                    else None
-                ),
+                saved_at=saved_at_dt,
                 persona_name=conversation["persona_name"],
                 model_name=conversation["model_name"],
                 total_tokens=conversation["total_tokens"],
@@ -461,8 +463,9 @@ class SQLiteStore(HistoryStore):
         Returns:
             List of conversation metadata dicts with paths
         """
+        conn = None
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(str(self.db_path))
             conn.row_factory = sqlite3.Row  # Access results by column name
             cursor = conn.cursor()
 
@@ -520,12 +523,13 @@ class SQLiteStore(HistoryStore):
         Returns:
             True if successful, False otherwise
         """
+        conn = None
         try:
             # Extract conversation ID from the URI if needed
             if conversation_id.startswith("sqlite://"):
                 conversation_id = conversation_id[len("sqlite://") :]
 
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(str(self.db_path))
             cursor = conn.cursor()
 
             # Delete messages first (due to foreign key constraint)
@@ -571,12 +575,13 @@ class SQLiteStore(HistoryStore):
         Returns:
             True if successful, False otherwise
         """
+        conn = None
         try:
             # Extract conversation ID from the URI if needed
             if conversation_id.startswith("sqlite://"):
                 conversation_id = conversation_id[len("sqlite://") :]
 
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(str(self.db_path))
             cursor = conn.cursor()
 
             # Add tag (the UNIQUE constraint will prevent duplicates)
@@ -609,12 +614,13 @@ class SQLiteStore(HistoryStore):
         Returns:
             True if successful, False otherwise
         """
+        conn = None
         try:
             # Extract conversation ID from the URI if needed
             if conversation_id.startswith("sqlite://"):
                 conversation_id = conversation_id[len("sqlite://") :]
 
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(str(self.db_path))
             cursor = conn.cursor()
 
             # Remove tag
@@ -646,8 +652,9 @@ class SQLiteStore(HistoryStore):
         Returns:
             List of matching conversation metadata
         """
+        conn = None
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(str(self.db_path))
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
@@ -704,8 +711,9 @@ class SQLiteStore(HistoryStore):
         Returns:
             Dictionary with statistics
         """
+        conn = None
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(str(self.db_path))
             cursor = conn.cursor()
 
             stats = {}
@@ -784,12 +792,13 @@ class SQLiteStore(HistoryStore):
             event: Event type
             details: Event details
         """
+        conn = None
         try:
             # Extract conversation ID from the URI if needed
             if conversation_id and conversation_id.startswith("sqlite://"):
                 conversation_id = conversation_id[len("sqlite://") :]
 
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(str(self.db_path))
             cursor = conn.cursor()
 
             log_id = str(uuid.uuid4())
@@ -838,12 +847,13 @@ class SQLiteStore(HistoryStore):
         Returns:
             ID of the stored raw response or None on failure
         """
+        conn = None
         try:
             # Extract conversation ID from the URI if needed
             if conversation_id and conversation_id.startswith("sqlite://"):
                 conversation_id = conversation_id[len("sqlite://") :]
 
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(str(self.db_path))
             cursor = conn.cursor()
 
             # Generate a unique ID
@@ -900,12 +910,13 @@ class SQLiteStore(HistoryStore):
         Returns:
             List of raw API responses
         """
+        conn = None
         try:
             # Extract conversation ID from the URI if needed
             if conversation_id and conversation_id.startswith("sqlite://"):
                 conversation_id = conversation_id[len("sqlite://") :]
 
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(str(self.db_path))
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 
@@ -958,8 +969,9 @@ class SQLiteStore(HistoryStore):
         Returns:
             Dictionary containing message and raw response data
         """
+        conn = None
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(str(self.db_path))
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
 

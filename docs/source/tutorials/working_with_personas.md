@@ -33,13 +33,16 @@ Explain your reasoning and offer suggestions for improvements.
 
 ## 🗂️ Persona Directory Structure
 
-By default, CellMage looks for personas in a directory called `llm_personas` in your working directory. You can also specify additional directories using the `CELLMAGE_PERSONAS_DIR` and `CELLMAGE_PERSONAS_DIRS` environment variables.
+By default, CellMage looks for personas in a directory called `llm_personas` under your base directory. You can control the base directory for all working files (including personas) using the `CELLMAGE_BASE_DIR` environment variable:
 
 ```bash
-# Setting up a personas directory structure
-mkdir -p llm_personas
-mkdir -p ~/global_personas  # For personas you want available in all projects
+# Set the base directory for all CellMage working files
+export CELLMAGE_BASE_DIR=/path/to/your/project
 ```
+
+Personas will then be stored in `$CELLMAGE_BASE_DIR/llm_personas`.
+
+You can also specify additional persona directories using the `CELLMAGE_PERSONAS_DIR` and `CELLMAGE_PERSONAS_DIRS` environment variables (these paths can be absolute or relative to the base directory).
 
 ```ini
 # In your .env file
@@ -52,10 +55,10 @@ Let's create a simple data analyst persona:
 
 ```ipython
 # First, create the personas directory if it doesn't exist
-!mkdir -p llm_personas
+!mkdir -p $CELLMAGE_BASE_DIR/llm_personas
 ```
 
-Now create the file `llm_personas/data_analyst.md`:
+Now create the file `$CELLMAGE_BASE_DIR/llm_personas/data_analyst.md`:
 
 ```markdown
 ---
@@ -104,17 +107,17 @@ What insights might I look for and how should I visualize them?
 
 The YAML frontmatter can include:
 
-| Parameter | Description | Example Value |
-|-----------|-------------|---------------|
-| `name` | Display name of the persona | `"Python Expert"` |
-| `description` | Brief description | `"An expert Python developer..."` |
-| `model` | Default model to use | `"gpt-4o"` |
-| `temperature` | Creativity level (0.0-2.0) | `0.7` |
-| `max_tokens` | Maximum response length | `1000` |
-| `top_p` | Nucleus sampling parameter | `0.9` |
-| `frequency_penalty` | Repetition reduction (0.0-2.0) | `0.0` |
-| `presence_penalty` | Topic diversity (0.0-2.0) | `0.0` |
-| `stop` | Stop sequences | `["\n\n", "END"]` |
+| Parameter           | Description                    | Example Value                     |
+| ------------------- | ------------------------------ | --------------------------------- |
+| `name`              | Display name of the persona    | `"Python Expert"`                 |
+| `description`       | Brief description              | `"An expert Python developer..."` |
+| `model`             | Default model to use           | `"gpt-4o"`                        |
+| `temperature`       | Creativity level (0.0-2.0)     | `0.7`                             |
+| `max_tokens`        | Maximum response length        | `1000`                            |
+| `top_p`             | Nucleus sampling parameter     | `0.9`                             |
+| `frequency_penalty` | Repetition reduction (0.0-2.0) | `0.0`                             |
+| `presence_penalty`  | Topic diversity (0.0-2.0)      | `0.0`                             |
+| `stop`              | Stop sequences                 | `["\n\n", "END"]`                 |
 
 ### Creating Specialized Personas
 

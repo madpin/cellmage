@@ -78,6 +78,12 @@ def test_github_fetch_repository(ip_instance):
         "contributors": [
             {"name": "Contributor 1", "email": "contributor1@example.com", "commits": 10},
         ],
+        # Add token estimation which is expected by the code
+        "estimated_tokens": {
+            "code": 1000,
+            "metadata": 500,
+            "total": 1500,
+        },
     }
     mock_github_utils.get_repository_summary.return_value = mock_repo
     mock_github_utils.format_repository_for_llm.return_value = "Formatted Repository Content"
@@ -87,8 +93,22 @@ def test_github_fetch_repository(ip_instance):
         with mock.patch(
             "cellmage.integrations.github_utils.GitHubUtils", return_value=mock_github_utils
         ):
+            # Load the extension
             ip.run_cell("%reload_ext cellmage.magic_commands.tools.github_magic")
+
+            # Find the GitHubMagics instance in the registry and patch its github_utils
+            magic_instance = None
+            for m in ip.magics_manager.registry.values():
+                if m.__class__.__name__ == "GitHubMagics":
+                    magic_instance = m
+                    break
+            assert magic_instance is not None, "GitHubMagics instance not found"
+            magic_instance.github_utils = mock_github_utils
+
+            # Run the magic command
             ip.run_line_magic("github", "username/test-repo --show")
+
+            # Verify the call was made correctly
             mock_github_utils.get_repository_summary.assert_called_once()
             args, kwargs = mock_github_utils.get_repository_summary.call_args
             assert args[0] == "username/test-repo"
@@ -135,8 +155,22 @@ def test_github_fetch_pull_request(ip_instance):
         with mock.patch(
             "cellmage.integrations.github_utils.GitHubUtils", return_value=mock_github_utils
         ):
+            # Load the extension
             ip.run_cell("%reload_ext cellmage.magic_commands.tools.github_magic")
+
+            # Find the GitHubMagics instance in the registry and patch its github_utils
+            magic_instance = None
+            for m in ip.magics_manager.registry.values():
+                if m.__class__.__name__ == "GitHubMagics":
+                    magic_instance = m
+                    break
+            assert magic_instance is not None, "GitHubMagics instance not found"
+            magic_instance.github_utils = mock_github_utils
+
+            # Run the magic command with PR
             ip.run_line_magic("github", "username/test-repo --pr 123 --show")
+
+            # Verify the calls were made correctly
             mock_github_utils.get_repository.assert_called_once_with("username/test-repo")
             mock_github_utils.get_pull_request.assert_called_once_with(mock_repo, "123")
 
@@ -159,6 +193,12 @@ def test_github_add_to_history(ip_instance):
             "code_file_count": 8,
             "total_lines": 500,
         },
+        # Add token estimation which is expected by the code
+        "estimated_tokens": {
+            "code": 1000,
+            "metadata": 500,
+            "total": 1500,
+        },
     }
     mock_github_utils.get_repository_summary.return_value = mock_repo
     mock_github_utils.format_repository_for_llm.return_value = "Formatted Repository Content"
@@ -168,18 +208,37 @@ def test_github_add_to_history(ip_instance):
         with mock.patch(
             "cellmage.integrations.github_utils.GitHubUtils", return_value=mock_github_utils
         ):
+            # Need to patch at the module level where the function is called
             with mock.patch(
-                "cellmage.magic_commands.ipython.common.get_chat_manager"
+                "cellmage.magic_commands.tools.base_tool_magic.BaseMagics._get_chat_manager"
             ) as mock_get_manager:
+                # Create the mock chat manager structure
                 mock_chat_manager = mock.MagicMock()
                 mock_conversation_manager = mock.MagicMock()
                 mock_chat_manager.conversation_manager = mock_conversation_manager
                 mock_get_manager.return_value = mock_chat_manager
+
+                # Load the extension
                 ip.run_cell("%reload_ext cellmage.magic_commands.tools.github_magic")
+
+                # Find the GitHubMagics instance in the registry and patch its github_utils
+                magic_instance = None
+                for m in ip.magics_manager.registry.values():
+                    if m.__class__.__name__ == "GitHubMagics":
+                        magic_instance = m
+                        break
+                assert magic_instance is not None, "GitHubMagics instance not found"
+                magic_instance.github_utils = mock_github_utils
+
+                # Run the magic command with system flag
                 ip.run_line_magic("github", "username/test-repo --system")
+
+                # Verify the calls were made correctly
                 mock_github_utils.get_repository_summary.assert_called_once()
                 args, kwargs = mock_github_utils.get_repository_summary.call_args
                 assert args[0] == "username/test-repo"
+
+                # Verify the message was added to history
                 mock_conversation_manager.add_message.assert_called_once()
                 args, kwargs = mock_conversation_manager.add_message.call_args
                 message = args[0]

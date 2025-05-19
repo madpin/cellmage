@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v0.9.6](https://github.com/madpin/cellmage/releases/tag/v0.9.6) - 2025-05-19
+
+### Added
+- Added support for base directory configuration for working files, enhancing flexibility in file management. Updated related documentation to reflect this new feature.
+- Added integration tests for GitLab magic command functionality to improve test coverage and reliability.
+
+### Changed
+- Removed obsolete GitLab magic command tests as part of test suite refactoring to maintain codebase relevance and cleanliness.
+
+
 ## [v0.9.5](https://github.com/madpin/cellmage/releases/tag/v0.9.5) - 2025-05-13
 
 ### Changed

@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from .config import settings
 from .interfaces import ContextProvider
 from .models import ConversationMetadata, Message
 from .storage.memory_store import MemoryStore
@@ -57,8 +58,10 @@ class ConversationManager:
     def _init_storage(self, db_path: Optional[str] = None) -> None:
         """Initialize the storage backend based on storage_type."""
         if self.storage_type == "sqlite":
-            self.store = SQLiteStore(db_path)
-            self.logger.info(f"Using SQLite storage (default) at {db_path or 'default location'}")
+            # Use config.settings.sqlite_path_resolved unless db_path is explicitly provided
+            resolved_db_path = db_path if db_path is not None else settings.sqlite_path_resolved
+            self.store = SQLiteStore(resolved_db_path)
+            self.logger.info(f"Using SQLite storage (default) at {resolved_db_path}")
         elif self.storage_type == "memory":
             self.store = MemoryStore()
             self.logger.info("Using in-memory storage (no persistence)")
@@ -67,7 +70,8 @@ class ConversationManager:
             self.logger.warning(
                 f"Storage type '{self.storage_type}' not supported. Using SQLite instead."
             )
-            self.store = SQLiteStore(db_path)
+            resolved_db_path = db_path if db_path is not None else settings.sqlite_path_resolved
+            self.store = SQLiteStore(resolved_db_path)
             self.storage_type = "sqlite"
 
     def add_message(self, message: Message) -> str:

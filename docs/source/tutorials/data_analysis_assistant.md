@@ -2,6 +2,8 @@
 
 Welcome to the Data Analysis Assistant tutorial! This guide will help you leverage CellMage's capabilities to enhance your data analysis workflows, generate insights, and create visualizations through natural language interactions.
 
+> **Note:** You can control where CellMage stores all working files (snippets, personas, logs, etc.) by setting the `CELLMAGE_BASE_DIR` environment variable. See the README for details.
+
 ## 🎯 What You'll Learn
 
 In this tutorial, you'll discover:

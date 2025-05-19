@@ -583,6 +583,32 @@ To use SQLite-specific features:
 
 ---
 
+## ⚙️ Configuring the Base Directory for Working Files
+
+CellMage stores working files (personas, snippets, logs, .data, etc.) in a base directory. By default, this is the current working directory, but you can control it globally using the `CELLMAGE_BASE_DIR` environment variable:
+
+```bash
+export CELLMAGE_BASE_DIR=/path/to/your/project
+```
+
+All CellMage working files and directories (e.g., `llm_personas`, `llm_snippets`, `.data`, `cellmage.log`) will be created and accessed under this base directory. This makes it easy to colocate CellMage files with your Jupyter notebooks or to centralize them for multiple projects.
+
+**Backward Compatibility:**
+- If `CELLMAGE_BASE_DIR` is not set, CellMage will continue to use the current working directory as before.
+- You can migrate existing files by moving them to your chosen base directory.
+
+**Migration Example:**
+```bash
+# Move your existing working files to the new base directory
+export CELLMAGE_BASE_DIR=~/my_notebook_project
+mkdir -p $CELLMAGE_BASE_DIR
+mv llm_personas llm_snippets .data cellmage.log $CELLMAGE_BASE_DIR/
+```
+
+See the [troubleshooting guide](docs/source/troubleshooting.md) and tutorials for more details.
+
+---
+
 ## ⚙️ Configuration
 
 Cellmage is configured via:
@@ -603,6 +629,7 @@ CELLMAGE_SNIPPETS_DIRS    - Comma-separated paths to snippet directories
 CELLMAGE_CONVERSATIONS_DIR - Directory for saving conversations
 CELLMAGE_SQLITE_PATH      - Custom path for SQLite database (default: ~/.cellmage/conversations.db)
 CELLMAGE_ADAPTER          - LLM adapter type (direct or langchain)
+CELLMAGE_BASE_DIR         - Base directory for all working files (default: current working directory)
 ```
 
 ---

@@ -101,8 +101,13 @@ def test_gitlab_fetch_repository(ip_instance):
             # Load the extension
             ip.run_cell("%reload_ext cellmage.magic_commands.tools.gitlab_magic")
 
-            # Now patch the GitLabUtils instance that was created inside the GitLabMagics class
-            magic_instance = ip.magics_manager.magics["line"]["gitlab"]
+            # Find the GitLabMagics instance in the registry and patch its gitlab_utils
+            magic_instance = None
+            for m in ip.magics_manager.registry.values():
+                if m.__class__.__name__ == "GitLabMagics":
+                    magic_instance = m
+                    break
+            assert magic_instance is not None, "GitLabMagics instance not found"
             magic_instance.gitlab_utils = mock_gitlab_utils
 
             # Run the magic command
@@ -158,8 +163,13 @@ def test_gitlab_fetch_merge_request(ip_instance):
             # Load the extension
             ip.run_cell("%reload_ext cellmage.magic_commands.tools.gitlab_magic")
 
-            # Now patch the GitLabUtils instance that was created inside the GitLabMagics class
-            magic_instance = ip.magics_manager.magics["line"]["gitlab"]
+            # Find the GitLabMagics instance in the registry and patch its gitlab_utils
+            magic_instance = None
+            for m in ip.magics_manager.registry.values():
+                if m.__class__.__name__ == "GitLabMagics":
+                    magic_instance = m
+                    break
+            assert magic_instance is not None, "GitLabMagics instance not found"
             magic_instance.gitlab_utils = mock_gitlab_utils
 
             # Run the magic command with MR
@@ -219,12 +229,14 @@ def test_gitlab_add_to_history(ip_instance):
                 # Load the extension
                 ip.run_cell("%reload_ext cellmage.magic_commands.tools.gitlab_magic")
 
-                # Get a reference to the actual GitLabMagics instance
-                # Get the instances of magics
-                for instance in ip.magics_manager.magics["instance"]:
-                    if hasattr(instance, "gitlab_magic"):
-                        instance.gitlab_utils = mock_gitlab_utils
+                # Find the GitLabMagics instance in the registry and patch its gitlab_utils
+                magic_instance = None
+                for m in ip.magics_manager.registry.values():
+                    if m.__class__.__name__ == "GitLabMagics":
+                        magic_instance = m
                         break
+                assert magic_instance is not None, "GitLabMagics instance not found"
+                magic_instance.gitlab_utils = mock_gitlab_utils
 
                 # Run the magic command with system flag
                 ip.run_line_magic("gitlab", "test-namespace/test-project --system")

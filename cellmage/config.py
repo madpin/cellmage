@@ -1,11 +1,25 @@
 import logging
 import os
+from pathlib import Path
 from typing import List, Optional, Union
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
+
+
+def get_base_dir() -> Path:
+    """
+    Returns the base directory for all CellMage working files.
+    Priority:
+    1. CELLMAGE_BASE_DIR environment variable
+    2. Current working directory (default)
+    """
+    base_dir = os.environ.get("CELLMAGE_BASE_DIR")
+    if base_dir:
+        return Path(os.path.expanduser(base_dir)).resolve()
+    return Path.cwd()
 
 
 class Settings(BaseSettings):
@@ -53,6 +67,7 @@ class Settings(BaseSettings):
         "gdocs_search_content_max": int,
         "gdocs_parallel_fetch_limit": int,
         "gdocs_request_timeout": int,
+        "sqlite_path": str,
     }
 
     # Default settings
@@ -87,7 +102,8 @@ class Settings(BaseSettings):
         default="autosaved_conversation", description="Filename for auto-saved conversations"
     )
     personas_dir: str = Field(
-        default="llm_personas", description="Primary directory containing persona definitions"
+        default=str(get_base_dir() / "llm_personas"),
+        description="Primary directory containing persona definitions",
     )
     personas_dirs_list: List[str] = Field(
         default_factory=list,
@@ -95,7 +111,8 @@ class Settings(BaseSettings):
         description="Additional directories containing persona definitions",
     )
     snippets_dir: str = Field(
-        default="llm_snippets", description="Primary directory containing snippets"
+        default=str(get_base_dir() / "llm_snippets"),
+        description="Primary directory containing snippets",
     )
     snippets_dirs_list: List[str] = Field(
         default_factory=list,
@@ -103,7 +120,8 @@ class Settings(BaseSettings):
         description="Additional directories containing snippets",
     )
     conversations_dir: str = Field(
-        default="llm_conversations", description="Directory for saved conversations"
+        default=str(get_base_dir() / "llm_conversations"),
+        description="Directory for saved conversations",
     )
     storage_type: str = Field(
         default="sqlite", description="Storage backend type ('sqlite', 'memory', or 'file')"
@@ -130,19 +148,21 @@ class Settings(BaseSettings):
     # Logging settings
     log_level: str = Field(default="INFO", description="Global logging level")
     console_log_level: str = Field(default="WARNING", description="Console logging level")
-    log_file: str = Field(default="cellmage.log", description="Log file path")
+    log_file: str = Field(default=str(get_base_dir() / "cellmage.log"), description="Log file path")
 
     # Google Docs integration settings
     gdocs_token_path: str = Field(
-        default="gdocs_token.pickle:~/.cellmage/gdocs_token.pickle",
+        default=str(get_base_dir() / "gdocs_token.pickle:~/.cellmage/gdocs_token.pickle"),
         description="Path to Google Docs OAuth token pickle file (colon-separated for multiple locations)",
     )
     gdocs_credentials_path: str = Field(
-        default="gdocs_credentials.json:~/.cellmage/gdocs_credentials.json",
+        default=str(get_base_dir() / "gdocs_credentials.json:~/.cellmage/gdocs_credentials.json"),
         description="Path to Google Docs OAuth client credentials JSON file (colon-separated for multiple locations)",
     )
     gdocs_service_account_path: str = Field(
-        default="gdocs_service_account.json:~/.cellmage/gdocs_service_account.json",
+        default=str(
+            get_base_dir() / "gdocs_service_account.json:~/.cellmage/gdocs_service_account.json"
+        ),
         description="Path to Google Docs service account JSON file (colon-separated for multiple locations)",
     )
     gdocs_auth_type: str = Field(
@@ -163,13 +183,18 @@ class Settings(BaseSettings):
         default=1000, description="Maximum content size to retrieve from search results"
     )
     gdocs_parallel_fetch_limit: int = Field(
-        default=10, description="Maximum number of parallel fetch operations for Google Docs"
+        default=1, description="Maximum number of parallel fetch operations for Google Docs"
     )
     gdocs_request_timeout: int = Field(
-        default=300, description="Timeout in seconds for Google Docs API requests"
+        default=60, description="Timeout in seconds for Google Docs API requests"
     )
     gdocs_doc_fetch_timeout: int = Field(
         default=60, description="Timeout in seconds for individual document fetch operations"
+    )
+
+    sqlite_path: str = Field(
+        default="",
+        description="Path to SQLite database file. Defaults to ${base_dir}/.data/conversations.db unless CELLMAGE_SQLITE_PATH is set.",
     )
 
     model_config = SettingsConfigDict(
@@ -212,8 +237,20 @@ class Settings(BaseSettings):
             data["gdocs_scopes"] = scopes
             logger.debug(f"Set gdocs_scopes from environment: {scopes}")
 
+        # Centralized SQLite path logic
+        env_sqlite_path = os.environ.get("CELLMAGE_SQLITE_PATH")
+        if env_sqlite_path:
+            data["sqlite_path"] = os.path.expanduser(env_sqlite_path)
+        elif not data.get("sqlite_path"):
+            base_dir = get_base_dir()
+            data["sqlite_path"] = str(base_dir / ".data" / "conversations.db")
+
         # Call parent init
         super().__init__(**data)
+
+        # Ensure .data directory exists if using default
+        if self.sqlite_path and not os.path.exists(os.path.dirname(self.sqlite_path)):
+            os.makedirs(os.path.dirname(self.sqlite_path), exist_ok=True)
 
         # For Google Docs paths, expand user paths
         self.gdocs_token_path = os.path.expanduser(self.gdocs_token_path)
@@ -285,6 +322,16 @@ class Settings(BaseSettings):
         """
         return self.conversations_dir
 
+    @property
+    def sqlite_path_resolved(self) -> str:
+        """
+        Returns the resolved SQLite path, always up to date with env/config.
+        """
+        env_sqlite_path = os.environ.get("CELLMAGE_SQLITE_PATH")
+        if env_sqlite_path:
+            return os.path.expanduser(env_sqlite_path)
+        return self.sqlite_path
+
     def update(self, **kwargs) -> None:
         """
         Update settings with new values.
@@ -298,6 +345,14 @@ class Settings(BaseSettings):
                 logger.debug(f"Updated setting {key} = {value}")
             else:
                 logger.warning(f"Unknown setting: {key}")
+
+        # If base_dir or sqlite_path is updated, recalculate sqlite_path
+        if "base_dir" in kwargs or "sqlite_path" in kwargs:
+            env_sqlite_path = os.environ.get("CELLMAGE_SQLITE_PATH")
+            if env_sqlite_path:
+                self.sqlite_path = os.path.expanduser(env_sqlite_path)
+            else:
+                self.sqlite_path = str(get_base_dir() / ".data" / "conversations.db")
 
         # Validate after update
         object.__setattr__(self, "__dict__", self.model_validate(self.__dict__).model_dump())

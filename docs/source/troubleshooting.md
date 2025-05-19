@@ -106,6 +106,20 @@ This guide will help you resolve common issues that you might encounter while us
    %llm_config --model gpt-4o-mini
    ```
 
+## 🛠️ Base Directory Configuration & Migration
+
+CellMage now supports a single environment variable, `CELLMAGE_BASE_DIR`, to control the base directory for all working files (personas, snippets, .data, logs, etc.).
+
+- By default, this is the current working directory.
+- To change it, set the environment variable:
+  ```bash
+  export CELLMAGE_BASE_DIR=/path/to/your/project
+  ```
+- All working files will be created/accessed under this directory.
+- To migrate, move your existing `llm_personas`, `llm_snippets`, `.data`, and `cellmage.log` into the new base directory.
+
+**Backward Compatibility:** If `CELLMAGE_BASE_DIR` is not set, CellMage will continue to use the current working directory as before.
+
 ## 📝 Debugging Tips
 
 ### Enable Debug Logging
