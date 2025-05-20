@@ -50,15 +50,18 @@ Key responsibilities:
 
 Located in: `cellmage/chat_manager.py`
 
-### 📜 ConversationManager & HistoryManager
+### 📜 ConversationManager
 
-CellMage uses two main components to manage conversations:
+CellMage uses **ConversationManager** to manage conversations:
 
-**ConversationManager** focuses on the storage and persistence of conversations:
 - Creating new conversations
 - Saving and loading conversations
 - Managing conversation metadata
 - Handling search and retrieval
+- Adding messages to the current conversation
+- Clearing or rolling back the conversation
+- Managing the conversation context window
+- Handling auto-save functionality
 
 ```ipython
 # ConversationManager wraps the storage mechanism
@@ -69,25 +72,6 @@ conversation_manager = ConversationManager(
 ```
 
 Located in: `cellmage/conversation_manager.py`
-
-**HistoryManager** (Deprecated) focused on the in-memory manipulation of the current conversation. Use **ConversationManager** for all new development.
-
-- Adding messages to the current conversation
-- Clearing or rolling back the conversation
-- Managing the conversation context window
-- Handling auto-save functionality
-
-> **Deprecated:** `HistoryManager` is deprecated and will be removed in a future release. Please migrate to `ConversationManager`.
-
-```ipython
-# HistoryManager manages the current conversation (deprecated)
-history_manager = HistoryManager(
-    conversation_store=store,   # Where to persist history
-    auto_save=True              # Whether to save automatically
-)
-```
-
-Located in: `cellmage/history_manager.py`
 
 ### 🎭 Personas
 
@@ -366,8 +350,8 @@ Here's a diagram of how the components interact:
         |                         v                         v
 +------------------+      +-------------------+      +---------------+
 |                  |      |                   |      |               |
-| Integrations     |      | HistoryManager    |      |  API Services |
-|                  |      | ConversationMgr   |      |               |
+| Integrations     |      | ConversationMgr   |      |  API Services |
+|                  |      |                   |      |               |
 +------------------+      +-------------------+      +---------------+
         ^                         |
         |                         v

@@ -136,14 +136,14 @@ When an image is processed, it's automatically added to the conversation context
 
 ```python
 chat_manager = self._get_chat_manager()
-if chat_manager and hasattr(chat_manager, "history_manager"):
+if chat_manager and hasattr(chat_manager, "conversation_manager"):
     llm_image = format_image_for_llm(image_data, mime_type, metadata)
     msg = Message(
         role="user",
         content="[Image sent]",
         metadata={"source": image_path, "llm_image": llm_image, **metadata},
     )
-    chat_manager.history_manager.add_message(msg)
+    chat_manager.conversation_manager.add_message(msg)
 ```
 
 ## Customizing Image Processing

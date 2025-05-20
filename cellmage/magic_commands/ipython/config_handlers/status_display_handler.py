@@ -130,9 +130,9 @@ class StatusDisplayHandler(BaseConfigHandler):
         # Get storage information
         storage_type = "Unknown"
         storage_location = "Unknown"
-        if hasattr(manager, "history_manager"):
-            if hasattr(manager.history_manager, "store"):
-                store = manager.history_manager.store
+        if hasattr(manager, "conversation_manager"):
+            store = getattr(manager.conversation_manager, "store", None)
+            if store:
                 store_class_name = store.__class__.__name__
 
                 if store_class_name == "SQLiteStore":

@@ -9,7 +9,6 @@ This section provides detailed API documentation for CellMage's modules and clas
 
 generated/cellmage.chat_manager
 generated/cellmage.conversation_manager
-generated/cellmage.history_manager
 generated/cellmage.models
 generated/cellmage.config
 generated/cellmage.exceptions
@@ -48,7 +47,6 @@ generated/cellmage.ambient_mode
 
     cellmage.chat_manager
     cellmage.conversation_manager
-    cellmage.history_manager
     cellmage.config
     cellmage.exceptions
 ```

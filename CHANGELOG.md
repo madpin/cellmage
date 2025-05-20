@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v0.9.7](https://github.com/madpin/cellmage/releases/tag/v0.9.7) - 2025-05-20
+
+### Added
+- Implemented token counting utilities and refactored related handlers to improve token management.
+- Added base directory configuration support for working files, including updates to the related documentation.
+
+### Changed
+- Replaced `history_manager` with `conversation_manager` across the codebase to unify conversation handling.
+- Removed obsolete GitLab magic command tests as part of test suite cleanup.
+
+### Added
+- Added integration tests for GitLab magic command functionality to ensure robust feature coverage.
+
+
 ## [v0.9.6](https://github.com/madpin/cellmage/releases/tag/v0.9.6) - 2025-05-19
 
 ### Added

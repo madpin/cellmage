@@ -9,6 +9,7 @@ import os
 from typing import Any, Dict, List
 
 from cellmage.magic_commands.core import extract_metadata_for_status
+from cellmage.utils.message_token_utils import get_token_counts
 
 from ..chat_manager import ChatManager
 from ..conversation_manager import ConversationManager
@@ -40,23 +41,11 @@ def handle_history_commands(args, manager: ChatManager) -> bool:
         action_taken = True
         history = manager.get_history()
 
-        # Calculate total tokens for all messages
-        total_tokens_in = 0
-        total_tokens_out = 0
-        total_tokens = 0
-
-        # Calculate cumulative token counts
-        for msg in history:
-            if msg.metadata:
-                total_tokens_in += msg.metadata.get("tokens_in", 0)
-                total_tokens_out += msg.metadata.get("tokens_out", 0)
-                msg_total = msg.metadata.get("total_tokens", 0)
-                if msg_total > 0:
-                    total_tokens += msg_total
-
-        # If no total_tokens were found, calculate from in+out
-        if total_tokens == 0:
-            total_tokens = total_tokens_in + total_tokens_out
+        # Calculate token counts using the shared token counting function
+        token_data = get_token_counts(manager, history)
+        total_tokens = token_data["total"]
+        total_tokens_in = token_data["user"] + token_data["system"]
+        total_tokens_out = token_data["assistant"]
 
         # Print history header with summary information
         print("📜 Conversation History")

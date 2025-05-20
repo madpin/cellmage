@@ -11,6 +11,7 @@ from cellmage.magic_commands.ipython.config_handlers.base_config_handler import 
     BaseConfigHandler,
 )
 from cellmage.models import Message
+from cellmage.utils.message_token_utils import get_token_counts
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -54,17 +55,18 @@ class TokenCountHandler(BaseConfigHandler):
         Args:
             manager: The ChatManager instance.
         """
-        if manager and manager.history_manager:
+        if manager and hasattr(manager, "conversation_manager") and manager.conversation_manager:
             # Get the conversation history
-            history = manager.history_manager.get_history()
-
-            # Get token counts for individual messages and total
-            token_counts = self._count_tokens(history, manager)
-
-            # Format and display token counts
-            self._display_token_counts(token_counts)
+            history = manager.conversation_manager.get_messages()
         else:
             print("⚠️ No active conversation history found.")
+            return
+
+        # Get token counts using the token manager module for consistent counting
+        token_data = get_token_counts(manager, history)
+
+        # Format and display token counts
+        self._display_token_counts(token_data)
 
     def _count_tokens(self, messages: List[Message], manager) -> Dict[str, Any]:
         """
