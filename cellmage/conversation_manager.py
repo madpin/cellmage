@@ -141,64 +141,93 @@ class ConversationManager:
         """
         return self.messages.copy()
 
-    def perform_rollback(self, cell_id: Optional[str] = None) -> bool:
+    def perform_rollback(
+        self,
+        current_cell_id: Optional[str] = None,
+        current_cell_exec_count: Optional[int] = None,
+    ) -> bool:
         """
-        Perform a rollback for a particular cell ID if needed.
+        Perform a rollback for a particular cell ID if its execution count has changed.
+        This method will remove all messages from the first message associated with a
+        *previous* execution of the current_cell_id.
 
         Args:
-            cell_id: Cell ID to rollback, or current cell if None
+            current_cell_id: Cell ID to roll back. If None, tries to get it from context.
+            current_cell_exec_count: Execution count of the cell. If None, tries to get from context.
 
         Returns:
-            True if rollback was performed, False otherwise
+            True if rollback was performed, False otherwise.
         """
-        if not cell_id and self.context_provider:
-            _, cell_id = self.context_provider.get_execution_context()
+        # 1. Determine current_cell_id and current_cell_exec_count
+        if self.context_provider:
+            exec_count_from_ctx, cell_id_from_ctx = (
+                self.context_provider.get_execution_context()
+            )
+            if current_cell_id is None:
+                current_cell_id = cell_id_from_ctx
+            if current_cell_exec_count is None:
+                current_cell_exec_count = exec_count_from_ctx
 
-        if not cell_id:
-            self.logger.debug("No cell ID available, skipping rollback check")
+        if current_cell_id is None or current_cell_exec_count is None:
+            self.logger.debug(
+                "Cannot perform rollback without cell_id and execution_count. "
+                f"Provided: cell_id={current_cell_id}, exec_count={current_cell_exec_count}"
+            )
             return False
 
-        # Check if this cell has been executed before
-        if cell_id in self.cell_last_message_index:
-            previous_end_index = self.cell_last_message_index[cell_id]
+        # 2. Initialize rollback_start_index
+        rollback_start_index = -1
 
-            # Only rollback if the previous message is still in history and was from the assistant
+        # 3. Iterate through messages to find the first message from a *previous* execution of this cell
+        for i, msg in enumerate(self.messages):
             if (
-                0 <= previous_end_index < len(self.messages)
-                and self.messages[previous_end_index].role == "assistant"
+                msg.cell_id == current_cell_id
+                and msg.execution_count is not None
+                and msg.execution_count < current_cell_exec_count
             ):
-                # We need to remove the user message and assistant response for this cell
-                start_index = previous_end_index - 1
-                if start_index >= 0 and self.messages[start_index].role == "user":
-                    self.logger.info(
-                        f"Cell rerun detected (ID: {cell_id}). Rolling back history from {start_index}."
-                    )
+                rollback_start_index = i
+                break  # Found the first message from a previous execution
 
-                    # Remove messages from this cell's previous execution
-                    self.messages = self.messages[:start_index]
+        # 4. If rollback_start_index is found (cell has been run before with a lower exec count)
+        if rollback_start_index != -1:
+            self.logger.info(
+                f"Cell rerun detected (ID: {current_cell_id}, New Exec Count: {current_cell_exec_count}). "
+                f"Rolling back history from index {rollback_start_index}."
+            )
 
-                    # Remove cell tracking
-                    del self.cell_last_message_index[cell_id]
+            num_removed = len(self.messages) - rollback_start_index
+            self.messages = self.messages[:rollback_start_index]
 
-                    # Save changes to database
-                    self._save_current_conversation()
+            # Rebuild self.cell_last_message_index
+            self.cell_last_message_index.clear()
+            for i, msg in enumerate(self.messages):
+                if msg.cell_id is not None:
+                    self.cell_last_message_index[msg.cell_id] = i
+            
+            # Save changes to database
+            self._save_current_conversation()  # Ensure conversation state is persisted
 
-                    # Log debug information
-                    if self.store:
-                        self.store.log_debug(
-                            self.current_conversation_id,
-                            "ConversationManager",
-                            "rollback_performed",
-                            {
-                                "cell_id": cell_id,
-                                "start_index": start_index,
-                                "previous_end_index": previous_end_index,
-                                "new_message_count": len(self.messages),
-                            },
-                        )
+            # Log debug information
+            if self.store:
+                self.store.log_debug(
+                    self.current_conversation_id,
+                    "ConversationManager",
+                    "rollback_performed",
+                    {
+                        "cell_id": current_cell_id,
+                        "current_cell_exec_count": current_cell_exec_count,
+                        "rollback_start_index": rollback_start_index,
+                        "num_messages_removed": num_removed,
+                        "new_message_count": len(self.messages),
+                    },
+                )
+            return True
 
-                    return True
-
+        # 5. If rollback_start_index is -1 (no previous execution of this cell found with a lower exec_count)
+        self.logger.debug(
+            f"No previous messages found for cell ID {current_cell_id} with an exec_count < {current_cell_exec_count}. "
+            "No rollback performed."
+        )
         return False
 
     def clear_messages(self, keep_system: bool = True) -> None:
