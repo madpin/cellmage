@@ -160,9 +160,7 @@ class ConversationManager:
         """
         # 1. Determine current_cell_id and current_cell_exec_count
         if self.context_provider:
-            exec_count_from_ctx, cell_id_from_ctx = (
-                self.context_provider.get_execution_context()
-            )
+            exec_count_from_ctx, cell_id_from_ctx = self.context_provider.get_execution_context()
             if current_cell_id is None:
                 current_cell_id = cell_id_from_ctx
             if current_cell_exec_count is None:
@@ -203,7 +201,7 @@ class ConversationManager:
             for i, msg in enumerate(self.messages):
                 if msg.cell_id is not None:
                     self.cell_last_message_index[msg.cell_id] = i
-            
+
             # Save changes to database
             self._save_current_conversation()  # Ensure conversation state is persisted
 

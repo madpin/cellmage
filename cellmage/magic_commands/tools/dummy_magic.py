@@ -1,5 +1,7 @@
-from IPython.core.magic import Magics, magics_class, line_magic, cell_magic
+from IPython.core.magic import cell_magic, line_magic, magics_class
+
 from .base_tool_magic import BaseMagics
+
 
 @magics_class
 class DummyToolMagic(BaseMagics):
@@ -13,12 +15,12 @@ class DummyToolMagic(BaseMagics):
         self._add_to_history(
             content=content,
             source_type="dummy_tool_line",
-            source_id=line, # Use line content as a simple ID
+            source_id=line,  # Use line content as a simple ID
             source_name="dummytool",
             id_key="dummy_tool_id",
-            as_system_msg=False # Or True, depending on how you want to test
+            as_system_msg=False,  # Or True, depending on how you want to test
         )
-        print(content) # Also print to notebook for immediate feedback
+        print(content)  # Also print to notebook for immediate feedback
 
     @cell_magic
     def dummymagiccell(self, line, cell):
@@ -28,12 +30,13 @@ class DummyToolMagic(BaseMagics):
         self._add_to_history(
             content=content,
             source_type="dummy_tool_cell",
-            source_id=line, # Use line content as a simple ID
+            source_id=line,  # Use line content as a simple ID
             source_name="dummytoolcell",
             id_key="dummy_tool_cell_id",
-            as_system_msg=False # Or True
+            as_system_msg=False,  # Or True
         )
-        print(content) # Also print to notebook
+        print(content)  # Also print to notebook
+
 
 def load_ipython_extension(ipython):
     ipython.register_magics(DummyToolMagic)

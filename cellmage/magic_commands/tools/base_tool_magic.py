@@ -6,7 +6,7 @@ This module provides a base class with common functionality for all magic comman
 
 import logging
 import uuid
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 try:
     from IPython.core.magic import Magics, magics_class
@@ -126,7 +126,12 @@ class BaseMagics(Magics):
             exec_count, cell_id = self._get_execution_context()
 
             # Perform rollback if necessary
-            if manager and hasattr(manager, "conversation_manager") and manager.conversation_manager and cell_id:
+            if (
+                manager
+                and hasattr(manager, "conversation_manager")
+                and manager.conversation_manager
+                and cell_id
+            ):
                 manager.conversation_manager.perform_rollback(cell_id, exec_count)
 
             # Create message with execution context

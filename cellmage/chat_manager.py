@@ -300,7 +300,7 @@ class ChatManager:
             self.logger.debug(f"Cell ID: {cell_id}")
 
         # Check for auto rollback
-        if auto_rollback and cell_id is not None: # exec_count can be None if not from a cell
+        if auto_rollback and cell_id is not None:  # exec_count can be None if not from a cell
             self.conversation_manager.perform_rollback(cell_id, exec_count)
 
         try:
