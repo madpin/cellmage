@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v0.9.8](https://github.com/madpin/cellmage/releases/tag/v0.9.8) - 2025-05-23
+
+### Added
+- Implemented timeline-based history rollback to enable reverting cell states during reruns.
+- Added token counting utilities and refactored related handlers to improve token management.
+
+### Changed
+- Replaced `history_manager` with `conversation_manager` throughout the codebase to unify management components.
+
+### Fixed
+- Fixed the `%gdocs` cell rerun behavior to remove the previously added document and replace it with the new cell content, resolving issue #31.
+
+
 ## [v0.9.7](https://github.com/madpin/cellmage/releases/tag/v0.9.7) - 2025-05-20
 
 ### Added
