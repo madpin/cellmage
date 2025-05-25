@@ -73,7 +73,7 @@ def _init_default_manager() -> ChatManager:
             try:
                 from ...adapters.langchain_client import LangChainAdapter
 
-                llm_client = LangChainAdapter(default_model=settings.default_model)
+                llm_client = LangChainAdapter(default_model=settings.default_model, debug=(settings.log_level.upper() == "DEBUG"))
                 logger.info("Using LangChain adapter")
             except ImportError:
                 # Fall back to Direct adapter if LangChain is not available
@@ -82,12 +82,12 @@ def _init_default_manager() -> ChatManager:
                 )
                 from ...adapters.direct_client import DirectLLMAdapter
 
-                llm_client = DirectLLMAdapter(default_model=settings.default_model)
+                llm_client = DirectLLMAdapter(default_model=settings.default_model, debug=(settings.log_level.upper() == "DEBUG"))
         else:
             # Default case: use Direct adapter
             from ...adapters.direct_client import DirectLLMAdapter
 
-            llm_client = DirectLLMAdapter(default_model=settings.default_model)
+            llm_client = DirectLLMAdapter(default_model=settings.default_model, debug=(settings.log_level.upper() == "DEBUG"))
             logger.info("Using Direct adapter")
 
         manager = ChatManager(
@@ -152,7 +152,7 @@ class IPythonMagicsBase(Magics):
                 f"{self.__class__.__name__} initialized and ChatManager accessed successfully."
             )
         except Exception as e:
-            logger.error(f"Error initializing NotebookLLM during magic setup: {e}")
+            logger.warning(f"Error accessing ChatManager during {self.__class__.__name__} init: {e}. The magic command will be registered, but may not function until ChatManager is available.")
 
     def _get_manager(self) -> ChatManager:
         """Helper to get the manager instance, with clear error handling."""

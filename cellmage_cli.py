@@ -128,13 +128,13 @@ def _init_cli_chat_manager() -> ChatManager:
 
         if adapter_type == "langchain" and LangChainAdapter:
             logger.info("Using LangChainAdapter.")
-            llm_client = LangChainAdapter(settings=settings)
+            llm_client = LangChainAdapter(default_model=settings.default_model, debug=(settings.log_level.upper() == "DEBUG"))
         elif adapter_type == "langchain":
             logger.warning("LangChainAdapter requested but not available/imported. Falling back to DirectLLMAdapter.")
-            llm_client = DirectLLMAdapter(settings=settings)
+            llm_client = DirectLLMAdapter(default_model=settings.default_model, debug=(settings.log_level.upper() == "DEBUG"))
         else:
             logger.info("Using DirectLLMAdapter.")
-            llm_client = DirectLLMAdapter(settings=settings)
+            llm_client = DirectLLMAdapter(default_model=settings.default_model, debug=(settings.log_level.upper() == "DEBUG"))
 
         manager = ChatManager(
             settings=settings,
