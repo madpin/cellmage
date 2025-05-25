@@ -663,3 +663,113 @@ Crafted with ❤️ and 🥤 in Dublin, Ireland 🇮🇪 by **Thiago MadPin**.
 ## 📜 License
 
 Cellmage is released under the **MIT License**. See the `LICENSE` file for details.
+
+
+## CellMage CLI REPL
+
+Welcome to the CellMage Command-Line Interface (CLI) REPL! This tool provides an interactive Python environment, powered by IPython, allowing you to leverage CellMage's capabilities directly from your terminal. You can execute Python code, use CellMage's magic commands for interacting with Large Language Models (LLMs), and manage your development context efficiently.
+
+### Running the REPL
+
+To start the CellMage CLI REPL, navigate to the root directory of the project in your terminal and run:
+
+```bash
+python cellmage_cli.py
+```
+
+You'll be greeted by the CellMage banner and an IPython prompt.
+
+### Core Features
+
+The CellMage CLI REPL combines the power of IPython with the specialized features of CellMage:
+
+*   **Python Execution:**
+    You can execute any Python code just like in a standard Python or IPython shell. Define variables, import modules, run functions—it's all available.
+
+*   **CellMage Magic Commands:**
+    Access CellMage's suite of magic commands to interact with LLMs. For example, to chat with an AI:
+    ```ipython
+    In [1]: %%chat
+       ...: Hello, what can you do?
+
+    (Streaming response started...)
+    [Assistant]:
+    I am an AI assistant, ready to help you with various tasks such as coding,
+    answering questions, and more! (Actual output will depend on the configured LLM)
+
+    Status: completed | Duration: 1.2s | Model: your_default_model | Tokens: 10in/50out | Cost: $0.0001
+    ```
+    Use `%cellmage_help` within the REPL to see all available CellMage magic commands.
+
+*   **Viewing Namespace with `%show_context`:**
+    To see the variables, functions, classes, and modules you've defined or imported in your current session, use the `%show_context` magic command:
+    ```ipython
+    In [2]: my_variable = "Hello CellMage!"
+    In [3]: def my_function(): pass
+    In [4]: %show_context
+    Current User Namespace Context:
+    -------------------------------
+      my_variable: <str> = 'Hello CellMage!'
+      my_function: <function my_function>
+    -------------------------------
+    ```
+    This helps you keep track of your working environment.
+
+*   **Interactive Help within the CLI:**
+    *   **Static Help:** Use `%cellmage_cli_help` to display a quick guide on CLI-specific features, CellMage commands, and IPython basics.
+    *   **AI-Powered Assistance:** Use `%%help_ai` to ask questions in natural language about how to use the CLI, its features, or even about your current code. The AI will use the static help and a summary of your defined variables/functions as context.
+      ```ipython
+      %%help_ai
+      How do I use the chat magic with a specific model like 'gpt-4o-mini'?
+      ```
+
+*   **Command History:**
+    Leverage IPython's powerful history features:
+    *   `%history` (or `%history -n` to show line numbers) displays previous commands.
+    *   `%rerun <line_number_or_range>` re-executes specific commands from your history.
+    *   **Up and Down Arrow Keys:** Navigate through your command history directly at the prompt.
+
+### Configuration
+
+The CellMage CLI REPL can be configured using environment variables. Some key ones include:
+
+*   `CELLMAGE_ADAPTER`: Specifies the LLM adapter to use (e.g., "direct" for direct API calls, "langchain" for LangChain-based models). Defaults to "direct".
+*   `CELLMAGE_LOG_LEVEL`: Sets the logging level for CellMage components (e.g., "INFO", "DEBUG"). Defaults to "INFO".
+*   *(You might need to set other environment variables like `OPENAI_API_KEY` or provider-specific keys depending on the LLM adapter and model you intend to use.)*
+
+Refer to the main CellMage configuration documentation for more details on settings and API keys.
+
+### Comprehensive Help Resources
+
+The CellMage CLI REPL provides multiple ways to get assistance:
+
+*   **CLI-Specific Quick Guide (`%cellmage_cli_help`):**
+    For a quick overview of CLI features, CellMage magic commands available in the REPL, and common IPython commands, type:
+    ```ipython
+    %cellmage_cli_help
+    ```
+    This is your first stop for understanding the CLI's capabilities.
+
+*   **AI-Powered Help (`%%help_ai`):**
+    If you have specific questions about how to use a feature, need clarification on a concept within the CLI, or want help related to your current code context, use the `%%help_ai` magic. It leverages an LLM to provide contextual assistance.
+    Example:
+    ```ipython
+    %%help_ai
+    I have a variable named 'my_data'. How can I pass it to the %%chat magic?
+    ```
+    The AI considers the general CLI help and a summary of your currently defined variables and functions to answer your query.
+
+*   **Core CellMage Magic Help (`%cellmage_help`):**
+    To get help on the general CellMage magic commands (like `%%chat`, `%llm_config`, personas, snippets, etc.) that are part of the core CellMage library, you can use:
+    ```ipython
+    %cellmage_help
+    ```
+
+*   **IPython's Built-in Help:**
+    Since the REPL is built on IPython, its extensive help system is always available:
+    *   `%quickref`: Displays a quick reference card for IPython.
+    *   `object?` (or `?object`): Shows details and docstrings for any Python object.
+    *   `object??` (or `??object`): Provides even more detail, including source code if available.
+    *   `%magic?`: Displays help for a specific IPython magic command (e.g., `%history?`).
+
+We encourage you to explore the CellMage CLI REPL and discover how it can enhance your interactive development workflow!
