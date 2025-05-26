@@ -145,9 +145,6 @@ def _init_cli_chat_manager() -> ChatManager:
             history_store=store,
             context_provider=cli_context_provider,
         )
-        # Store manager in user_ns for HelpAIMagics to access
-        if get_ipython() is not None: # type: ignore
-            get_ipython().user_ns['_cellmage_chat_manager'] = manager # type: ignore
         logger.info("ChatManager initialized successfully for CLI via _init_cli_chat_manager.")
         return manager
     except Exception as e:
