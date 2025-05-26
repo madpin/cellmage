@@ -155,20 +155,44 @@ class IPythonMagicsBase(Magics):
             logger.warning(f"Error accessing ChatManager during {self.__class__.__name__} init: {e}. The magic command will be registered, but may not function until ChatManager is available.")
 
     def _get_manager(self) -> ChatManager:
-        """Helper to get the manager instance, with clear error handling."""
-        if not _IPYTHON_AVAILABLE:
+        """Helper to get the manager instance, with clear error handling.
+        This version directly uses self.shell to access the user_ns.
+        """
+        if not _IPYTHON_AVAILABLE: # _IPYTHON_AVAILABLE should be defined at module level
             raise RuntimeError("IPython not available")
 
-        try:
-            return get_chat_manager()
-        except Exception as e:
-            print("❌ NotebookLLM Error: Could not get Chat Manager.", file=sys.stderr)
-            print(f"   Reason: {e}", file=sys.stderr)
+        if self.shell is None:
+            raise RuntimeError(
+                "IPython shell not available in this magic class instance."
+            )
+
+        chat_manager = self.shell.user_ns.get("_cellmage_chat_manager")
+
+        if not chat_manager:
+            # Check if _initialization_error is set (from _init_default_manager)
+            # This global variable _initialization_error should be accessible here
+            global _initialization_error 
+            if _initialization_error:
+                error_message = (
+                    "NotebookLLM ChatManager previously failed to initialize: "
+                    f"{_initialization_error}"
+                )
+            else:
+                error_message = (
+                    "ChatManager not found in IPython user_ns. "
+                    "Please ensure the CellMage extension was loaded properly."
+                )
+            
+            # Print a user-friendly message to stderr as the original get_chat_manager does
+            print("❌ NotebookLLM Error: Could not get Chat Manager.", file=sys.stderr) # Ensure sys is imported
+            print(f"   Reason: {error_message}", file=sys.stderr)
             print(
-                "   Please check your configuration (.env file, API keys, directories) and restart the kernel.",
+                "   Please check your configuration and restart the kernel or environment.",
                 file=sys.stderr,
             )
-            raise RuntimeError("NotebookLLM manager unavailable.") from e
+            raise RuntimeError(f"NotebookLLM manager unavailable: {error_message}")
+
+        return chat_manager
 
     def _prepare_runtime_params(self, args) -> Dict[str, Any]:
         """Extract runtime parameters from args and convert to dictionary.
