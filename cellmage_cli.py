@@ -21,6 +21,7 @@ except ImportError:
     LangChainAdapter = None  # type: ignore
 
 # IPython imports
+from IPython import get_ipython
 from IPython.core.magic import Magics, magics_class, line_magic, cell_magic
 from IPython.terminal.embed import InteractiveShellEmbed
 
