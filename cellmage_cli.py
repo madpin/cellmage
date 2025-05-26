@@ -380,9 +380,9 @@ if __name__ == "__main__":
         logger.info("Monkeypatching _init_default_manager for CLI context.")
         ipython_common_to_patch._init_default_manager = _init_cli_chat_manager
 
-        logger.info("Loading CellMage magics...")
-        load_magics(shell) 
-        logger.info("CellMage magics loaded.")
+        # logger.info("Loading CellMage magics...") # Original call removed
+        # load_magics(shell) # Original call removed
+        # logger.info("CellMage magics loaded.") # Original call removed
 
         logger.info("Loading CellMage IPython extension...")
         load_ipython_extension(shell)
