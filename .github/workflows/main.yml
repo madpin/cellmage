@@ -65,7 +65,7 @@ jobs:
               run: cd docs && make SPHINXOPTS="-W --keep-going" html
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Python environment
         uses: ./.github/actions/setup-venv
@@ -128,7 +128,7 @@ jobs:
     needs: [checks]
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
